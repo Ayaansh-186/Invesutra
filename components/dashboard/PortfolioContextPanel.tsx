@@ -2,7 +2,6 @@
 
 import { formatCurrency, formatPercent, getHealthColor, categoryLabel } from "@/lib/utils/format";
 import type { Portfolio, PortfolioAnalysis } from "@/lib/types";
-import PortfolioChart from "@/components/dashboard/PortfolioChart";
 import {
   TrendingUp, TrendingDown, Shield, Zap,
   ChevronDown, ChevronUp, AlertTriangle,
@@ -17,7 +16,6 @@ interface Props {
 export default function PortfolioContextPanel({ portfolio, analysis }: Props) {
   const [expandedSections, setExpandedSections] = useState({
     metrics: true,
-    chart: true,
     allocation: true,
     risks: true,
   });
@@ -72,17 +70,6 @@ export default function PortfolioContextPanel({ portfolio, analysis }: Props) {
               icon={Zap}
               color="text-amber-400"
             />
-          </div>
-        </Section>
-
-        {/* Chart */}
-        <Section
-          title="Growth"
-          expanded={expandedSections.chart}
-          onToggle={() => toggle("chart")}
-        >
-          <div className="h-36">
-            <PortfolioChart invested={portfolio.totalInvested} currentValue={portfolio.currentValue} />
           </div>
         </Section>
 

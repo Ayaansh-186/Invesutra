@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { riskEngine } from "@/lib/algorithm/riskEngine";
 import { useActivePortfolio } from "@/lib/hooks/useActivePortfolio";
 import { useAuth } from "@/lib/hooks/useAuth";
@@ -10,11 +11,21 @@ import AddFundModal from "@/components/dashboard/AddFundModal";
 import { Sparkles, CheckCircle2, Plus } from "lucide-react";
 
 export default function DashboardPage() {
+  return (
+    <Suspense fallback={null}>
+      <DashboardPageInner />
+    </Suspense>
+  );
+}
+
+function DashboardPageInner() {
   const { user } = useAuth();
   const { portfolio, loading, isDemo, isEmpty, refresh } = useActivePortfolio();
   const [showAddFund, setShowAddFund] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const analysis = portfolio.analysis ?? riskEngine.analyzePortfolio(portfolio);
+  const searchParams = useSearchParams();
+  const initialQuery = searchParams.get("q") || undefined;
 
   async function handleRefresh() {
     setRefreshing(true);
@@ -24,7 +35,7 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <div className="flex h-[calc(100vh-0px)] flex-col items-center justify-center gap-3">
+      <div className="flex h-screen flex-col items-center justify-center gap-3">
         <div className="relative">
           <div className="h-12 w-12 rounded-full border-2 border-cyan-400/20 border-t-cyan-400 animate-spin" />
           <Sparkles className="absolute inset-0 m-auto h-5 w-5 text-cyan-400" />
@@ -35,7 +46,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="flex h-[calc(100vh-0px)] flex-col overflow-hidden">
+    <div className="flex h-screen flex-col overflow-hidden">
       {/* Status banners */}
       {isDemo && !user && (
         <div className="shrink-0 flex items-center gap-3 border-b border-cyan-400/20 bg-cyan-400/10 px-4 py-2.5">
@@ -66,13 +77,14 @@ export default function DashboardPage() {
       )}
 
       {/* Main AI-first layout — full width now that Portfolio has its own page */}
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex min-h-0 flex-1 overflow-hidden">
         <AIPortfolioAssistant
           portfolio={portfolio}
           analysis={analysis}
           onAddFund={() => setShowAddFund(true)}
           onRefresh={handleRefresh}
           refreshing={refreshing}
+          initialQuery={initialQuery}
         />
       </div>
 

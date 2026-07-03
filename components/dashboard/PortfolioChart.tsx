@@ -24,9 +24,9 @@ function generateChartData(invested: number, currentValue: number) {
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload?.length) {
     return (
-      <div className="bg-white border border-slate-200 rounded-xl p-3 shadow-lg text-xs">
-        <p className="text-slate-500 mb-1">{label}</p>
-        <p className="font-semibold text-slate-900">
+      <div className="bg-[var(--shell-surface)] border border-[var(--shell-border)] rounded-xl p-3 shadow-lg text-xs">
+        <p className="text-[var(--shell-text-faint)] mb-1">{label}</p>
+        <p className="font-semibold text-[var(--shell-text)]">
           ₹{(payload[0].value / 100000).toFixed(2)}L
         </p>
       </div>
@@ -35,11 +35,19 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   return null;
 };
 
-export default function PortfolioChart({ invested, currentValue }: { invested: number; currentValue: number }) {
+export default function PortfolioChart({
+  invested,
+  currentValue,
+  height = 208,
+}: {
+  invested: number;
+  currentValue: number;
+  height?: number;
+}) {
   const data = generateChartData(invested, currentValue);
 
   return (
-    <div className="h-52">
+    <div style={{ height }}>
       <ResponsiveContainer width="100%" height="100%">
         <AreaChart data={data} margin={{ top: 5, right: 5, bottom: 0, left: 0 }}>
           <defs>

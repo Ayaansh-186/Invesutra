@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
   ArrowRight, Bot, CheckCircle2, MessageSquare, Search,
-  ShieldCheck, Sparkles, TrendingUp, Zap,
+  ShieldCheck, Sparkles, Send, TrendingUp, Zap,
 } from "lucide-react";
 
 const chatMessages = [
@@ -28,7 +29,15 @@ const allocation = [
 ];
 
 export default function HeroSection() {
+  const router = useRouter();
   const [visibleMessages, setVisibleMessages] = useState(0);
+  const [askQuery, setAskQuery] = useState("");
+
+  function handleAsk(e: React.FormEvent) {
+    e.preventDefault();
+    const q = askQuery.trim();
+    router.push(q ? `/dashboard?q=${encodeURIComponent(q)}` : "/dashboard");
+  }
 
   useEffect(() => {
     if (visibleMessages >= chatMessages.length) return;
@@ -59,7 +68,23 @@ export default function HeroSection() {
               Invesutra is an investment copilot for Indian mutual fund investors. Chat with Sutra AI to analyze holdings, understand risk, and get actionable rebalancing guidance — grounded in your real portfolio data.
             </p>
 
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+            <form onSubmit={handleAsk} className="relative mt-8 max-w-xl">
+              <input
+                value={askQuery}
+                onChange={(e) => setAskQuery(e.target.value)}
+                placeholder="Ask Sutra: 'Is my portfolio too risky?'"
+                className="w-full rounded-2xl border border-white/15 bg-white/[0.06] py-4 pl-5 pr-14 text-sm text-white shadow-lg outline-none backdrop-blur placeholder:text-slate-400 transition focus:border-cyan-300/50 focus:ring-2 focus:ring-cyan-300/20"
+              />
+              <button
+                type="submit"
+                className="absolute right-2.5 top-1/2 inline-flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-xl bg-cyan-300 text-slate-950 transition hover:bg-cyan-200"
+                aria-label="Ask Sutra AI"
+              >
+                <Send className="h-4 w-4" />
+              </button>
+            </form>
+
+            <div className="mt-4 flex flex-col gap-3 sm:flex-row">
               <Link
                 href="/dashboard"
                 className="group inline-flex items-center justify-center gap-2 rounded-xl bg-cyan-300 px-6 py-3.5 text-sm font-semibold text-slate-950 transition hover:bg-cyan-200 ai-glow"
@@ -191,7 +216,7 @@ export default function HeroSection() {
                 </div>
                 <div className="flex items-center gap-2 text-xs text-slate-400">
                   <Bot className="h-4 w-4 text-violet-400" />
-                  OpenAI-powered explanations
+                  AI-powered explanations
                 </div>
               </div>
             </div>

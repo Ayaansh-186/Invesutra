@@ -8,6 +8,7 @@ import { useAuth } from "@/lib/hooks/useAuth";
 import { formatCurrency, formatPercent, getHealthColor } from "@/lib/utils/format";
 import HoldingsTable from "@/components/dashboard/HoldingsTable";
 import PortfolioContextPanel from "@/components/dashboard/PortfolioContextPanel";
+import PortfolioChart from "@/components/dashboard/PortfolioChart";
 import AddFundModal from "@/components/dashboard/AddFundModal";
 import {
   Sparkles, Plus, RefreshCw, TrendingUp, TrendingDown, Shield, Zap, MessageSquare,
@@ -136,6 +137,15 @@ export default function PortfolioPage() {
               icon={Zap}
               color="text-amber-500"
             />
+          </div>
+
+          {/* Growth chart — large, in the main content instead of the cramped rail */}
+          <div className="mb-6 rounded-2xl border border-[var(--shell-border)] bg-[var(--shell-surface)] p-5">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-sm font-semibold text-[var(--shell-text)]">Growth</h2>
+              <span className="text-xs text-[var(--shell-text-faint)]">Invested vs current value, last 24 months</span>
+            </div>
+            <PortfolioChart invested={portfolio.totalInvested} currentValue={portfolio.currentValue} height={320} />
           </div>
 
           {/* Holdings */}

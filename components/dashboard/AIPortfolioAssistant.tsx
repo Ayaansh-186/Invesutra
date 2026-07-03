@@ -35,12 +35,14 @@ export default function AIPortfolioAssistant({
   onAddFund,
   onRefresh,
   refreshing,
+  initialQuery,
 }: {
   portfolio: Portfolio;
   analysis: PortfolioAnalysis;
   onAddFund: () => void;
   onRefresh: () => void;
   refreshing?: boolean;
+  initialQuery?: string;
 }) {
   const greeting = `Hi! I'm **Sutra**, your Invesutra portfolio copilot. I've analyzed your ${portfolio.funds.length} fund${portfolio.funds.length === 1 ? "" : "s"} worth ${formatCurrency(portfolio.currentValue, true)}.\n\n• Health: **${portfolio.healthScore}/100** (${analysis.overallHealth})\n• Risk: **${portfolio.riskScore}/100**\n• Returns: **${formatPercent(portfolio.returnsPercent)}**\n\nAsk me anything — risk drivers, fund performance, rebalancing, or say "add a fund" to manage holdings.`;
 
@@ -68,6 +70,15 @@ export default function AIPortfolioAssistant({
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
+
+  const firedInitialQuery = useRef(false);
+  useEffect(() => {
+    if (initialQuery && !firedInitialQuery.current) {
+      firedInitialQuery.current = true;
+      askAssistant(initialQuery);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialQuery]);
 
   function detectLocalIntent(question: string): "add_fund" | "show_holdings" | null {
     const q = question.toLowerCase();
@@ -211,7 +222,7 @@ export default function AIPortfolioAssistant({
           </button>
         </div>
 
-        <div className="flex flex-1 flex-col items-center justify-center overflow-y-auto px-6 pb-16 pt-4">
+        <div className="flex min-h-0 flex-1 flex-col items-center justify-center overflow-y-auto px-6 pb-16 pt-4">
           <div className="w-full max-w-2xl">
             <div className="mb-8 flex flex-col items-center text-center">
               <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-400 to-emerald-400 text-slate-950 shadow-lg shadow-cyan-500/20">
@@ -303,7 +314,7 @@ export default function AIPortfolioAssistant({
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-5 py-5">
+      <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5">
         <div className="mx-auto max-w-3xl space-y-4">
           {messages.map((message, index) => (
             <div key={`${message.role}-${index}`}>
