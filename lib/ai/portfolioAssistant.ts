@@ -1,8 +1,17 @@
-import { getAIChatCompletion, type AIProvider } from "./aiClient";
+// Copyright © 2026 Ayaansh Singhal. All Rights Reserved.
+
+import {
+  getAIChatCompletion,
+  getAIChatCompletionWithTools,
+  TOOL_CALLING_PROVIDERS,
+  type AIProvider,
+  type ChatTurn,
+} from "./aiClient";
 import { riskEngine } from "@/lib/algorithm/riskEngine";
 import { createRebalanceEngine } from "@/lib/algorithm/rebalanceEngine";
 import { categoryLabel, formatCurrency, formatPercent } from "@/lib/utils/format";
 import type { Portfolio } from "@/lib/types";
+import { executeTool, getAvailableTools, type ToolExecutionContext } from "./tools";
 
 export interface PortfolioChatMessage {
   role: "user" | "assistant";
@@ -13,6 +22,8 @@ export interface PortfolioAssistantResponse {
   source: AIProvider | "deterministic";
   answer: string;
   suggestedQuestions: string[];
+  /** True if a tool call in this turn added/updated/removed a fund — the caller should refresh the portfolio. */
+  portfolioChanged: boolean;
 }
 
 function getTopAllocations(portfolio: Portfolio) {
@@ -21,6 +32,7 @@ function getTopAllocations(portfolio: Portfolio) {
     .sort((a, b) => b.currentValue - a.currentValue)
     .slice(0, 5)
     .map((fund) => ({
+      id: fund.id,
       name: fund.name,
       category: categoryLabel(fund.category),
       allocation: Number(((fund.currentValue / total) * 100).toFixed(1)),
@@ -70,9 +82,90 @@ function fallbackAnswer(portfolio: Portfolio, question: string): string {
   return `I reviewed your current portfolio data: ${portfolio.funds.length} funds, ${formatCurrency(portfolio.currentValue, true)} current value, ${formatPercent(portfolio.returnsPercent)} total return, health score ${portfolio.healthScore}/100, and risk score ${portfolio.riskScore}/100. Ask me about risk, diversification, fund performance, or how to improve the allocation.`;
 }
 
+function systemPrompt(canMutate: boolean, hasTools: boolean): string {
+  const base =
+    "You are Sutra AI, the portfolio copilot inside Invesutra for Indian mutual fund investors. Answer only from the " +
+    "supplied portfolio data and tool results. Explain health score, risk, diversification, fund performance, and " +
+    "improvements in plain English. Do not invent live market prices, holdings overlap, fund facts, or future " +
+    "returns — use the search_mutual_funds / get_fund_details tools for real fund data instead of guessing. This is " +
+    "educational decision support, not investment advice.";
+
+  if (!hasTools) return base;
+
+  if (!canMutate) {
+    return (
+      base +
+      " You have read-only fund search tools (search_mutual_funds, get_fund_details) backed by AMFI data. You do " +
+      "NOT have tools to add/remove funds in this session (the user isn't signed in or hasn't selected a saved " +
+      "portfolio) — if asked to add or remove a fund, explain that and suggest signing in."
+    );
+  }
+
+  return (
+    base +
+    " You can search real mutual funds (search_mutual_funds, get_fund_details) and manage the user's own tracked " +
+    "Invesutra portfolio (add_fund_to_portfolio, update_fund_holding, remove_fund_from_portfolio) — this updates " +
+    "their portfolio tracker only, it does not place any real brokerage order. Look up real fund data before " +
+    "adding a fund when you can. Always confirm which fund and amount before adding, and confirm before removing " +
+    "a holding."
+  );
+}
+
+async function runToolLoop(
+  portfolio: Portfolio,
+  messages: PortfolioChatMessage[],
+  groundingData: unknown,
+  toolContext: ToolExecutionContext
+): Promise<{ answer: string; provider: AIProvider; portfolioChanged: boolean }> {
+  const tools = getAvailableTools(toolContext);
+  const conversation: ChatTurn[] = [
+    { role: "system", content: systemPrompt(toolContext.canMutate, true) },
+    { role: "user", content: `Portfolio data:\n${JSON.stringify(groundingData, null, 2)}` },
+    ...messages.slice(-8).map((m) => ({ role: m.role, content: m.content } as ChatTurn)),
+  ];
+
+  let portfolioChanged = false;
+  const MAX_TOOL_ROUNDS = 4;
+
+  for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
+    const { text, provider, toolCalls } = await getAIChatCompletionWithTools(conversation, tools);
+
+    if (!toolCalls || toolCalls.length === 0) {
+      return { answer: text, provider, portfolioChanged };
+    }
+
+    conversation.push({ role: "assistant", content: text, toolCalls });
+
+    for (const call of toolCalls) {
+      let args: Record<string, unknown> = {};
+      try {
+        args = JSON.parse(call.arguments || "{}");
+      } catch {
+        // leave args empty — executeTool will validate required fields
+      }
+      const outcome = await executeTool(call.name, args, toolContext).catch((error: unknown) => ({
+        result: { error: error instanceof Error ? error.message : "Tool call failed" },
+        portfolioChanged: false,
+      }));
+      if (outcome.portfolioChanged) portfolioChanged = true;
+      conversation.push({
+        role: "tool",
+        toolCallId: call.id,
+        name: call.name,
+        content: JSON.stringify(outcome.result),
+      });
+    }
+  }
+
+  // Ran out of tool rounds — ask once more for a final text answer without tools.
+  const { text: answer, provider } = await getAIChatCompletion(conversation);
+  return { answer, provider, portfolioChanged };
+}
+
 export async function answerPortfolioQuestion(
   portfolio: Portfolio,
-  messages: PortfolioChatMessage[]
+  messages: PortfolioChatMessage[],
+  toolContext?: ToolExecutionContext
 ): Promise<PortfolioAssistantResponse> {
   const analysis = riskEngine.analyzePortfolio(portfolio);
   const latestQuestion = messages.filter((m) => m.role === "user").at(-1)?.content?.trim() || "";
@@ -80,6 +173,7 @@ export async function answerPortfolioQuestion(
     "Why is my portfolio risk high?",
     "How can I improve diversification?",
     "Which fund should I review first?",
+    "Find a large cap fund for me",
   ];
 
   const hasAnyProvider =
@@ -90,11 +184,13 @@ export async function answerPortfolioQuestion(
       source: "deterministic",
       answer: fallbackAnswer(portfolio, latestQuestion),
       suggestedQuestions,
+      portfolioChanged: false,
     };
   }
 
   const groundingData = {
     portfolio: {
+      id: portfolio.id,
       name: portfolio.name,
       fundCount: portfolio.funds.length,
       totalInvested: portfolio.totalInvested,
@@ -113,34 +209,34 @@ export async function answerPortfolioQuestion(
       riskMetrics: analysis.riskMetrics,
       underperformers: portfolio.funds
         .filter((fund) => analysis.underperformers.includes(fund.id))
-        .map((fund) => ({ name: fund.name, returns1Y: fund.returns1Y, category: fund.category })),
+        .map((fund) => ({ id: fund.id, name: fund.name, returns1Y: fund.returns1Y, category: fund.category })),
     },
   };
 
+  const canUseTools =
+    Boolean(toolContext) &&
+    TOOL_CALLING_PROVIDERS.some((p) => (p === "groq" ? process.env.GROQ_API_KEY : process.env.OPENAI_API_KEY));
+
   try {
+    if (canUseTools && toolContext) {
+      const { answer, provider, portfolioChanged } = await runToolLoop(portfolio, messages, groundingData, toolContext);
+      return { source: provider, answer, suggestedQuestions, portfolioChanged };
+    }
+
     const { text: answer, provider } = await getAIChatCompletion([
-      {
-        role: "system",
-        content:
-          "You are Sutra AI, the portfolio copilot inside Invesutra for Indian mutual fund investors. Answer only from the supplied portfolio data. Explain health score, risk, diversification, fund performance, and improvements in plain English. Help users manage their mutual fund holdings — they can add funds, review holdings, and ask about rebalancing through this chat. Do not invent live market prices, holdings overlap, fund facts, or future returns. If data is missing, say what would be needed. This is educational decision support, not investment advice.",
-      },
-      {
-        role: "user",
-        content: `Portfolio data:\n${JSON.stringify(groundingData, null, 2)}`,
-      },
-      ...messages.slice(-8).map((message) => ({
-        role: message.role,
-        content: message.content,
-      })),
+      { role: "system", content: systemPrompt(false, false) },
+      { role: "user", content: `Portfolio data:\n${JSON.stringify(groundingData, null, 2)}` },
+      ...messages.slice(-8).map((message) => ({ role: message.role, content: message.content })),
     ]);
 
-    return { source: provider, answer, suggestedQuestions };
+    return { source: provider, answer, suggestedQuestions, portfolioChanged: false };
   } catch (error) {
     console.error("Portfolio assistant failed, falling back:", error);
     return {
       source: "deterministic",
       answer: fallbackAnswer(portfolio, latestQuestion),
       suggestedQuestions,
+      portfolioChanged: false,
     };
   }
 }

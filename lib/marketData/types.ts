@@ -1,4 +1,20 @@
+// Copyright © 2026 Ayaansh Singhal. All Rights Reserved.
+
 import type { FundCategory, RiskLevel } from "@/lib/types";
+
+export interface FundDetails {
+  schemeCode: number;
+  name: string;
+  fundHouse?: string;
+  category: FundCategory;
+  riskLevel: RiskLevel;
+  nav?: number;
+  navAsOf?: string;
+  returns1Y?: number;
+  returns3Y?: number;
+  returns5Y?: number;
+  isin?: string;
+}
 
 export interface FundSearchResult {
   provider: string;
@@ -23,6 +39,7 @@ export interface FundDataProvider {
   label: string;
   isConfigured(): boolean;
   searchFunds(query: string): Promise<FundSearchResult[]>;
+  getFundDetails?(schemeCode: string): Promise<FundDetails>;
 }
 
 export interface ProviderStatus {

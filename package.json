@@ -5,9 +5,11 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "test:mcp": "tsx scripts/smoke-test-mcp.ts"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
     "@supabase/ssr": "^0.12.0",
     "@supabase/supabase-js": "latest",
     "class-variance-authority": "^0.7.1",
@@ -19,7 +21,8 @@
     "react-dom": "^19.0.0",
     "recharts": "^3.0.0",
     "stripe": "latest",
-    "tailwind-merge": "^3.6.0"
+    "tailwind-merge": "^3.6.0",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.3.1",
@@ -28,6 +31,7 @@
     "autoprefixer": "^10.5.2",
     "postcss": "^8.5.16",
     "tailwindcss": "^4.3.1",
+    "tsx": "^4.22.5",
     "typescript": "5.8.2"
   }
 }

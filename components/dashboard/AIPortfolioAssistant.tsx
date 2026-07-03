@@ -141,6 +141,12 @@ export default function AIPortfolioAssistant({
 
       setSource(data.source || null);
       setMessages([...nextMessages, { role: "assistant", content: data.answer }]);
+
+      // The AI may have added/updated/removed a fund via a tool call —
+      // refresh so the rest of the dashboard reflects it.
+      if (data.portfolioChanged) {
+        onRefresh();
+      }
     } catch (error) {
       setMessages([
         ...nextMessages,

@@ -1,0 +1,32 @@
+NOTICE
+
+Invesutra
+Copyright © 2026 Ayaansh Singhal. All Rights Reserved.
+
+This repository is proprietary software. See the LICENSE file in this
+repository's root directory for the full terms — the repository is public
+for viewing only; copying, modifying, redistributing, or using any part of
+this code without the Owner's prior written permission is prohibited.
+
+------------------------------------------------------------------------
+Third-party services and data referenced by this project
+------------------------------------------------------------------------
+
+This product is not affiliated with, endorsed by, or sponsored by Zerodha
+Broking Ltd., AMFI (Association of Mutual Funds in India), or mfapi.in.
+"Zerodha" and "Kite" are trademarks of Zerodha Broking Ltd.
+
+  - Mutual fund NAV, category, and return data is sourced from AMFI's
+    public NAV registry via the free, keyless api.mfapi.in service.
+  - AI chat features may call OpenAI, Groq, and/or Google Gemini APIs,
+    each governed by that provider's own terms of service.
+  - This project uses open-source packages under their respective
+    licenses, listed in package.json / package-lock.json. Use of those
+    packages does not alter the proprietary license of this repository's
+    own source code.
+
+No investment, trading, or financial advice is provided by this software.
+Fund data, returns, and risk indicators are for informational purposes
+only and may be delayed, incomplete, or approximate — see in-code
+documentation (lib/mcp/mutualFundSource.ts) for specifics on what is and
+isn't live/verified data.

@@ -1,0 +1,39 @@
+Copyright © 2026 Ayaansh Singhal. All Rights Reserved.
+
+This repository and all of its contents — including but not limited to
+source code, object code, documentation, design assets, branding, UI/UX
+design, product concepts, and any other files contained herein
+(collectively, the "Software") — are the exclusive property of Ayaansh
+Singhal ("the Owner").
+
+This Software is made available in a public repository for VIEWING
+PURPOSES ONLY. No license, right, or permission of any kind is granted to
+any person or entity to use, copy, modify, merge, publish, distribute,
+sublicense, deploy, reverse-engineer, create derivative works from, or sell
+copies of the Software, in whole or in part, except with the Owner's prior
+express written permission.
+
+Specifically, without the Owner's prior written consent, you may NOT:
+
+  1. Copy, fork for purposes beyond personal read-only reference, or
+     redistribute the Software or any portion of it.
+  2. Modify, adapt, translate, or create derivative works based on the
+     Software.
+  3. Use the Software, in whole or in part, in any other product, service,
+     or project, whether commercial, non-commercial, open-source, or
+     internal.
+  4. Deploy, host, or otherwise make the Software or a derivative of it
+     available to any third party.
+  5. Remove or alter any copyright, trademark, or other proprietary notices
+     contained in the Software.
+
+All rights not expressly granted herein are reserved by the Owner.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT. IN NO EVENT SHALL
+THE OWNER BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY ARISING
+FROM, OUT OF, OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+DEALINGS IN THE SOFTWARE.
+
+For permission requests, please contact the Owner directly.

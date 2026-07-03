@@ -1,3 +1,5 @@
+// Copyright © 2026 Ayaansh Singhal. All Rights Reserved.
+
 import { NextRequest, NextResponse } from "next/server";
 import { getProviderStatuses, searchFunds } from "@/lib/marketData/providers";
 
@@ -19,7 +21,7 @@ export async function GET(request: NextRequest) {
     providers,
     message:
       funds.length > 0
-        ? "Live provider results returned."
-        : "No live fund provider is enabled yet. The API contract is ready for a Zerodha, Yahoo Finance, or mutual fund data adapter.",
+        ? "Live results from the Mutual Fund MCP provider (AMFI data)."
+        : "No matching funds found for that query.",
   });
 }
