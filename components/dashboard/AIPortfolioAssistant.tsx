@@ -50,7 +50,7 @@ export default function AIPortfolioAssistant({
   ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const [source, setSource] = useState<"openai" | "deterministic" | null>(null);
+  const [source, setSource] = useState<"groq" | "gemini" | "openai" | "deterministic" | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -335,7 +335,14 @@ export default function AIPortfolioAssistant({
         </div>
         {source && (
           <p className="mx-auto mt-2 max-w-3xl text-[10px] text-slate-600">
-            Source: {source === "openai" ? "OpenAI · grounded on portfolio data" : "Local deterministic engine"}
+            Source:{" "}
+            {source === "groq"
+              ? "Groq · grounded on portfolio data"
+              : source === "gemini"
+              ? "Gemini · grounded on portfolio data"
+              : source === "openai"
+              ? "OpenAI · grounded on portfolio data"
+              : "Local deterministic engine"}
           </p>
         )}
       </form>

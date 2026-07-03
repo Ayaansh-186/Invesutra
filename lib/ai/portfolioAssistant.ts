@@ -1,4 +1,4 @@
-import { getOpenAIClient, OPENAI_MODEL } from "./openaiClient";
+import { getAIChatCompletion, type AIProvider } from "./aiClient";
 import { riskEngine } from "@/lib/algorithm/riskEngine";
 import { createRebalanceEngine } from "@/lib/algorithm/rebalanceEngine";
 import { categoryLabel, formatCurrency, formatPercent } from "@/lib/utils/format";
@@ -10,7 +10,7 @@ export interface PortfolioChatMessage {
 }
 
 export interface PortfolioAssistantResponse {
-  source: "openai" | "deterministic";
+  source: AIProvider | "deterministic";
   answer: string;
   suggestedQuestions: string[];
 }
@@ -82,7 +82,10 @@ export async function answerPortfolioQuestion(
     "Which fund should I review first?",
   ];
 
-  if (!process.env.OPENAI_API_KEY) {
+  const hasAnyProvider =
+    process.env.GROQ_API_KEY || process.env.GEMINI_API_KEY || process.env.OPENAI_API_KEY;
+
+  if (!hasAnyProvider) {
     return {
       source: "deterministic",
       answer: fallbackAnswer(portfolio, latestQuestion),
@@ -115,33 +118,23 @@ export async function answerPortfolioQuestion(
   };
 
   try {
-    const openai = getOpenAIClient();
-    const completion = await openai.chat.completions.create({
-      model: OPENAI_MODEL,
-      temperature: 0.35,
-      messages: [
-        {
-          role: "system",
-          content:
-            "You are Sutra AI, the portfolio copilot inside Invesutra for Indian mutual fund investors. Answer only from the supplied portfolio data. Explain health score, risk, diversification, fund performance, and improvements in plain English. Help users manage their mutual fund holdings — they can add funds, review holdings, and ask about rebalancing through this chat. Do not invent live market prices, holdings overlap, fund facts, or future returns. If data is missing, say what would be needed. This is educational decision support, not investment advice.",
-        },
-        {
-          role: "user",
-          content: `Portfolio data:\n${JSON.stringify(groundingData, null, 2)}`,
-        },
-        ...messages.slice(-8).map((message) => ({
-          role: message.role,
-          content: message.content,
-        })),
-      ],
-    });
+    const { text: answer, provider } = await getAIChatCompletion([
+      {
+        role: "system",
+        content:
+          "You are Sutra AI, the portfolio copilot inside Invesutra for Indian mutual fund investors. Answer only from the supplied portfolio data. Explain health score, risk, diversification, fund performance, and improvements in plain English. Help users manage their mutual fund holdings — they can add funds, review holdings, and ask about rebalancing through this chat. Do not invent live market prices, holdings overlap, fund facts, or future returns. If data is missing, say what would be needed. This is educational decision support, not investment advice.",
+      },
+      {
+        role: "user",
+        content: `Portfolio data:\n${JSON.stringify(groundingData, null, 2)}`,
+      },
+      ...messages.slice(-8).map((message) => ({
+        role: message.role,
+        content: message.content,
+      })),
+    ]);
 
-    const answer = completion.choices[0]?.message?.content?.trim();
-    if (!answer) {
-      throw new Error("Empty OpenAI response");
-    }
-
-    return { source: "openai", answer, suggestedQuestions };
+    return { source: provider, answer, suggestedQuestions };
   } catch (error) {
     console.error("Portfolio assistant failed, falling back:", error);
     return {

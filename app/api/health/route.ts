@@ -9,21 +9,31 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 export async function GET() {
   const checks: Record<string, { ok: boolean; detail: string }> = {};
 
-  // --- OpenAI --------------------------------------------------------------
-  if (!process.env.OPENAI_API_KEY) {
-    checks.openai = { ok: false, detail: "OPENAI_API_KEY is not set." };
+  // --- AI provider (Groq -> Gemini -> OpenAI fallback chain) ---------------
+  const configuredProviders = [
+    process.env.GROQ_API_KEY && "groq",
+    process.env.GEMINI_API_KEY && "gemini",
+    process.env.OPENAI_API_KEY && "openai",
+  ].filter(Boolean);
+
+  if (configuredProviders.length === 0) {
+    checks.ai = {
+      ok: false,
+      detail: "No AI provider configured. Set GROQ_API_KEY, GEMINI_API_KEY, or OPENAI_API_KEY.",
+    };
   } else {
     try {
-      const { getOpenAIClient, OPENAI_MODEL } = await import("@/lib/ai/openaiClient");
-      const openai = getOpenAIClient();
-      await openai.chat.completions.create({
-        model: OPENAI_MODEL,
-        max_tokens: 5,
-        messages: [{ role: "user", content: "ping" }],
-      });
-      checks.openai = { ok: true, detail: `Reachable, model=${OPENAI_MODEL}` };
+      const { getAIChatCompletion } = await import("@/lib/ai/aiClient");
+      const { provider } = await getAIChatCompletion([{ role: "user", content: "ping" }]);
+      checks.ai = {
+        ok: true,
+        detail: `Reachable via ${provider}. Configured: ${configuredProviders.join(", ")}.`,
+      };
     } catch (error: any) {
-      checks.openai = { ok: false, detail: error?.message || "OpenAI request failed." };
+      checks.ai = {
+        ok: false,
+        detail: `All configured providers (${configuredProviders.join(", ")}) failed: ${error?.message || "unknown error"}`,
+      };
     }
   }
 

@@ -53,7 +53,7 @@ export default function ScreenerPage() {
   const totalValue = funds.reduce((s, f) => s + f.currentValue, 0);
 
   const [aiSummary, setAiSummary] = useState<string | null>(null);
-  const [aiSource, setAiSource] = useState<"openai" | "deterministic" | null>(null);
+  const [aiSource, setAiSource] = useState<"groq" | "gemini" | "openai" | "deterministic" | null>(null);
 
 
   function handleAnalyze() {
@@ -350,12 +350,12 @@ export default function ScreenerPage() {
                   {aiSource && (
                     <span
                       className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
-                        aiSource === "openai"
+                        aiSource && aiSource !== "deterministic"
                           ? "bg-violet-50 text-violet-700"
                           : "bg-slate-100 text-slate-500"
                       }`}
                     >
-                      {aiSource === "openai" ? "AI-generated" : "Algorithmic"}
+                      {aiSource && aiSource !== "deterministic" ? "AI-generated" : "Algorithmic"}
                     </span>
                   )}
                 </div>

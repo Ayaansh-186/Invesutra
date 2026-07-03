@@ -1,4 +1,4 @@
-import { getOpenAIClient, OPENAI_MODEL } from "./openaiClient";
+import { getAIChatCompletion, type AIProvider } from "./aiClient";
 import { riskEngine } from "@/lib/algorithm/riskEngine";
 import { createRebalanceEngine } from "@/lib/algorithm/rebalanceEngine";
 import type { Portfolio } from "@/lib/types";
@@ -10,7 +10,7 @@ export interface AINarrativeInsight {
 }
 
 export interface AIAnalysisResult {
-  source: "openai" | "deterministic";
+  source: AIProvider | "deterministic";
   summary: string;
   narrativeInsights: AINarrativeInsight[];
   healthScore: number;
@@ -49,13 +49,14 @@ export async function analyzePortfolioWithAI(portfolio: Portfolio): Promise<AIAn
     rebalancingSuggestions,
   };
 
-  if (!process.env.OPENAI_API_KEY) {
+  const hasAnyProvider =
+    process.env.GROQ_API_KEY || process.env.GEMINI_API_KEY || process.env.OPENAI_API_KEY;
+
+  if (!hasAnyProvider) {
     return deterministicResult;
   }
 
   try {
-    const openai = getOpenAIClient();
-
     const groundingData = {
       portfolioName: portfolio.name,
       fundCount: portfolio.funds.length,
@@ -76,11 +77,8 @@ export async function analyzePortfolioWithAI(portfolio: Portfolio): Promise<AIAn
       })),
     };
 
-    const completion = await openai.chat.completions.create({
-      model: OPENAI_MODEL,
-      temperature: 0.4,
-      response_format: { type: "json_object" },
-      messages: [
+    const { text: raw, provider } = await getAIChatCompletion(
+      [
         {
           role: "system",
           content:
@@ -91,21 +89,21 @@ export async function analyzePortfolioWithAI(portfolio: Portfolio): Promise<AIAn
           content: `Here is the deterministic portfolio analysis data:\n\n${JSON.stringify(groundingData, null, 2)}\n\nWrite the summary and insights JSON now.`,
         },
       ],
-    });
+      { jsonMode: true }
+    );
 
-    const raw = completion.choices[0]?.message?.content;
     if (!raw) return deterministicResult;
 
     const parsed = JSON.parse(raw) as { summary: string; insights: AINarrativeInsight[] };
 
     return {
       ...deterministicResult,
-      source: "openai",
+      source: provider,
       summary: parsed.summary || deterministicResult.summary,
       narrativeInsights: parsed.insights?.length ? parsed.insights : deterministicResult.narrativeInsights,
     };
   } catch (error) {
-    console.error("OpenAI analysis failed, falling back to deterministic engine:", error);
+    console.error("AI analysis failed, falling back to deterministic engine:", error);
     return deterministicResult;
   }
 }
