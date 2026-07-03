@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { ThemeProvider } from "@/components/shared/ThemeProvider";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://invesutra.ai";
 
@@ -51,7 +52,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
@@ -59,8 +60,18 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
           href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
           rel="stylesheet"
         />
+        {/* Set the theme class before paint so there's no flash of the
+            wrong theme. Runs synchronously; defaults to system preference
+            the first time a visitor arrives. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var t=localStorage.getItem('invesutra-theme');if(!t){t=window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';}document.documentElement.classList.toggle('dark',t==='dark');document.documentElement.style.colorScheme=t;}catch(e){}})();`,
+          }}
+        />
       </head>
-      <body className="antialiased bg-white text-slate-900 min-h-screen">{children}</body>
+      <body className="antialiased bg-[var(--bg)] text-[var(--fg)] min-h-screen">
+        <ThemeProvider>{children}</ThemeProvider>
+      </body>
     </html>
   );
 }

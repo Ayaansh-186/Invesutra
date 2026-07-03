@@ -1,5 +1,9 @@
 @import "tailwindcss";
 
+/* Tailwind v4 defaults `dark:` to prefers-color-scheme; switch it to the
+   .dark class so ThemeProvider's manual toggle can override system pref. */
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
   --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
 
@@ -50,11 +54,37 @@
 :root {
   --bg: #ffffff;
   --fg: #0f172a;
+
+  /* App shell (dashboard/screener/reports/simulator/AI) tokens — light */
+  --shell-bg: #f8fafc;
+  --shell-sidebar-bg: #ffffff;
+  --shell-surface: #ffffff;
+  --shell-surface-2: #f1f5f9;
+  --shell-border: #e2e8f0;
+  --shell-text: #0f172a;
+  --shell-text-muted: #475569;
+  --shell-text-faint: #94a3b8;
+  --shell-bubble-assistant: #f1f5f9;
+  --shell-bubble-user: #0ea5e9;
+  --shell-bubble-user-text: #ffffff;
 }
 
 .dark {
   --bg: #020617;
   --fg: #f8fafc;
+
+  /* App shell tokens — dark (matches the existing Invesutra navy design) */
+  --shell-bg: #07111f;
+  --shell-sidebar-bg: #0a1525;
+  --shell-surface: #0c1829;
+  --shell-surface-2: rgba(255, 255, 255, 0.04);
+  --shell-border: rgba(255, 255, 255, 0.1);
+  --shell-text: #ffffff;
+  --shell-text-muted: #94a3b8;
+  --shell-text-faint: #64748b;
+  --shell-bubble-assistant: rgba(255, 255, 255, 0.04);
+  --shell-bubble-user: #164e63;
+  --shell-bubble-user-text: #ffffff;
 }
 
 * {

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import { TrendingUp, Menu, X, Sparkles, ArrowRight } from "lucide-react";
+import ThemeToggle from "@/components/shared/ThemeToggle";
 
 const navLinks = [
   { label: "How it works", href: "#how-it-works" },
@@ -56,6 +57,7 @@ export default function Navbar() {
         </nav>
 
         <div className="hidden md:flex items-center gap-3">
+          <ThemeToggle className="bg-white/5! border-white/10! text-slate-300! hover:text-white!" />
           <Link
             href="/auth/login"
             className={`text-sm font-medium transition-colors ${

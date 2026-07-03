@@ -160,7 +160,7 @@ export default function AIPortfolioAssistant({
   function renderMessageContent(content: string) {
     return content.split(/(\*\*[^*]+\*\*)/).map((part, i) => {
       if (part.startsWith("**") && part.endsWith("**")) {
-        return <strong key={i} className="font-semibold text-white">{part.slice(2, -2)}</strong>;
+        return <strong key={i} className="font-semibold text-[var(--shell-text)]">{part.slice(2, -2)}</strong>;
       }
       return part;
     });
@@ -169,7 +169,7 @@ export default function AIPortfolioAssistant({
   return (
     <div className="flex h-full flex-col overflow-hidden">
       {/* Header */}
-      <div className="shrink-0 border-b border-white/10 bg-[#0c1829] px-5 py-4">
+      <div className="shrink-0 border-b border-[var(--shell-border)] bg-[var(--shell-surface)] px-5 py-4">
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-400 to-emerald-400 text-slate-950 shadow-lg shadow-cyan-500/20">
@@ -177,19 +177,19 @@ export default function AIPortfolioAssistant({
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-base font-semibold text-white">Sutra AI</h1>
+                <h1 className="text-base font-semibold text-[var(--shell-text)]">Sutra AI</h1>
                 <span className="rounded-full border border-emerald-400/30 bg-emerald-400/10 px-2 py-0.5 text-[10px] font-medium text-emerald-300">
                   Online
                 </span>
               </div>
-              <p className="text-xs text-slate-400">Portfolio copilot · {assistantBrief}</p>
+              <p className="text-xs text-[var(--shell-text-muted)]">Portfolio copilot · {assistantBrief}</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
             <button
               onClick={onRefresh}
               disabled={refreshing}
-              className="rounded-lg border border-white/10 p-2 text-slate-400 transition hover:bg-white/5 hover:text-white disabled:opacity-50"
+              className="rounded-lg border border-[var(--shell-border)] p-2 text-[var(--shell-text-muted)] transition hover:bg-[var(--shell-surface-2)] hover:text-[var(--shell-text)] disabled:opacity-50"
               title="Refresh portfolio"
             >
               <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
@@ -211,7 +211,7 @@ export default function AIPortfolioAssistant({
               key={action.label}
               onClick={() => handleQuickAction(action)}
               disabled={loading}
-              className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-medium text-slate-300 transition hover:border-cyan-400/30 hover:bg-cyan-400/10 hover:text-white disabled:opacity-50"
+              className="flex items-center gap-1.5 rounded-full border border-[var(--shell-border)] bg-[var(--shell-surface-2)] px-3 py-1.5 text-xs font-medium text-[var(--shell-text-muted)] transition hover:border-cyan-400/30 hover:bg-cyan-400/10 hover:text-[var(--shell-text)] disabled:opacity-50"
             >
               <action.icon className="h-3 w-3" />
               {action.label}
@@ -234,14 +234,14 @@ export default function AIPortfolioAssistant({
                 <div
                   className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
                     message.role === "user"
-                      ? "bg-cyan-400/20 text-cyan-50 border border-cyan-400/20"
-                      : "border border-white/10 bg-white/[0.04] text-slate-300"
+                      ? "bg-cyan-400/20 text-[var(--shell-text)] border border-cyan-400/20"
+                      : "border border-[var(--shell-border)] bg-[var(--shell-surface-2)] text-[var(--shell-text-muted)]"
                   }`}
                 >
                   {renderMessageContent(message.content)}
                 </div>
                 {message.role === "user" && (
-                  <div className="mt-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white/10 text-slate-400">
+                  <div className="mt-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[var(--shell-surface-2)] text-[var(--shell-text-muted)]">
                     <UserRound className="h-3.5 w-3.5" />
                   </div>
                 )}
@@ -254,17 +254,17 @@ export default function AIPortfolioAssistant({
                     .map((fund) => (
                       <div
                         key={fund.id}
-                        className="flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3"
+                        className="flex items-center justify-between rounded-xl border border-[var(--shell-border)] bg-[var(--shell-surface-2)] px-4 py-3"
                       >
                         <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-medium text-white">{fund.name}</p>
-                          <p className="text-xs text-slate-500">
+                          <p className="truncate text-sm font-medium text-[var(--shell-text)]">{fund.name}</p>
+                          <p className="text-xs text-[var(--shell-text-faint)]">
                             {categoryLabel(fund.category)} · {formatPercent(fund.returns1Y)} 1Y
                           </p>
                         </div>
                         <div className="ml-3 text-right">
-                          <p className="text-sm font-semibold text-white">{formatCurrency(fund.currentValue, true)}</p>
-                          <p className="text-xs text-slate-500">
+                          <p className="text-sm font-semibold text-[var(--shell-text)]">{formatCurrency(fund.currentValue, true)}</p>
+                          <p className="text-xs text-[var(--shell-text-faint)]">
                             {((fund.currentValue / portfolio.currentValue) * 100).toFixed(1)}%
                           </p>
                         </div>
@@ -280,7 +280,7 @@ export default function AIPortfolioAssistant({
               <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-cyan-400/20">
                 <Sparkles className="h-3.5 w-3.5 text-cyan-300" />
               </div>
-              <div className="flex items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-slate-400">
+              <div className="flex items-center gap-2 rounded-2xl border border-[var(--shell-border)] bg-[var(--shell-surface-2)] px-4 py-3 text-sm text-[var(--shell-text-muted)]">
                 <Loader2 className="h-4 w-4 animate-spin text-cyan-400" />
                 Sutra is analyzing your portfolio...
               </div>
@@ -292,14 +292,14 @@ export default function AIPortfolioAssistant({
 
       {/* Suggested questions */}
       {messages.length <= 2 && !loading && (
-        <div className="shrink-0 border-t border-white/10 px-5 py-3">
-          <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-slate-500">Suggested questions</p>
+        <div className="shrink-0 border-t border-[var(--shell-border)] px-5 py-3">
+          <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-[var(--shell-text-faint)]">Suggested questions</p>
           <div className="flex flex-wrap gap-2">
             {STARTER_QUESTIONS.map((q) => (
               <button
                 key={q}
                 onClick={() => askAssistant(q)}
-                className="flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.03] px-3 py-1.5 text-xs text-slate-400 transition hover:border-cyan-400/30 hover:text-white"
+                className="flex items-center gap-1 rounded-full border border-[var(--shell-border)] bg-[var(--shell-surface-2)] px-3 py-1.5 text-xs text-[var(--shell-text-muted)] transition hover:border-cyan-400/30 hover:text-[var(--shell-text)]"
               >
                 {q}
                 <ChevronRight className="h-3 w-3 opacity-50" />
@@ -311,7 +311,7 @@ export default function AIPortfolioAssistant({
 
       {/* Input */}
       <form
-        className="shrink-0 border-t border-white/10 bg-[#0c1829] p-4"
+        className="shrink-0 border-t border-[var(--shell-border)] bg-[var(--shell-surface)] p-4"
         onSubmit={(e) => {
           e.preventDefault();
           askAssistant(input);
@@ -323,7 +323,7 @@ export default function AIPortfolioAssistant({
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="Ask about risk, funds, allocation, or say 'add a fund'..."
-            className="min-w-0 flex-1 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none placeholder:text-slate-500 transition focus:border-cyan-400/50 focus:ring-1 focus:ring-cyan-400/20"
+            className="min-w-0 flex-1 rounded-xl border border-[var(--shell-border)] bg-[var(--shell-surface-2)] px-4 py-3 text-sm text-[var(--shell-text)] outline-none placeholder:text-[var(--shell-text-faint)] transition focus:border-cyan-400/50 focus:ring-1 focus:ring-cyan-400/20"
           />
           <button
             type="submit"
@@ -334,7 +334,7 @@ export default function AIPortfolioAssistant({
           </button>
         </div>
         {source && (
-          <p className="mx-auto mt-2 max-w-3xl text-[10px] text-slate-600">
+          <p className="mx-auto mt-2 max-w-3xl text-[10px] text-[var(--shell-text-faint)]">
             Source:{" "}
             {source === "groq"
               ? "Groq · grounded on portfolio data"
