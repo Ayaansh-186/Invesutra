@@ -107,14 +107,15 @@ interface ProviderCallResult {
 async function callGroq(
   messages: ChatTurn[],
   jsonMode?: boolean,
-  tools?: ToolDefinition[]
+  tools?: ToolDefinition[],
+  toolChoice?: "auto" | "none"
 ): Promise<ProviderCallResult> {
   const groq = getGroqClient();
   const completion = await groq.chat.completions.create({
     model: GROQ_MODEL,
     temperature: 0.35,
     ...(jsonMode ? { response_format: { type: "json_object" as const } } : {}),
-    ...(tools ? { tools: toOpenAITools(tools) } : {}),
+    ...(tools ? { tools: toOpenAITools(tools), tool_choice: toolChoice ?? "auto" } : {}),
     messages: toOpenAIMessages(messages),
   });
   const message = completion.choices[0]?.message;
@@ -197,14 +198,15 @@ export const OPENAI_MODEL = process.env.OPENAI_MODEL || "gpt-4o-mini";
 async function callOpenAI(
   messages: ChatTurn[],
   jsonMode?: boolean,
-  tools?: ToolDefinition[]
+  tools?: ToolDefinition[],
+  toolChoice?: "auto" | "none"
 ): Promise<ProviderCallResult> {
   const openai = getOpenAIClient();
   const completion = await openai.chat.completions.create({
     model: OPENAI_MODEL,
     temperature: 0.35,
     ...(jsonMode ? { response_format: { type: "json_object" as const } } : {}),
-    ...(tools ? { tools: toOpenAITools(tools) } : {}),
+    ...(tools ? { tools: toOpenAITools(tools), tool_choice: toolChoice ?? "auto" } : {}),
     messages: toOpenAIMessages(messages),
   });
   const message = completion.choices[0]?.message;
@@ -268,19 +270,20 @@ export async function getAIChatCompletion(
 export async function getAIChatCompletionWithTools(
   messages: ChatTurn[],
   tools: ToolDefinition[],
-  options?: { jsonMode?: boolean }
+  options?: { jsonMode?: boolean; toolChoice?: "auto" | "none" }
 ): Promise<ChatCompletionResult> {
   const jsonMode = options?.jsonMode;
+  const toolChoice = options?.toolChoice;
   const attempts: Array<{ provider: AIProvider; enabled: boolean; call: () => Promise<ProviderCallResult> }> = [
     {
       provider: "groq",
       enabled: Boolean(process.env.GROQ_API_KEY),
-      call: () => callGroq(messages, jsonMode, tools),
+      call: () => callGroq(messages, jsonMode, tools, toolChoice),
     },
     {
       provider: "openai",
       enabled: Boolean(process.env.OPENAI_API_KEY),
-      call: () => callOpenAI(messages, jsonMode, tools),
+      call: () => callOpenAI(messages, jsonMode, tools, toolChoice),
     },
   ];
 

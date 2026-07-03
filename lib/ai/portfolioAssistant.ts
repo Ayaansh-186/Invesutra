@@ -126,6 +126,7 @@ async function runToolLoop(
 
   let portfolioChanged = false;
   const MAX_TOOL_ROUNDS = 4;
+  const seenMutationCalls = new Set<string>();
 
   for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
     const { text, provider, toolCalls } = await getAIChatCompletionWithTools(conversation, tools);
@@ -143,6 +144,25 @@ async function runToolLoop(
       } catch {
         // leave args empty — executeTool will validate required fields
       }
+
+      // Guard against the model repeating the exact same mutation call
+      // (e.g. add_fund_to_portfolio with identical args) across rounds,
+      // which would otherwise add/remove the same fund more than once.
+      const isMutation = call.name !== "search_mutual_funds" && call.name !== "get_fund_details";
+      const callKey = `${call.name}:${call.arguments}`;
+      if (isMutation && seenMutationCalls.has(callKey)) {
+        conversation.push({
+          role: "tool",
+          toolCallId: call.id,
+          name: call.name,
+          content: JSON.stringify({
+            error: "This exact action already ran in this turn — do not repeat it. Answer the user now.",
+          }),
+        });
+        continue;
+      }
+      if (isMutation) seenMutationCalls.add(callKey);
+
       const outcome = await executeTool(call.name, args, toolContext).catch((error: unknown) => ({
         result: { error: error instanceof Error ? error.message : "Tool call failed" },
         portfolioChanged: false,
@@ -157,8 +177,14 @@ async function runToolLoop(
     }
   }
 
-  // Ran out of tool rounds — ask once more for a final text answer without tools.
-  const { text: answer, provider } = await getAIChatCompletion(conversation);
+  // Ran out of tool rounds. The conversation history already contains
+  // assistant tool-call turns, so this final request MUST still declare
+  // the tools (Groq/OpenAI reject a request whose history has tool calls
+  // but no tools attached) — we just force tool_choice "none" so the
+  // model has to answer in plain text instead of calling anything else.
+  const { text: answer, provider } = await getAIChatCompletionWithTools(conversation, tools, {
+    toolChoice: "none",
+  });
   return { answer, provider, portfolioChanged };
 }
 
