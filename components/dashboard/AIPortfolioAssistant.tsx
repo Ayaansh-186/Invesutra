@@ -42,17 +42,17 @@ export default function AIPortfolioAssistant({
   onRefresh: () => void;
   refreshing?: boolean;
 }) {
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      role: "assistant",
-      content: `Hi! I'm **Sutra**, your Invesutra portfolio copilot. I've analyzed your ${portfolio.funds.length} fund${portfolio.funds.length === 1 ? "" : "s"} worth ${formatCurrency(portfolio.currentValue, true)}.\n\n• Health: **${portfolio.healthScore}/100** (${analysis.overallHealth})\n• Risk: **${portfolio.riskScore}/100**\n• Returns: **${formatPercent(portfolio.returnsPercent)}**\n\nAsk me anything — risk drivers, fund performance, rebalancing, or say "add a fund" to manage holdings.`,
-    },
-  ]);
+  const greeting = `Hi! I'm **Sutra**, your Invesutra portfolio copilot. I've analyzed your ${portfolio.funds.length} fund${portfolio.funds.length === 1 ? "" : "s"} worth ${formatCurrency(portfolio.currentValue, true)}.\n\n• Health: **${portfolio.healthScore}/100** (${analysis.overallHealth})\n• Risk: **${portfolio.riskScore}/100**\n• Returns: **${formatPercent(portfolio.returnsPercent)}**\n\nAsk me anything — risk drivers, fund performance, rebalancing, or say "add a fund" to manage holdings.`;
+
+  const [messages, setMessages] = useState<ChatMessage[]>([{ role: "assistant", content: greeting }]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [source, setSource] = useState<"groq" | "gemini" | "openai" | "deterministic" | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const heroInputRef = useRef<HTMLInputElement>(null);
+
+  const hasStarted = messages.some((m) => m.role === "user");
 
   const assistantBrief = useMemo(() => {
     const firstRisk = analysis.concentrationRisk[0];
@@ -92,6 +92,7 @@ export default function AIPortfolioAssistant({
           action: "add_fund",
         },
       ]);
+      setInput("");
       onAddFund();
       return;
     }
@@ -108,6 +109,7 @@ export default function AIPortfolioAssistant({
           action: "show_holdings",
         },
       ]);
+      setInput("");
       return;
     }
 
@@ -166,6 +168,101 @@ export default function AIPortfolioAssistant({
     });
   }
 
+  function BigInput({ inputEl, autoFocus }: { inputEl: React.RefObject<HTMLInputElement | null>; autoFocus?: boolean }) {
+    return (
+      <form
+        className="relative"
+        onSubmit={(e) => {
+          e.preventDefault();
+          askAssistant(input);
+        }}
+      >
+        <input
+          ref={inputEl}
+          autoFocus={autoFocus}
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          placeholder="Ask about risk, funds, allocation, or say 'add a fund'..."
+          className="w-full rounded-3xl border border-[var(--shell-border)] bg-[var(--shell-surface)] py-5 pl-6 pr-16 text-base text-[var(--shell-text)] shadow-lg outline-none placeholder:text-[var(--shell-text-faint)] transition focus:border-cyan-400/50 focus:ring-2 focus:ring-cyan-400/20"
+        />
+        <button
+          type="submit"
+          disabled={loading || !input.trim()}
+          className="absolute right-3 top-1/2 inline-flex h-11 w-11 -translate-y-1/2 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-cyan-400 to-emerald-400 text-slate-950 transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+        </button>
+      </form>
+    );
+  }
+
+  // ---- Fresh conversation: ChatGPT-style centered hero with a big input ----
+  if (!hasStarted) {
+    return (
+      <div className="flex h-full flex-col overflow-hidden">
+        <div className="shrink-0 flex items-center justify-end gap-2 px-5 py-4">
+          <button
+            onClick={onRefresh}
+            disabled={refreshing}
+            className="rounded-lg border border-[var(--shell-border)] p-2 text-[var(--shell-text-muted)] transition hover:bg-[var(--shell-surface-2)] hover:text-[var(--shell-text)] disabled:opacity-50"
+            title="Refresh portfolio"
+          >
+            <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
+          </button>
+        </div>
+
+        <div className="flex flex-1 flex-col items-center justify-center overflow-y-auto px-6 pb-16 pt-4">
+          <div className="w-full max-w-2xl">
+            <div className="mb-8 flex flex-col items-center text-center">
+              <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-400 to-emerald-400 text-slate-950 shadow-lg shadow-cyan-500/20">
+                <Bot className="h-7 w-7" />
+              </div>
+              <h1 className="text-2xl font-semibold text-[var(--shell-text)]">Hi, I'm Sutra</h1>
+              <p className="mt-3 max-w-xl text-sm leading-relaxed text-[var(--shell-text-muted)]">
+                {renderMessageContent(greeting)}
+              </p>
+            </div>
+
+            <BigInput inputEl={heroInputRef} autoFocus />
+
+            <div className="mt-4 flex flex-wrap justify-center gap-2">
+              {QUICK_ACTIONS.map((action) => (
+                <button
+                  key={action.label}
+                  onClick={() => handleQuickAction(action)}
+                  disabled={loading}
+                  className="flex items-center gap-1.5 rounded-full border border-[var(--shell-border)] bg-[var(--shell-surface-2)] px-3 py-1.5 text-xs font-medium text-[var(--shell-text-muted)] transition hover:border-cyan-400/30 hover:bg-cyan-400/10 hover:text-[var(--shell-text)] disabled:opacity-50"
+                >
+                  <action.icon className="h-3 w-3" />
+                  {action.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="mt-8">
+              <p className="mb-2 text-center text-[10px] font-semibold uppercase tracking-wider text-[var(--shell-text-faint)]">
+                Suggested questions
+              </p>
+              <div className="flex flex-wrap justify-center gap-2">
+                {STARTER_QUESTIONS.map((q) => (
+                  <button
+                    key={q}
+                    onClick={() => askAssistant(q)}
+                    className="flex items-center gap-1 rounded-full border border-[var(--shell-border)] bg-[var(--shell-surface-2)] px-3 py-1.5 text-xs text-[var(--shell-text-muted)] transition hover:border-cyan-400/30 hover:text-[var(--shell-text)]"
+                  >
+                    {q}
+                    <ChevronRight className="h-3 w-3 opacity-50" />
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ---- Ongoing conversation: normal transcript with a big pinned input ----
   return (
     <div className="flex h-full flex-col overflow-hidden">
       {/* Header */}
@@ -202,21 +299,6 @@ export default function AIPortfolioAssistant({
               Add Fund
             </button>
           </div>
-        </div>
-
-        {/* Quick actions */}
-        <div className="mt-3 flex flex-wrap gap-2">
-          {QUICK_ACTIONS.map((action) => (
-            <button
-              key={action.label}
-              onClick={() => handleQuickAction(action)}
-              disabled={loading}
-              className="flex items-center gap-1.5 rounded-full border border-[var(--shell-border)] bg-[var(--shell-surface-2)] px-3 py-1.5 text-xs font-medium text-[var(--shell-text-muted)] transition hover:border-cyan-400/30 hover:bg-cyan-400/10 hover:text-[var(--shell-text)] disabled:opacity-50"
-            >
-              <action.icon className="h-3 w-3" />
-              {action.label}
-            </button>
-          ))}
         </div>
       </div>
 
@@ -290,62 +372,24 @@ export default function AIPortfolioAssistant({
         </div>
       </div>
 
-      {/* Suggested questions */}
-      {messages.length <= 2 && !loading && (
-        <div className="shrink-0 border-t border-[var(--shell-border)] px-5 py-3">
-          <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-[var(--shell-text-faint)]">Suggested questions</p>
-          <div className="flex flex-wrap gap-2">
-            {STARTER_QUESTIONS.map((q) => (
-              <button
-                key={q}
-                onClick={() => askAssistant(q)}
-                className="flex items-center gap-1 rounded-full border border-[var(--shell-border)] bg-[var(--shell-surface-2)] px-3 py-1.5 text-xs text-[var(--shell-text-muted)] transition hover:border-cyan-400/30 hover:text-[var(--shell-text)]"
-              >
-                {q}
-                <ChevronRight className="h-3 w-3 opacity-50" />
-              </button>
-            ))}
-          </div>
+      {/* Big pinned input */}
+      <div className="shrink-0 border-t border-[var(--shell-border)] bg-[var(--shell-surface)] p-4">
+        <div className="mx-auto max-w-3xl">
+          <BigInput inputEl={inputRef} />
+          {source && (
+            <p className="mt-2 text-[10px] text-[var(--shell-text-faint)]">
+              Source:{" "}
+              {source === "groq"
+                ? "Groq · grounded on portfolio data"
+                : source === "gemini"
+                ? "Gemini · grounded on portfolio data"
+                : source === "openai"
+                ? "OpenAI · grounded on portfolio data"
+                : "Local deterministic engine"}
+            </p>
+          )}
         </div>
-      )}
-
-      {/* Input */}
-      <form
-        className="shrink-0 border-t border-[var(--shell-border)] bg-[var(--shell-surface)] p-4"
-        onSubmit={(e) => {
-          e.preventDefault();
-          askAssistant(input);
-        }}
-      >
-        <div className="mx-auto flex max-w-3xl gap-2">
-          <input
-            ref={inputRef}
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder="Ask about risk, funds, allocation, or say 'add a fund'..."
-            className="min-w-0 flex-1 rounded-xl border border-[var(--shell-border)] bg-[var(--shell-surface-2)] px-4 py-3 text-sm text-[var(--shell-text)] outline-none placeholder:text-[var(--shell-text-faint)] transition focus:border-cyan-400/50 focus:ring-1 focus:ring-cyan-400/20"
-          />
-          <button
-            type="submit"
-            disabled={loading || !input.trim()}
-            className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-400 to-emerald-400 text-slate-950 transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-          </button>
-        </div>
-        {source && (
-          <p className="mx-auto mt-2 max-w-3xl text-[10px] text-[var(--shell-text-faint)]">
-            Source:{" "}
-            {source === "groq"
-              ? "Groq · grounded on portfolio data"
-              : source === "gemini"
-              ? "Gemini · grounded on portfolio data"
-              : source === "openai"
-              ? "OpenAI · grounded on portfolio data"
-              : "Local deterministic engine"}
-          </p>
-        )}
-      </form>
+      </div>
     </div>
   );
 }

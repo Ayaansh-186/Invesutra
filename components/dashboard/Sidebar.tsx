@@ -5,13 +5,14 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
   TrendingUp, Search, BarChart2,
-  FileText, Sparkles, Bell, LogOut, ChevronRight, User, MessageSquare,
+  FileText, Sparkles, Bell, LogOut, ChevronRight, User, MessageSquare, Wallet,
 } from "lucide-react";
 import { useAuth } from "@/lib/hooks/useAuth";
 import ThemeToggle from "@/components/shared/ThemeToggle";
 
 const navItems = [
   { icon: MessageSquare, label: "Sutra AI", href: "/dashboard", badge: "AI" },
+  { icon: Wallet, label: "Portfolio", href: "/portfolio" },
   { icon: Search, label: "Screener", href: "/screener" },
   { icon: BarChart2, label: "Simulator", href: "/simulator" },
   { icon: FileText, label: "Reports", href: "/reports" },

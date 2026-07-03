@@ -6,16 +6,14 @@ import { riskEngine } from "@/lib/algorithm/riskEngine";
 import { useActivePortfolio } from "@/lib/hooks/useActivePortfolio";
 import { useAuth } from "@/lib/hooks/useAuth";
 import AIPortfolioAssistant from "@/components/dashboard/AIPortfolioAssistant";
-import PortfolioContextPanel from "@/components/dashboard/PortfolioContextPanel";
 import AddFundModal from "@/components/dashboard/AddFundModal";
-import { Sparkles, CheckCircle2, Plus, PanelRightClose, PanelRightOpen } from "lucide-react";
+import { Sparkles, CheckCircle2, Plus } from "lucide-react";
 
 export default function DashboardPage() {
   const { user } = useAuth();
   const { portfolio, loading, isDemo, isEmpty, refresh } = useActivePortfolio();
   const [showAddFund, setShowAddFund] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [showContext, setShowContext] = useState(true);
   const analysis = portfolio.analysis ?? riskEngine.analyzePortfolio(portfolio);
 
   async function handleRefresh() {
@@ -31,7 +29,7 @@ export default function DashboardPage() {
           <div className="h-12 w-12 rounded-full border-2 border-cyan-400/20 border-t-cyan-400 animate-spin" />
           <Sparkles className="absolute inset-0 m-auto h-5 w-5 text-cyan-400" />
         </div>
-        <p className="text-sm text-slate-400">Sutra AI is loading your portfolio...</p>
+        <p className="text-sm text-[var(--shell-text-muted)]">Sutra AI is loading your portfolio...</p>
       </div>
     );
   }
@@ -42,7 +40,7 @@ export default function DashboardPage() {
       {isDemo && !user && (
         <div className="shrink-0 flex items-center gap-3 border-b border-cyan-400/20 bg-cyan-400/10 px-4 py-2.5">
           <Sparkles className="h-4 w-4 shrink-0 text-cyan-400" />
-          <p className="flex-1 text-xs text-slate-300">
+          <p className="flex-1 text-xs text-[var(--shell-text-muted)]">
             Exploring with sample data.{" "}
             <Link href="/auth/signup" className="font-semibold text-cyan-300 hover:underline">
               Sign up free
@@ -54,7 +52,7 @@ export default function DashboardPage() {
       {isEmpty && user && (
         <div className="shrink-0 flex items-center gap-3 border-b border-emerald-400/20 bg-emerald-400/10 px-4 py-2.5">
           <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-400" />
-          <p className="flex-1 text-xs text-slate-300">
+          <p className="flex-1 text-xs text-[var(--shell-text-muted)]">
             Welcome! Ask Sutra to help you add your first fund, or click Add Fund.
           </p>
           <button
@@ -67,33 +65,15 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* Main AI-first layout */}
+      {/* Main AI-first layout — full width now that Portfolio has its own page */}
       <div className="flex flex-1 overflow-hidden">
-        <div className="flex flex-1 flex-col overflow-hidden">
-          <AIPortfolioAssistant
-            portfolio={portfolio}
-            analysis={analysis}
-            onAddFund={() => setShowAddFund(true)}
-            onRefresh={handleRefresh}
-            refreshing={refreshing}
-          />
-        </div>
-
-        {/* Context panel toggle + panel */}
-        <div className="relative hidden lg:flex">
-          <button
-            onClick={() => setShowContext(!showContext)}
-            className="absolute -left-3 top-4 z-10 flex h-6 w-6 items-center justify-center rounded-full border border-white/10 bg-[#0c1829] text-slate-400 hover:text-white"
-            title={showContext ? "Hide context" : "Show context"}
-          >
-            {showContext ? <PanelRightClose className="h-3 w-3" /> : <PanelRightOpen className="h-3 w-3" />}
-          </button>
-          {showContext && (
-            <div className="w-72 xl:w-80">
-              <PortfolioContextPanel portfolio={portfolio} analysis={analysis} />
-            </div>
-          )}
-        </div>
+        <AIPortfolioAssistant
+          portfolio={portfolio}
+          analysis={analysis}
+          onAddFund={() => setShowAddFund(true)}
+          onRefresh={handleRefresh}
+          refreshing={refreshing}
+        />
       </div>
 
       {showAddFund && (
