@@ -77,7 +77,7 @@ function DashboardPageInner() {
       )}
 
       {/* Main AI-first layout — full width now that Portfolio has its own page */}
-      <div className="flex min-h-0 flex-1 overflow-hidden">
+      <div className="flex min-h-0 w-full flex-1 overflow-hidden">
         <AIPortfolioAssistant
           portfolio={portfolio}
           analysis={analysis}

@@ -210,7 +210,7 @@ export default function AIPortfolioAssistant({
   // ---- Fresh conversation: ChatGPT-style centered hero with a big input ----
   if (!hasStarted) {
     return (
-      <div className="flex h-full flex-col overflow-hidden">
+      <div className="flex h-full w-full flex-col overflow-hidden">
         <div className="shrink-0 flex items-center justify-end gap-2 px-5 py-4">
           <button
             onClick={onRefresh}
@@ -223,13 +223,13 @@ export default function AIPortfolioAssistant({
         </div>
 
         <div className="flex min-h-0 flex-1 flex-col items-center justify-center overflow-y-auto px-6 pb-16 pt-4">
-          <div className="w-full max-w-2xl">
+          <div className="w-full max-w-3xl">
             <div className="mb-8 flex flex-col items-center text-center">
               <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-400 to-emerald-400 text-slate-950 shadow-lg shadow-cyan-500/20">
                 <Bot className="h-7 w-7" />
               </div>
               <h1 className="text-2xl font-semibold text-[var(--shell-text)]">Hi, I'm Sutra</h1>
-              <p className="mt-3 max-w-xl text-sm leading-relaxed text-[var(--shell-text-muted)]">
+              <p className="mt-3 max-w-2xl text-sm leading-relaxed text-[var(--shell-text-muted)]">
                 {renderMessageContent(greeting)}
               </p>
             </div>
@@ -275,7 +275,7 @@ export default function AIPortfolioAssistant({
 
   // ---- Ongoing conversation: normal transcript with a big pinned input ----
   return (
-    <div className="flex h-full flex-col overflow-hidden">
+    <div className="flex h-full w-full flex-col overflow-hidden">
       {/* Header */}
       <div className="shrink-0 border-b border-[var(--shell-border)] bg-[var(--shell-surface)] px-5 py-4">
         <div className="flex items-center justify-between gap-4">
@@ -315,7 +315,7 @@ export default function AIPortfolioAssistant({
 
       {/* Messages */}
       <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5">
-        <div className="mx-auto max-w-3xl space-y-4">
+        <div className="mx-auto max-w-4xl space-y-4">
           {messages.map((message, index) => (
             <div key={`${message.role}-${index}`}>
               <div className={`flex gap-3 ${message.role === "user" ? "justify-end" : ""}`}>
@@ -385,7 +385,7 @@ export default function AIPortfolioAssistant({
 
       {/* Big pinned input */}
       <div className="shrink-0 border-t border-[var(--shell-border)] bg-[var(--shell-surface)] p-4">
-        <div className="mx-auto max-w-3xl">
+        <div className="mx-auto max-w-4xl">
           <BigInput inputEl={inputRef} />
           {source && (
             <p className="mt-2 text-[10px] text-[var(--shell-text-faint)]">
