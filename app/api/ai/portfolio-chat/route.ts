@@ -66,6 +66,27 @@ export async function POST(request: NextRequest) {
     };
 
     const result = await answerPortfolioQuestion(portfolio, safeMessages, toolContext);
+
+    // Persist chat history so it survives a full page reload / new session —
+    // only for signed-in users on a portfolio they actually own (same
+    // ownership check as canMutate above). Client resends the full running
+    // conversation each request, so we only insert the newest user message
+    // plus this turn's assistant answer, not the whole array again.
+    if (canMutate && user) {
+      const latestUserMessage = safeMessages[safeMessages.length - 1];
+      const rows = [
+        { portfolio_id: portfolio.id, user_id: user.id, role: "user" as const, content: latestUserMessage.content },
+        { portfolio_id: portfolio.id, user_id: user.id, role: "assistant" as const, content: result.answer },
+      ];
+      const { error: chatSaveError } = await supabase.from("chat_messages").insert(rows);
+      if (chatSaveError) {
+        // Non-fatal — the assistant already answered. Most likely cause is
+        // the chat_messages migration hasn't been run yet (see
+        // supabase/migrations/002_chat_messages.sql).
+        console.warn("Failed to persist chat message (has the chat_messages migration been run?):", chatSaveError.message);
+      }
+    }
+
     return NextResponse.json(result);
   } catch (error: any) {
     console.error("Portfolio chat route error:", error);

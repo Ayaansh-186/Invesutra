@@ -157,6 +157,20 @@ create table if not exists public.analysis_history (
 create index if not exists idx_analysis_history_portfolio_id on public.analysis_history(portfolio_id);
 
 -- ----------------------------------------------------------------------------
+-- CHAT MESSAGES (persisted Sutra AI conversation history, per portfolio)
+-- ----------------------------------------------------------------------------
+create table if not exists public.chat_messages (
+  id uuid primary key default gen_random_uuid(),
+  portfolio_id uuid not null references public.portfolios(id) on delete cascade,
+  user_id uuid not null references public.users(id) on delete cascade,
+  role text not null check (role in ('user', 'assistant')),
+  content text not null,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists idx_chat_messages_portfolio_created on public.chat_messages(portfolio_id, created_at);
+
+-- ----------------------------------------------------------------------------
 -- updated_at triggers
 -- ----------------------------------------------------------------------------
 create or replace function public.set_updated_at()
@@ -194,62 +208,97 @@ alter table public.transactions enable row level security;
 alter table public.ai_reports enable row level security;
 alter table public.subscriptions enable row level security;
 alter table public.analysis_history enable row level security;
+alter table public.chat_messages enable row level security;
 
 -- USERS: users can read/update only their own row
+drop policy if exists "Users can view own profile" on public.users;
 create policy "Users can view own profile" on public.users
   for select using (auth.uid() = id);
+drop policy if exists "Users can update own profile" on public.users;
 create policy "Users can update own profile" on public.users
   for update using (auth.uid() = id);
 
 -- PORTFOLIOS: full CRUD scoped to owner
+drop policy if exists "Users can view own portfolios" on public.portfolios;
 create policy "Users can view own portfolios" on public.portfolios
   for select using (auth.uid() = user_id);
+drop policy if exists "Users can insert own portfolios" on public.portfolios;
 create policy "Users can insert own portfolios" on public.portfolios
   for insert with check (auth.uid() = user_id);
+drop policy if exists "Users can update own portfolios" on public.portfolios;
 create policy "Users can update own portfolios" on public.portfolios
   for update using (auth.uid() = user_id);
+drop policy if exists "Users can delete own portfolios" on public.portfolios;
 create policy "Users can delete own portfolios" on public.portfolios
   for delete using (auth.uid() = user_id);
 
 -- FUNDS: scoped via parent portfolio ownership
+drop policy if exists "Users can view own funds" on public.funds;
 create policy "Users can view own funds" on public.funds
   for select using (
     exists (select 1 from public.portfolios p where p.id = funds.portfolio_id and p.user_id = auth.uid())
   );
+drop policy if exists "Users can insert own funds" on public.funds;
 create policy "Users can insert own funds" on public.funds
   for insert with check (
     exists (select 1 from public.portfolios p where p.id = funds.portfolio_id and p.user_id = auth.uid())
   );
+drop policy if exists "Users can update own funds" on public.funds;
 create policy "Users can update own funds" on public.funds
   for update using (
     exists (select 1 from public.portfolios p where p.id = funds.portfolio_id and p.user_id = auth.uid())
   );
+drop policy if exists "Users can delete own funds" on public.funds;
 create policy "Users can delete own funds" on public.funds
   for delete using (
     exists (select 1 from public.portfolios p where p.id = funds.portfolio_id and p.user_id = auth.uid())
   );
 
 -- TRANSACTIONS: scoped to owner
+drop policy if exists "Users can view own transactions" on public.transactions;
 create policy "Users can view own transactions" on public.transactions
   for select using (auth.uid() = user_id);
+drop policy if exists "Users can insert own transactions" on public.transactions;
 create policy "Users can insert own transactions" on public.transactions
   for insert with check (auth.uid() = user_id);
 
 -- AI REPORTS: scoped to owner
+drop policy if exists "Users can view own reports" on public.ai_reports;
 create policy "Users can view own reports" on public.ai_reports
   for select using (auth.uid() = user_id);
+drop policy if exists "Users can insert own reports" on public.ai_reports;
 create policy "Users can insert own reports" on public.ai_reports
   for insert with check (auth.uid() = user_id);
+drop policy if exists "Users can delete own reports" on public.ai_reports;
 create policy "Users can delete own reports" on public.ai_reports
   for delete using (auth.uid() = user_id);
 
 -- SUBSCRIPTIONS: scoped to owner (read-only from client; writes happen via
 -- the Stripe webhook using the service-role key, which bypasses RLS)
+drop policy if exists "Users can view own subscription" on public.subscriptions;
 create policy "Users can view own subscription" on public.subscriptions
   for select using (auth.uid() = user_id);
 
 -- ANALYSIS HISTORY: scoped to owner
+drop policy if exists "Users can view own analysis history" on public.analysis_history;
 create policy "Users can view own analysis history" on public.analysis_history
   for select using (auth.uid() = user_id);
+drop policy if exists "Users can insert own analysis history" on public.analysis_history;
 create policy "Users can insert own analysis history" on public.analysis_history
   for insert with check (auth.uid() = user_id);
+
+-- CHAT MESSAGES: scoped to owner, and insert additionally requires the
+-- caller to actually own the parent portfolio (defense in depth alongside
+-- the app-level ownership check in app/api/ai/portfolio-chat/route.ts)
+drop policy if exists "Users can view own chat messages" on public.chat_messages;
+create policy "Users can view own chat messages" on public.chat_messages
+  for select using (auth.uid() = user_id);
+drop policy if exists "Users can insert own chat messages" on public.chat_messages;
+create policy "Users can insert own chat messages" on public.chat_messages
+  for insert with check (
+    auth.uid() = user_id
+    and exists (select 1 from public.portfolios p where p.id = chat_messages.portfolio_id and p.user_id = auth.uid())
+  );
+drop policy if exists "Users can delete own chat messages" on public.chat_messages;
+create policy "Users can delete own chat messages" on public.chat_messages
+  for delete using (auth.uid() = user_id);

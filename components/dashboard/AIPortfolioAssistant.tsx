@@ -36,6 +36,7 @@ export default function AIPortfolioAssistant({
   onRefresh,
   refreshing,
   initialQuery,
+  historyEnabled,
 }: {
   portfolio: Portfolio;
   analysis: PortfolioAnalysis;
@@ -43,6 +44,8 @@ export default function AIPortfolioAssistant({
   onRefresh: () => void;
   refreshing?: boolean;
   initialQuery?: string;
+  /** True when this is a real, signed-in-owned portfolio — enables loading/saving chat history so it survives a page reload. Omit/false for demo sessions. */
+  historyEnabled?: boolean;
 }) {
   const greeting = `Hi! I'm **Sutra**, your Invesutra portfolio copilot. I've analyzed your ${portfolio.funds.length} fund${portfolio.funds.length === 1 ? "" : "s"} worth ${formatCurrency(portfolio.currentValue, true)}.\n\n• Health: **${portfolio.healthScore}/100** (${analysis.overallHealth})\n• Risk: **${portfolio.riskScore}/100**\n• Returns: **${formatPercent(portfolio.returnsPercent)}**\n\nAsk me anything — risk drivers, fund performance, rebalancing, or say "add a fund" to manage holdings.`;
 
@@ -72,13 +75,50 @@ export default function AIPortfolioAssistant({
   }, [messages, loading]);
 
   const firedInitialQuery = useRef(false);
+  // "idle" until we know whether there's saved history to load. When
+  // historyEnabled is false (demo sessions), there's nothing to wait for.
+  const [historyStatus, setHistoryStatus] = useState<"idle" | "loading" | "ready">(
+    historyEnabled ? "loading" : "ready"
+  );
+
   useEffect(() => {
+    if (!historyEnabled) {
+      setHistoryStatus("ready");
+      return;
+    }
+
+    let cancelled = false;
+    setHistoryStatus("loading");
+
+    fetch(`/api/portfolios/${portfolio.id}/chat`)
+      .then((res) => (res.ok ? res.json() : { messages: [] }))
+      .then((data: { messages?: ChatMessage[] }) => {
+        if (cancelled) return;
+        if (data.messages && data.messages.length > 0) {
+          setMessages(data.messages);
+        }
+      })
+      .catch(() => {
+        // Fail soft — keep the default greeting if history can't be loaded.
+      })
+      .finally(() => {
+        if (!cancelled) setHistoryStatus("ready");
+      });
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [historyEnabled, portfolio.id]);
+
+  useEffect(() => {
+    if (historyStatus !== "ready") return;
     if (initialQuery && !firedInitialQuery.current) {
       firedInitialQuery.current = true;
       askAssistant(initialQuery);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialQuery]);
+  }, [initialQuery, historyStatus]);
 
   function detectLocalIntent(question: string): "add_fund" | "show_holdings" | null {
     const q = question.toLowerCase();

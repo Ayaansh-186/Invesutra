@@ -96,6 +96,15 @@ export interface DbAnalysisHistory {
   created_at: string;
 }
 
+export interface DbChatMessage {
+  id: string;
+  portfolio_id: string;
+  user_id: string;
+  role: "user" | "assistant";
+  content: string;
+  created_at: string;
+}
+
 export interface Database {
   public: {
     Tables: {
@@ -106,6 +115,7 @@ export interface Database {
       ai_reports: { Row: DbAIReport; Insert: Partial<DbAIReport>; Update: Partial<DbAIReport>; Relationships: [] };
       subscriptions: { Row: DbSubscription; Insert: Partial<DbSubscription>; Update: Partial<DbSubscription>; Relationships: [] };
       analysis_history: { Row: DbAnalysisHistory; Insert: Partial<DbAnalysisHistory>; Update: Partial<DbAnalysisHistory>; Relationships: [] };
+      chat_messages: { Row: DbChatMessage; Insert: Partial<DbChatMessage>; Update: Partial<DbChatMessage>; Relationships: [] };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;

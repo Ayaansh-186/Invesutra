@@ -80,6 +80,20 @@ Portfolio mutations from chat (add/update/remove a fund) only ever write to
 Invesutra's own Supabase-backed portfolio tracker. They never place a real
 brokerage order.
 
+### Persisted chat history
+
+For signed-in users with a real (non-demo) portfolio, Sutra AI's
+conversation is saved to Supabase and reloaded on a full page reload or new
+session — not just kept in memory. Demo/guest sessions and empty
+(no-portfolio-yet) accounts keep the existing in-memory-only behavior.
+
+**One-time setup:** run `supabase/migrations/002_chat_messages.sql` in your
+Supabase SQL Editor (or `supabase db push`). It's also folded into
+`supabase/schema.sql` for fresh projects. Until it's run, chat still works
+normally — persistence just fails silently (logged as a warning) and falls
+back to in-memory-only, so this is safe to deploy before running the
+migration.
+
 ### Verifying the integration
 
 ```bash

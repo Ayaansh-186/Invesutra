@@ -85,6 +85,7 @@ function DashboardPageInner() {
           onRefresh={handleRefresh}
           refreshing={refreshing}
           initialQuery={initialQuery}
+          historyEnabled={!isDemo && !isEmpty}
         />
       </div>
 
