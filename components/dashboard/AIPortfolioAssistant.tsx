@@ -216,13 +216,58 @@ export default function AIPortfolioAssistant({
     }
   }
 
+  function renderInline(text: string, keyPrefix: string) {
+    return text.split(/(\*\*[^*]+\*\*)/).map((part, i) =>
+      part.startsWith("**") && part.endsWith("**") ? (
+        <strong key={`${keyPrefix}-${i}`} className="font-semibold text-[var(--shell-text)]">
+          {part.slice(2, -2)}
+        </strong>
+      ) : (
+        <span key={`${keyPrefix}-${i}`}>{part}</span>
+      )
+    );
+  }
+
+  // Groups the model's raw text into paragraph and bullet-list blocks
+  // instead of dumping it as one run-on line — a plain string with \n in
+  // JSX collapses whitespace, which is why replies used to read as a wall
+  // of text with literal "*" characters instead of real bullets.
   function renderMessageContent(content: string) {
-    return content.split(/(\*\*[^*]+\*\*)/).map((part, i) => {
-      if (part.startsWith("**") && part.endsWith("**")) {
-        return <strong key={i} className="font-semibold text-[var(--shell-text)]">{part.slice(2, -2)}</strong>;
+    const lines = content
+      .split("\n")
+      .map((l) => l.trim())
+      .filter((l) => l.length > 0);
+
+    type Block = { type: "p" | "ul"; lines: string[] };
+    const blocks: Block[] = [];
+
+    for (const line of lines) {
+      const bulletMatch = line.match(/^[*\-•]\s+(.*)/);
+      const text = bulletMatch ? bulletMatch[1] : line;
+      const kind: Block["type"] = bulletMatch ? "ul" : "p";
+      const last = blocks[blocks.length - 1];
+      if (last && last.type === kind) {
+        last.lines.push(text);
+      } else {
+        blocks.push({ type: kind, lines: [text] });
       }
-      return part;
-    });
+    }
+
+    return (
+      <div className="space-y-3">
+        {blocks.map((block, bi) =>
+          block.type === "ul" ? (
+            <ul key={bi} className="list-disc space-y-1.5 pl-5">
+              {block.lines.map((line, li) => (
+                <li key={li}>{renderInline(line, `${bi}-${li}`)}</li>
+              ))}
+            </ul>
+          ) : (
+            <p key={bi}>{renderInline(block.lines.join(" "), `${bi}`)}</p>
+          )
+        )}
+      </div>
+    );
   }
 
   function BigInput({ inputEl, autoFocus }: { inputEl: React.RefObject<HTMLInputElement | null>; autoFocus?: boolean }) {
@@ -281,9 +326,9 @@ export default function AIPortfolioAssistant({
             <div className="mb-7 flex flex-col items-center text-center">
               <Sparkle className="mb-3 h-6 w-6 text-cyan-600" strokeWidth={1.5} />
               <h1 className="text-xl font-medium text-[var(--shell-text)]">Hi, I'm Invesutra AI</h1>
-              <p className="mt-3 max-w-xl text-sm leading-relaxed text-[var(--shell-text-muted)]">
+              <div className="mt-3 max-w-xl text-sm leading-relaxed text-[var(--shell-text-muted)]">
                 {renderMessageContent(greeting)}
-              </p>
+              </div>
             </div>
 
             <BigInput inputEl={heroInputRef} autoFocus />
