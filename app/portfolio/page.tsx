@@ -72,7 +72,7 @@ export default function PortfolioPage() {
                 className="flex items-center gap-1.5 rounded-lg border border-[var(--shell-border)] bg-[var(--shell-surface-2)] px-3 py-2 text-xs font-semibold text-[var(--shell-text-muted)] transition hover:text-[var(--shell-text)]"
               >
                 <MessageSquare className="h-3.5 w-3.5" />
-                Ask Sutra AI
+                Ask Invesutra AI
               </Link>
               <button
                 onClick={handleRefresh}

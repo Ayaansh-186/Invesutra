@@ -11,7 +11,7 @@ import { useAuth } from "@/lib/hooks/useAuth";
 import ThemeToggle from "@/components/shared/ThemeToggle";
 
 const navItems = [
-  { icon: MessageSquare, label: "Sutra AI", href: "/dashboard", badge: "AI" },
+  { icon: MessageSquare, label: "Invesutra AI", href: "/dashboard", badge: "AI" },
   { icon: Wallet, label: "Portfolio", href: "/portfolio" },
   { icon: Search, label: "Screener", href: "/screener" },
   { icon: BarChart2, label: "Simulator", href: "/simulator" },

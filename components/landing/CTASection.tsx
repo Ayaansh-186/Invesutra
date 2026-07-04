@@ -13,7 +13,7 @@ export default function CTASection() {
           Free to start
         </div>
         <h2 className="text-balance text-4xl font-semibold tracking-tight text-white md:text-5xl">
-          Start chatting with Sutra AI today
+          Start chatting with Invesutra AI today
         </h2>
         <p className="mx-auto mt-5 max-w-2xl text-xl leading-relaxed text-slate-400">
           No credit card. No fluff — just clear, intelligent portfolio analysis powered by AI and the QuantRebalance Protocol.
@@ -23,7 +23,7 @@ export default function CTASection() {
           className="group mt-10 inline-flex items-center gap-2.5 rounded-xl bg-cyan-300 px-8 py-4 text-base font-semibold text-slate-950 transition hover:bg-cyan-200 ai-glow"
         >
           <MessageSquare className="h-5 w-5" />
-          Open Sutra AI
+          Open Invesutra AI
           <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
         </Link>
         <p className="mt-4 text-sm text-slate-500">No account required to explore with sample data</p>

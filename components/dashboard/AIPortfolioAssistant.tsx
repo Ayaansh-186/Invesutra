@@ -2,8 +2,8 @@
 
 import { useMemo, useRef, useEffect, useState } from "react";
 import {
-  Bot, Loader2, Send, Sparkles, UserRound, Plus, List,
-  Shield, TrendingUp, RefreshCw, Search, ChevronRight,
+  Loader2, Send, Plus, List,
+  Shield, TrendingUp, RefreshCw, Search, Sparkle,
 } from "lucide-react";
 import type { Portfolio, PortfolioAnalysis } from "@/lib/types";
 import { formatCurrency, formatPercent, categoryLabel } from "@/lib/utils/format";
@@ -47,7 +47,7 @@ export default function AIPortfolioAssistant({
   /** True when this is a real, signed-in-owned portfolio — enables loading/saving chat history so it survives a page reload. Omit/false for demo sessions. */
   historyEnabled?: boolean;
 }) {
-  const greeting = `Hi! I'm **Sutra**, your Invesutra portfolio copilot. I've analyzed your ${portfolio.funds.length} fund${portfolio.funds.length === 1 ? "" : "s"} worth ${formatCurrency(portfolio.currentValue, true)}.\n\n• Health: **${portfolio.healthScore}/100** (${analysis.overallHealth})\n• Risk: **${portfolio.riskScore}/100**\n• Returns: **${formatPercent(portfolio.returnsPercent)}**\n\nAsk me anything — risk drivers, fund performance, rebalancing, or say "add a fund" to manage holdings.`;
+  const greeting = `Hi! I'm **Invesutra AI**, your portfolio copilot. I've analyzed your ${portfolio.funds.length} fund${portfolio.funds.length === 1 ? "" : "s"} worth ${formatCurrency(portfolio.currentValue, true)}.\n\n• Health: **${portfolio.healthScore}/100** (${analysis.overallHealth})\n• Risk: **${portfolio.riskScore}/100**\n• Returns: **${formatPercent(portfolio.returnsPercent)}**\n\nAsk me anything — risk drivers, fund performance, rebalancing, or say "add a fund" to manage holdings.`;
 
   const [messages, setMessages] = useState<ChatMessage[]>([{ role: "assistant", content: greeting }]);
   const [input, setInput] = useState("");
@@ -113,12 +113,12 @@ export default function AIPortfolioAssistant({
 
   useEffect(() => {
     if (historyStatus !== "ready") return;
-    if (initialQuery && !firedInitialQuery.current) {
+    if (initialQuery && !hasStarted && !firedInitialQuery.current) {
       firedInitialQuery.current = true;
       askAssistant(initialQuery);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialQuery, historyStatus]);
+  }, [initialQuery, historyStatus, hasStarted]);
 
   function detectLocalIntent(question: string): "add_fund" | "show_holdings" | null {
     const q = question.toLowerCase();
@@ -240,20 +240,28 @@ export default function AIPortfolioAssistant({
           value={input}
           onChange={(e) => setInput(e.target.value)}
           placeholder="Ask about risk, funds, allocation, or say 'add a fund'..."
-          className="w-full rounded-3xl border border-[var(--shell-border)] bg-[var(--shell-surface)] py-5 pl-6 pr-16 text-base text-[var(--shell-text)] shadow-lg outline-none placeholder:text-[var(--shell-text-faint)] transition focus:border-cyan-400/50 focus:ring-2 focus:ring-cyan-400/20"
+          className="w-full rounded-2xl border border-[var(--shell-border)] bg-[var(--shell-surface)] py-4 pl-5 pr-14 text-[15px] text-[var(--shell-text)] outline-none placeholder:text-[var(--shell-text-faint)] transition focus:border-cyan-500/40"
         />
         <button
           type="submit"
           disabled={loading || !input.trim()}
-          className="absolute right-3 top-1/2 inline-flex h-11 w-11 -translate-y-1/2 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-cyan-400 to-emerald-400 text-slate-950 transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+          className="absolute right-2.5 top-1/2 inline-flex h-9 w-9 -translate-y-1/2 shrink-0 items-center justify-center rounded-full bg-[var(--shell-text)] text-[var(--shell-bg)] transition hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-30"
         >
-          {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+          {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
         </button>
       </form>
     );
   }
 
-  // ---- Fresh conversation: ChatGPT-style centered hero with a big input ----
+  if (historyStatus !== "ready") {
+    return (
+      <div className="flex h-full w-full items-center justify-center">
+        <Loader2 className="h-5 w-5 animate-spin text-[var(--shell-text-faint)]" />
+      </div>
+    );
+  }
+
+  // ---- Fresh conversation: minimal centered hero with a single input ----
   if (!hasStarted) {
     return (
       <div className="flex h-full w-full flex-col overflow-hidden">
@@ -261,7 +269,7 @@ export default function AIPortfolioAssistant({
           <button
             onClick={onRefresh}
             disabled={refreshing}
-            className="rounded-lg border border-[var(--shell-border)] p-2 text-[var(--shell-text-muted)] transition hover:bg-[var(--shell-surface-2)] hover:text-[var(--shell-text)] disabled:opacity-50"
+            className="rounded-lg p-2 text-[var(--shell-text-faint)] transition hover:bg-[var(--shell-surface-2)] hover:text-[var(--shell-text)] disabled:opacity-50"
             title="Refresh portfolio"
           >
             <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
@@ -269,46 +277,43 @@ export default function AIPortfolioAssistant({
         </div>
 
         <div className="flex min-h-0 flex-1 flex-col items-center justify-center overflow-y-auto px-6 pb-16 pt-4">
-          <div className="w-full max-w-3xl">
-            <div className="mb-8 flex flex-col items-center text-center">
-              <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-400 to-emerald-400 text-slate-950 shadow-lg shadow-cyan-500/20">
-                <Bot className="h-7 w-7" />
-              </div>
-              <h1 className="text-2xl font-semibold text-[var(--shell-text)]">Hi, I'm Sutra</h1>
-              <p className="mt-3 max-w-2xl text-sm leading-relaxed text-[var(--shell-text-muted)]">
+          <div className="w-full max-w-2xl">
+            <div className="mb-7 flex flex-col items-center text-center">
+              <Sparkle className="mb-3 h-6 w-6 text-cyan-600" strokeWidth={1.5} />
+              <h1 className="text-xl font-medium text-[var(--shell-text)]">Hi, I'm Invesutra AI</h1>
+              <p className="mt-3 max-w-xl text-sm leading-relaxed text-[var(--shell-text-muted)]">
                 {renderMessageContent(greeting)}
               </p>
             </div>
 
             <BigInput inputEl={heroInputRef} autoFocus />
 
-            <div className="mt-4 flex flex-wrap justify-center gap-2">
+            <div className="mt-4 flex flex-wrap justify-center gap-1.5">
               {QUICK_ACTIONS.map((action) => (
                 <button
                   key={action.label}
                   onClick={() => handleQuickAction(action)}
                   disabled={loading}
-                  className="flex items-center gap-1.5 rounded-full border border-[var(--shell-border)] bg-[var(--shell-surface-2)] px-3 py-1.5 text-xs font-medium text-[var(--shell-text-muted)] transition hover:border-cyan-400/30 hover:bg-cyan-400/10 hover:text-[var(--shell-text)] disabled:opacity-50"
+                  className="flex items-center gap-1.5 rounded-full border border-[var(--shell-border)] px-3 py-1.5 text-xs text-[var(--shell-text-muted)] transition hover:border-[var(--shell-text-faint)] hover:text-[var(--shell-text)] disabled:opacity-50"
                 >
-                  <action.icon className="h-3 w-3" />
+                  <action.icon className="h-3 w-3" strokeWidth={1.5} />
                   {action.label}
                 </button>
               ))}
             </div>
 
             <div className="mt-8">
-              <p className="mb-2 text-center text-[10px] font-semibold uppercase tracking-wider text-[var(--shell-text-faint)]">
-                Suggested questions
+              <p className="mb-2 text-center text-[10px] font-medium uppercase tracking-wider text-[var(--shell-text-faint)]">
+                Suggested
               </p>
-              <div className="flex flex-wrap justify-center gap-2">
+              <div className="flex flex-col items-center gap-1">
                 {STARTER_QUESTIONS.map((q) => (
                   <button
                     key={q}
                     onClick={() => askAssistant(q)}
-                    className="flex items-center gap-1 rounded-full border border-[var(--shell-border)] bg-[var(--shell-surface-2)] px-3 py-1.5 text-xs text-[var(--shell-text-muted)] transition hover:border-cyan-400/30 hover:text-[var(--shell-text)]"
+                    className="text-sm text-[var(--shell-text-muted)] transition hover:text-[var(--shell-text)] hover:underline underline-offset-4"
                   >
                     {q}
-                    <ChevronRight className="h-3 w-3 opacity-50" />
                   </button>
                 ))}
               </div>
@@ -319,81 +324,67 @@ export default function AIPortfolioAssistant({
     );
   }
 
-  // ---- Ongoing conversation: normal transcript with a big pinned input ----
+  // ---- Ongoing conversation: minimal transcript with a pinned input ----
   return (
     <div className="flex h-full w-full flex-col overflow-hidden">
       {/* Header */}
-      <div className="shrink-0 border-b border-[var(--shell-border)] bg-[var(--shell-surface)] px-5 py-4">
+      <div className="shrink-0 border-b border-[var(--shell-border)] px-5 py-3.5">
         <div className="flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-400 to-emerald-400 text-slate-950 shadow-lg shadow-cyan-500/20">
-              <Bot className="h-5 w-5" />
-            </div>
+          <div className="flex items-center gap-2">
+            <Sparkle className="h-4 w-4 text-cyan-600" strokeWidth={1.5} />
             <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-base font-semibold text-[var(--shell-text)]">Sutra AI</h1>
-                <span className="rounded-full border border-emerald-400/30 bg-emerald-400/10 px-2 py-0.5 text-[10px] font-medium text-emerald-300">
-                  Online
-                </span>
-              </div>
-              <p className="text-xs text-[var(--shell-text-muted)]">Portfolio copilot · {assistantBrief}</p>
+              <h1 className="text-sm font-medium text-[var(--shell-text)]">Invesutra AI</h1>
+              <p className="text-xs text-[var(--shell-text-faint)]">{assistantBrief}</p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1">
             <button
               onClick={onRefresh}
               disabled={refreshing}
-              className="rounded-lg border border-[var(--shell-border)] p-2 text-[var(--shell-text-muted)] transition hover:bg-[var(--shell-surface-2)] hover:text-[var(--shell-text)] disabled:opacity-50"
+              className="rounded-lg p-2 text-[var(--shell-text-faint)] transition hover:bg-[var(--shell-surface-2)] hover:text-[var(--shell-text)] disabled:opacity-50"
               title="Refresh portfolio"
             >
               <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
             </button>
             <button
               onClick={onAddFund}
-              className="flex items-center gap-1.5 rounded-lg bg-cyan-400 px-3 py-2 text-xs font-semibold text-slate-950 transition hover:bg-cyan-300"
+              className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-[var(--shell-text-muted)] transition hover:bg-[var(--shell-surface-2)] hover:text-[var(--shell-text)]"
             >
               <Plus className="h-3.5 w-3.5" />
-              Add Fund
+              Add fund
             </button>
           </div>
         </div>
       </div>
 
       {/* Messages */}
-      <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5">
-        <div className="mx-auto max-w-4xl space-y-4">
+      <div className="min-h-0 flex-1 overflow-y-auto px-5 py-6">
+        <div className="mx-auto max-w-3xl space-y-6">
           {messages.map((message, index) => (
             <div key={`${message.role}-${index}`}>
-              <div className={`flex gap-3 ${message.role === "user" ? "justify-end" : ""}`}>
-                {message.role === "assistant" && (
-                  <div className="mt-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-cyan-400/20">
-                    <Sparkles className="h-3.5 w-3.5 text-cyan-300" />
+              {message.role === "user" ? (
+                <div className="flex justify-end">
+                  <div className="max-w-[80%] rounded-2xl bg-[var(--shell-surface-2)] px-4 py-2.5 text-[15px] leading-relaxed text-[var(--shell-text)]">
+                    {renderMessageContent(message.content)}
                   </div>
-                )}
-                <div
-                  className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
-                    message.role === "user"
-                      ? "bg-cyan-400/20 text-[var(--shell-text)] border border-cyan-400/20"
-                      : "border border-[var(--shell-border)] bg-[var(--shell-surface-2)] text-[var(--shell-text-muted)]"
-                  }`}
-                >
-                  {renderMessageContent(message.content)}
                 </div>
-                {message.role === "user" && (
-                  <div className="mt-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[var(--shell-surface-2)] text-[var(--shell-text-muted)]">
-                    <UserRound className="h-3.5 w-3.5" />
+              ) : (
+                <div className="flex gap-3">
+                  <Sparkle className="mt-1 h-4 w-4 shrink-0 text-cyan-600" strokeWidth={1.5} />
+                  <div className="min-w-0 flex-1 text-[15px] leading-relaxed text-[var(--shell-text)]">
+                    {renderMessageContent(message.content)}
                   </div>
-                )}
-              </div>
+                </div>
+              )}
 
               {message.action === "show_holdings" && portfolio.funds.length > 0 && (
-                <div className="ml-10 mt-3 space-y-2">
+                <div className="mt-3 ml-7 space-y-2">
                   {[...portfolio.funds]
                     .sort((a, b) => b.currentValue - a.currentValue)
                     .map((fund) => (
                       <div
                         key={fund.id}
-                        className="flex items-center justify-between rounded-xl border border-[var(--shell-border)] bg-[var(--shell-surface-2)] px-4 py-3"
+                        className="flex items-center justify-between rounded-xl border border-[var(--shell-border)] px-4 py-3"
                       >
                         <div className="min-w-0 flex-1">
                           <p className="truncate text-sm font-medium text-[var(--shell-text)]">{fund.name}</p>
@@ -415,27 +406,24 @@ export default function AIPortfolioAssistant({
           ))}
 
           {loading && (
-            <div className="flex items-center gap-3">
-              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-cyan-400/20">
-                <Sparkles className="h-3.5 w-3.5 text-cyan-300" />
-              </div>
-              <div className="flex items-center gap-2 rounded-2xl border border-[var(--shell-border)] bg-[var(--shell-surface-2)] px-4 py-3 text-sm text-[var(--shell-text-muted)]">
-                <Loader2 className="h-4 w-4 animate-spin text-cyan-400" />
-                Sutra is analyzing your portfolio...
-              </div>
+            <div className="flex items-center gap-3 text-sm text-[var(--shell-text-faint)]">
+              <Sparkle className="h-4 w-4 text-cyan-600" strokeWidth={1.5} />
+              <span className="inline-flex items-center gap-1.5">
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                Thinking...
+              </span>
             </div>
           )}
           <div ref={messagesEndRef} />
         </div>
       </div>
 
-      {/* Big pinned input */}
-      <div className="shrink-0 border-t border-[var(--shell-border)] bg-[var(--shell-surface)] p-4">
-        <div className="mx-auto max-w-4xl">
+      {/* Pinned input */}
+      <div className="shrink-0 px-5 pb-4 pt-2">
+        <div className="mx-auto max-w-3xl">
           <BigInput inputEl={inputRef} />
           {source && (
             <p className="mt-2 text-[10px] text-[var(--shell-text-faint)]">
-              Source:{" "}
               {source === "groq"
                 ? "Groq · grounded on portfolio data"
                 : source === "gemini"

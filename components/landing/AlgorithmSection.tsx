@@ -53,7 +53,7 @@ export default function AlgorithmSection() {
               Algorithmic rebalancing, explained by AI
             </h2>
             <p className="text-lg text-slate-500 leading-relaxed mb-6">
-              The QuantRebalance Protocol (QRP) is a rules-based portfolio management algorithm. Ask Sutra AI to explain how it applies to your specific holdings and allocation.
+              The QuantRebalance Protocol (QRP) is a rules-based portfolio management algorithm. Ask Invesutra AI to explain how it applies to your specific holdings and allocation.
             </p>
             <p className="text-sm text-slate-400 bg-slate-50 border border-slate-200 rounded-xl p-4 leading-relaxed">
               <strong className="text-slate-600">Disclaimer:</strong> Invesutra is a decision-support platform, not a guaranteed returns product.

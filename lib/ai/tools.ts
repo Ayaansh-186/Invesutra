@@ -1,6 +1,6 @@
 // Copyright © 2026 Ayaansh Singhal. All Rights Reserved.
 //
-// Tool (function-calling) definitions Sutra AI can invoke mid-conversation,
+// Tool (function-calling) definitions Invesutra AI can invoke mid-conversation,
 // plus the server-side executors bound to a specific authenticated user's
 // portfolio. Two categories:
 //

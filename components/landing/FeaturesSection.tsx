@@ -4,7 +4,7 @@ const features = [
   {
     icon: MessageSquareText,
     title: "Conversational portfolio copilot",
-    description: "Chat with Sutra AI to understand why risk moved, which funds drag performance, or how to rebalance — grounded in your holdings.",
+    description: "Chat with Invesutra AI to understand why risk moved, which funds drag performance, or how to rebalance — grounded in your holdings.",
   },
   {
     icon: Gauge,
@@ -19,7 +19,7 @@ const features = [
   {
     icon: SlidersHorizontal,
     title: "Rebalancing logic",
-    description: "Turns findings into practical allocation moves using the QuantRebalance engine — ask Sutra to explain each suggestion.",
+    description: "Turns findings into practical allocation moves using the QuantRebalance engine — ask Invesutra to explain each suggestion.",
   },
   {
     icon: DatabaseZap,

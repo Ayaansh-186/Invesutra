@@ -302,3 +302,46 @@ create policy "Users can insert own chat messages" on public.chat_messages
 drop policy if exists "Users can delete own chat messages" on public.chat_messages;
 create policy "Users can delete own chat messages" on public.chat_messages
   for delete using (auth.uid() = user_id);
+
+-- ============================================================================
+-- GRANTS
+-- ============================================================================
+-- RLS policies above only ever RESTRICT access that has already been
+-- granted — Postgres still requires an explicit GRANT before the `anon` /
+-- `authenticated` roles (the roles Supabase's PostgREST layer uses for
+-- logged-out and logged-in requests) can touch a table at all. Without
+-- this section, every query against these tables fails with
+-- "permission denied for table X" before RLS is even evaluated, regardless
+-- of how correct the policies above are.
+
+grant usage on schema public to anon, authenticated;
+
+grant select, insert, update, delete on
+  public.users,
+  public.portfolios,
+  public.funds,
+  public.transactions,
+  public.ai_reports,
+  public.subscriptions,
+  public.analysis_history,
+  public.chat_messages
+to authenticated;
+
+grant select on
+  public.users,
+  public.portfolios,
+  public.funds,
+  public.subscriptions
+to anon;
+
+-- Make sure any tables added in the future via `create table` in the SQL
+-- editor automatically get these grants too, so this class of bug can't
+-- recur silently.
+alter default privileges in schema public
+  grant select, insert, update, delete on tables to authenticated;
+alter default privileges in schema public
+  grant select on tables to anon;
+
+grant usage, select on all sequences in schema public to authenticated;
+alter default privileges in schema public
+  grant usage, select on sequences to authenticated;

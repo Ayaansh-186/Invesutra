@@ -65,20 +65,20 @@ export default function HeroSection() {
               <span className="gradient-text">understood by AI</span>
             </h1>
             <p className="mt-6 max-w-2xl text-xl leading-8 text-slate-300">
-              Invesutra is an investment copilot for Indian mutual fund investors. Chat with Sutra AI to analyze holdings, understand risk, and get actionable rebalancing guidance — grounded in your real portfolio data.
+              Invesutra is an investment copilot for Indian mutual fund investors. Chat with Invesutra AI to analyze holdings, understand risk, and get actionable rebalancing guidance — grounded in your real portfolio data.
             </p>
 
             <form onSubmit={handleAsk} className="relative mt-8 max-w-xl">
               <input
                 value={askQuery}
                 onChange={(e) => setAskQuery(e.target.value)}
-                placeholder="Ask Sutra: 'Is my portfolio too risky?'"
+                placeholder="Ask Invesutra: 'Is my portfolio too risky?'"
                 className="w-full rounded-2xl border border-white/15 bg-white/[0.06] py-4 pl-5 pr-14 text-sm text-white shadow-lg outline-none backdrop-blur placeholder:text-slate-400 transition focus:border-cyan-300/50 focus:ring-2 focus:ring-cyan-300/20"
               />
               <button
                 type="submit"
                 className="absolute right-2.5 top-1/2 inline-flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-xl bg-cyan-300 text-slate-950 transition hover:bg-cyan-200"
-                aria-label="Ask Sutra AI"
+                aria-label="Ask Invesutra AI"
               >
                 <Send className="h-4 w-4" />
               </button>
@@ -90,7 +90,7 @@ export default function HeroSection() {
                 className="group inline-flex items-center justify-center gap-2 rounded-xl bg-cyan-300 px-6 py-3.5 text-sm font-semibold text-slate-950 transition hover:bg-cyan-200 ai-glow"
               >
                 <MessageSquare className="h-4 w-4" />
-                Start chatting with Sutra AI
+                Start chatting with Invesutra AI
                 <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
               </Link>
               <Link
@@ -124,7 +124,7 @@ export default function HeroSection() {
                     <Bot className="h-4.5 w-4.5" />
                   </div>
                   <div>
-                    <p className="text-sm font-semibold">Sutra AI</p>
+                    <p className="text-sm font-semibold">Invesutra AI</p>
                     <p className="text-xs text-slate-400">Invesutra portfolio copilot</p>
                   </div>
                 </div>
@@ -175,7 +175,7 @@ export default function HeroSection() {
                 <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2.5">
                   <input
                     readOnly
-                    placeholder="Ask Sutra about your portfolio..."
+                    placeholder="Ask Invesutra about your portfolio..."
                     className="flex-1 bg-transparent text-xs text-slate-400 outline-none placeholder:text-slate-600"
                   />
                   <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-cyan-400 text-slate-950">

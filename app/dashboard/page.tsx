@@ -40,7 +40,7 @@ function DashboardPageInner() {
           <div className="h-12 w-12 rounded-full border-2 border-cyan-400/20 border-t-cyan-400 animate-spin" />
           <Sparkles className="absolute inset-0 m-auto h-5 w-5 text-cyan-400" />
         </div>
-        <p className="text-sm text-[var(--shell-text-muted)]">Sutra AI is loading your portfolio...</p>
+        <p className="text-sm text-[var(--shell-text-muted)]">Invesutra AI is loading your portfolio...</p>
       </div>
     );
   }
@@ -64,7 +64,7 @@ function DashboardPageInner() {
         <div className="shrink-0 flex items-center gap-3 border-b border-emerald-400/20 bg-emerald-400/10 px-4 py-2.5">
           <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-400" />
           <p className="flex-1 text-xs text-[var(--shell-text-muted)]">
-            Welcome! Ask Sutra to help you add your first fund, or click Add Fund.
+            Welcome! Ask Invesutra to help you add your first fund, or click Add Fund.
           </p>
           <button
             onClick={() => setShowAddFund(true)}

@@ -4,7 +4,7 @@ const steps = [
   {
     icon: Layers3,
     title: "Connect or create a portfolio",
-    description: "Start with existing holdings, sample data, or ask Sutra to help you add funds manually.",
+    description: "Start with existing holdings, sample data, or ask Invesutra to help you add funds manually.",
   },
   {
     icon: BrainCircuit,
@@ -13,7 +13,7 @@ const steps = [
   },
   {
     icon: MessageCircleQuestion,
-    title: "Chat with Sutra AI",
+    title: "Chat with Invesutra AI",
     description: "Ask anything — the assistant explains why the numbers look the way they do and what to review first.",
   },
   {
@@ -37,7 +37,7 @@ export default function HowItWorks() {
               From holdings to an intelligent conversation.
             </h2>
             <p className="mt-5 text-lg leading-8 text-slate-600">
-              The dashboard is built around chat. Portfolio widgets sit beside Sutra AI so you always have context while you ask questions.
+              The dashboard is built around chat. Portfolio widgets sit beside Invesutra AI so you always have context while you ask questions.
             </p>
           </div>
 
