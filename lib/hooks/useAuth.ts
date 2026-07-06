@@ -36,7 +36,18 @@ export function useAuth(): AuthState & { signOut: () => Promise<void> } {
       });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setState({ user: session?.user ?? null, loading: false });
+      const nextUser = session?.user ?? null;
+      // Supabase re-validates the session (and fires this callback) every
+      // time the tab regains focus/visibility, even when the signed-in
+      // user hasn't changed at all. Only update state when the user
+      // identity actually changes, so a tab switch doesn't create a new
+      // `user` object reference and cascade into every hook/effect that
+      // depends on it (e.g. useActivePortfolio refetching the whole
+      // portfolio, making the app feel like it "refreshes" on tab focus).
+      setState((prev) => {
+        if (prev.user?.id === nextUser?.id && !prev.loading) return prev;
+        return { user: nextUser, loading: false };
+      });
     });
 
     return () => {

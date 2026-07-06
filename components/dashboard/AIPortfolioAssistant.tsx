@@ -13,6 +13,53 @@ interface ChatMessage {
   action?: "show_holdings" | "add_fund" | null;
 }
 
+// Defined at module scope (not inside AIPortfolioAssistant) so its component
+// identity is stable across renders. Defining a component function inside
+// another component's body creates a brand-new type on every render, which
+// makes React unmount+remount the underlying <input> DOM node every time —
+// exactly what was causing focus loss / cursor jumps on every keystroke.
+function ChatInputBar({
+  inputEl,
+  autoFocus,
+  value,
+  onChange,
+  onSubmit,
+  loading,
+}: {
+  inputEl: React.RefObject<HTMLInputElement | null>;
+  autoFocus?: boolean;
+  value: string;
+  onChange: (value: string) => void;
+  onSubmit: () => void;
+  loading: boolean;
+}) {
+  return (
+    <form
+      className="relative"
+      onSubmit={(e) => {
+        e.preventDefault();
+        onSubmit();
+      }}
+    >
+      <input
+        ref={inputEl}
+        autoFocus={autoFocus}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder="Ask about risk, funds, allocation, or say 'add a fund'..."
+        className="w-full rounded-2xl border border-[var(--shell-border)] bg-[var(--shell-surface)] py-4 pl-5 pr-14 text-[15px] text-[var(--shell-text)] outline-none placeholder:text-[var(--shell-text-faint)] transition focus:border-cyan-500/40"
+      />
+      <button
+        type="submit"
+        disabled={loading || !value.trim()}
+        className="absolute right-2.5 top-1/2 inline-flex h-9 w-9 -translate-y-1/2 shrink-0 items-center justify-center rounded-full bg-[var(--shell-text)] text-[var(--shell-bg)] transition hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-30"
+      >
+        {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
+      </button>
+    </form>
+  );
+}
+
 const STARTER_QUESTIONS = [
   "Why is my portfolio risk high?",
   "How can I improve diversification?",
@@ -270,34 +317,6 @@ export default function AIPortfolioAssistant({
     );
   }
 
-  function BigInput({ inputEl, autoFocus }: { inputEl: React.RefObject<HTMLInputElement | null>; autoFocus?: boolean }) {
-    return (
-      <form
-        className="relative"
-        onSubmit={(e) => {
-          e.preventDefault();
-          askAssistant(input);
-        }}
-      >
-        <input
-          ref={inputEl}
-          autoFocus={autoFocus}
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder="Ask about risk, funds, allocation, or say 'add a fund'..."
-          className="w-full rounded-2xl border border-[var(--shell-border)] bg-[var(--shell-surface)] py-4 pl-5 pr-14 text-[15px] text-[var(--shell-text)] outline-none placeholder:text-[var(--shell-text-faint)] transition focus:border-cyan-500/40"
-        />
-        <button
-          type="submit"
-          disabled={loading || !input.trim()}
-          className="absolute right-2.5 top-1/2 inline-flex h-9 w-9 -translate-y-1/2 shrink-0 items-center justify-center rounded-full bg-[var(--shell-text)] text-[var(--shell-bg)] transition hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-30"
-        >
-          {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
-        </button>
-      </form>
-    );
-  }
-
   if (historyStatus !== "ready") {
     return (
       <div className="flex h-full w-full items-center justify-center">
@@ -331,7 +350,14 @@ export default function AIPortfolioAssistant({
               </div>
             </div>
 
-            <BigInput inputEl={heroInputRef} autoFocus />
+            <ChatInputBar
+              inputEl={heroInputRef}
+              autoFocus
+              value={input}
+              onChange={setInput}
+              onSubmit={() => askAssistant(input)}
+              loading={loading}
+            />
 
             <div className="mt-4 flex flex-wrap justify-center gap-1.5">
               {QUICK_ACTIONS.map((action) => (
@@ -466,7 +492,13 @@ export default function AIPortfolioAssistant({
       {/* Pinned input */}
       <div className="shrink-0 px-5 pb-4 pt-2">
         <div className="mx-auto max-w-3xl">
-          <BigInput inputEl={inputRef} />
+          <ChatInputBar
+            inputEl={inputRef}
+            value={input}
+            onChange={setInput}
+            onSubmit={() => askAssistant(input)}
+            loading={loading}
+          />
           {source && (
             <p className="mt-2 text-[10px] text-[var(--shell-text-faint)]">
               {source === "groq"
