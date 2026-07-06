@@ -20,6 +20,12 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { DbFund } from "@/lib/supabase/database.types";
 import type { FundCategory, RiskLevel } from "@/lib/types";
 
+const VALID_CATEGORIES: FundCategory[] = [
+  "large_cap", "mid_cap", "small_cap", "multi_cap", "flexi_cap",
+  "debt", "hybrid", "index", "sectoral", "elss", "international",
+];
+const VALID_RISK_LEVELS: RiskLevel[] = ["low", "moderate", "moderately_high", "high", "very_high"];
+
 export interface ToolExecutionContext {
   supabase: SupabaseClient;
   portfolioId: string;
@@ -153,10 +159,52 @@ export async function executeTool(
         };
       }
       const investedAmount = Number(args.investedAmount);
+      const name = String(args.name || "").slice(0, 200).trim();
+      const category = String(args.category || "");
+      const riskLevel = String(args.riskLevel || "");
+
+      if (!name || !Number.isFinite(investedAmount) || investedAmount <= 0) {
+        return {
+          result: { error: "name and a positive investedAmount are required." },
+          portfolioChanged: false,
+        };
+      }
+      if (!VALID_CATEGORIES.includes(category as FundCategory)) {
+        return {
+          result: { error: `category must be one of: ${VALID_CATEGORIES.join(", ")}. Got "${category}" — pick the closest match and retry.` },
+          portfolioChanged: false,
+        };
+      }
+      if (!VALID_RISK_LEVELS.includes(riskLevel as RiskLevel)) {
+        return {
+          result: { error: `riskLevel must be one of: ${VALID_RISK_LEVELS.join(", ")}. Got "${riskLevel}" — pick the closest match and retry.` },
+          portfolioChanged: false,
+        };
+      }
+
+      // Guard against adding the same fund twice across separate chat turns
+      // (the exact-repeat guard in the tool-call loop only catches repeats
+      // within a single turn). Matches on name, case/whitespace-insensitive.
+      const { data: existingFunds } = await context.supabase
+        .from("funds")
+        .select("id, name")
+        .eq("portfolio_id", context.portfolioId);
+      const duplicate = (existingFunds as { id: string; name: string }[] | null)?.find(
+        (f) => f.name.trim().toLowerCase() === name.toLowerCase()
+      );
+      if (duplicate) {
+        return {
+          result: {
+            error: `A fund named "${duplicate.name}" already exists in this portfolio (id: ${duplicate.id}). Ask the user if they meant to update it instead — use update_fund_holding with that fundId, don't add a second copy.`,
+          },
+          portfolioChanged: false,
+        };
+      }
+
       const payload = {
-        name: String(args.name || "").slice(0, 200),
-        category: args.category as FundCategory,
-        riskLevel: args.riskLevel as RiskLevel,
+        name,
+        category: category as FundCategory,
+        riskLevel: riskLevel as RiskLevel,
         investedAmount,
         currentValue: args.currentValue !== undefined ? Number(args.currentValue) : investedAmount,
         nav: args.nav !== undefined ? Number(args.nav) : undefined,
@@ -166,13 +214,6 @@ export async function executeTool(
         returns5Y: args.returns5Y !== undefined ? Number(args.returns5Y) : undefined,
         expenseRatio: args.expenseRatio !== undefined ? Number(args.expenseRatio) : undefined,
       };
-
-      if (!payload.name || !payload.category || !payload.riskLevel || !Number.isFinite(investedAmount)) {
-        return {
-          result: { error: "name, category, riskLevel, and investedAmount are required." },
-          portfolioChanged: false,
-        };
-      }
 
       const insertPayload = fundToDbInsert(payload, context.portfolioId);
       const { data, error } = await context.supabase.from("funds").insert(insertPayload).select().single();
@@ -199,9 +240,17 @@ export async function executeTool(
 
       // Ownership is enforced by the `funds` table's RLS policy (via the
       // parent portfolio's user_id), same as app/api/funds/[id]/route.ts.
-      const { data, error } = await context.supabase.from("funds").update(updates).eq("id", fundId).select().maybeSingle();
+      // Also scope to context.portfolioId so a stale/hallucinated fundId
+      // from a different portfolio the user owns can't silently apply here.
+      const { data, error } = await context.supabase
+        .from("funds")
+        .update(updates)
+        .eq("id", fundId)
+        .eq("portfolio_id", context.portfolioId)
+        .select()
+        .maybeSingle();
       if (error) return { result: { error: error.message }, portfolioChanged: false };
-      if (!data) return { result: { error: "Fund not found." }, portfolioChanged: false };
+      if (!data) return { result: { error: "Fund not found in this portfolio." }, portfolioChanged: false };
       return { result: { fund: dbFundToFund(data as DbFund) }, portfolioChanged: true };
     }
 
@@ -212,9 +261,15 @@ export async function executeTool(
       const fundId = String(args.fundId || "");
       if (!fundId) return { result: { error: "fundId is required." }, portfolioChanged: false };
 
-      const { data, error } = await context.supabase.from("funds").delete().eq("id", fundId).select().maybeSingle();
+      const { data, error } = await context.supabase
+        .from("funds")
+        .delete()
+        .eq("id", fundId)
+        .eq("portfolio_id", context.portfolioId)
+        .select()
+        .maybeSingle();
       if (error) return { result: { error: error.message }, portfolioChanged: false };
-      if (!data) return { result: { error: "Fund not found." }, portfolioChanged: false };
+      if (!data) return { result: { error: "Fund not found in this portfolio." }, portfolioChanged: false };
       return { result: { success: true }, portfolioChanged: true };
     }
 

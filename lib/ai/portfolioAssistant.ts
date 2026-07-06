@@ -239,9 +239,13 @@ export async function answerPortfolioQuestion(
     },
   };
 
+  const PROVIDER_ENV_KEYS: Record<AIProvider, string | undefined> = {
+    groq: process.env.GROQ_API_KEY,
+    gemini: process.env.GEMINI_API_KEY,
+    openai: process.env.OPENAI_API_KEY,
+  };
   const canUseTools =
-    Boolean(toolContext) &&
-    TOOL_CALLING_PROVIDERS.some((p) => (p === "groq" ? process.env.GROQ_API_KEY : process.env.OPENAI_API_KEY));
+    Boolean(toolContext) && TOOL_CALLING_PROVIDERS.some((p) => Boolean(PROVIDER_ENV_KEYS[p]));
 
   try {
     if (canUseTools && toolContext) {
