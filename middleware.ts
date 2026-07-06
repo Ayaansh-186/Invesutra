@@ -46,10 +46,11 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: [
-    /*
-     * Match all request paths except static assets and Next.js internals.
-     */
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
-  ],
+  // Only run on routes that actually need the auth check. Previously this
+  // matched almost every request (only static assets were excluded), so
+  // every page — including the public homepage, pricing, and login pages
+  // that don't need auth at all — paid for a Supabase network round-trip
+  // before it could even start rendering. Keep this in sync with
+  // PROTECTED_PREFIXES above.
+  matcher: ["/dashboard/:path*", "/screener/:path*", "/simulator/:path*", "/reports/:path*"],
 };

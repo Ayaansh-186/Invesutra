@@ -21,9 +21,15 @@ export function useAuth(): AuthState & { signOut: () => Promise<void> } {
 
     let mounted = true;
 
-    supabase.auth.getUser()
+    // getSession() reads from local storage (near-instant) instead of
+    // round-tripping to Supabase's auth server like getUser() does. This
+    // is safe for client-side UI gating because real authorization still
+    // happens server-side (RLS policies + getUser() in API routes and
+    // middleware) — this call only decides what to show, not what's
+    // allowed.
+    supabase.auth.getSession()
       .then(({ data }) => {
-        if (mounted) setState({ user: data?.user ?? null, loading: false });
+        if (mounted) setState({ user: data?.session?.user ?? null, loading: false });
       })
       .catch(() => {
         if (mounted) setState({ user: null, loading: false });
