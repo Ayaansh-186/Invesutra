@@ -124,7 +124,7 @@ export default function ReportsPage() {
   function handleDownload() {
     if (!report) return;
     const lines = [
-      `WEALTHSCREENER AI — PORTFOLIO REPORT`,
+      `INVESUTRA — PORTFOLIO REPORT`,
       `Report ID: ${report.id}`,
       `Generated: ${report.generatedAt}`,
       ``,

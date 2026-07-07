@@ -8,15 +8,14 @@ Copyright © 2026 Ayaansh Singhal. All Rights Reserved.
 > permission is **prohibited**. See [`LICENSE`](./LICENSE) and
 > [`NOTICE`](./NOTICE) for full terms.
 
-Next.js fintech app: portfolio tracking, a mutual fund screener, and Sutra
-AI, an AI portfolio copilot.
+Next.js fintech app: portfolio tracking, a mutual fund screener, and Invesutra AI, an AI portfolio copilot.
 
 ## Stack
 
 - Next.js 15 / React 19 / TypeScript
 - Supabase (auth + Postgres) for portfolios/funds
 - Stripe for billing
-- Sutra AI: Groq / Google Gemini / OpenAI (auto-fallback chain), with
+- Invesutra AI: Groq / Google Gemini / OpenAI (auto-fallback chain), with
   function-calling tools backed by a Model Context Protocol (MCP) server
   for real mutual fund data
 
@@ -25,6 +24,9 @@ AI, an AI portfolio copilot.
 Create `.env.local` (never commit it):
 
 ```bash
+# Public URL of the deployed app (used in metadata + auth redirects)
+NEXT_PUBLIC_SITE_URL=
+
 # Supabase
 NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_ANON_KEY=
@@ -33,14 +35,16 @@ SUPABASE_SERVICE_ROLE_KEY=
 # Stripe
 STRIPE_SECRET_KEY=
 STRIPE_WEBHOOK_SECRET=
-NEXT_PUBLIC_STRIPE_PRICE_ID=
+STRIPE_PRICE_ID_PRO=
+STRIPE_PRICE_ID_PREMIUM=
 
-# Sutra AI — configure at least one. The app tries Groq, then Gemini, then
+# Invesutra AI — configure at least one. The app tries Groq, then Gemini, then
 # OpenAI, in that order, and falls back to a deterministic (non-AI)
 # analysis if none are configured or all fail.
 GROQ_API_KEY=
 GEMINI_API_KEY=
 OPENAI_API_KEY=
+OPENAI_MODEL=                # optional, defaults to gpt-4o-mini
 
 # Optional — mutual fund data provider (see below). Not required: the
 # default works with zero keys.
@@ -50,7 +54,7 @@ MUTUAL_FUND_MCP_SERVER_URL=  # point at a standalone MCP server instead of the b
 
 ## Mutual fund data / MCP integration
 
-Sutra AI can search real Indian mutual funds and fetch NAV/returns/category
+Invesutra AI can search real Indian mutual funds and fetch NAV/returns/category
 mid-conversation, and — for signed-in users with a saved portfolio — add,
 update, or remove fund holdings by chatting with it.
 
@@ -82,17 +86,16 @@ brokerage order.
 
 ### Persisted chat history
 
-For signed-in users with a real (non-demo) portfolio, Sutra AI's
+For signed-in users with a real (non-demo) portfolio, Invesutra AI's
 conversation is saved to Supabase and reloaded on a full page reload or new
 session — not just kept in memory. Demo/guest sessions and empty
 (no-portfolio-yet) accounts keep the existing in-memory-only behavior.
 
-**One-time setup:** run `supabase/migrations/002_chat_messages.sql` in your
-Supabase SQL Editor (or `supabase db push`). It's also folded into
-`supabase/schema.sql` for fresh projects. Until it's run, chat still works
-normally — persistence just fails silently (logged as a warning) and falls
-back to in-memory-only, so this is safe to deploy before running the
-migration.
+**One-time database setup:** in the Supabase SQL Editor, run, in order:
+1. `supabase/migrations/001_grants_fix.sql` — required. RLS policies alone don't grant Postgres-level table access; without this, every query fails with "permission denied for table X".
+2. `supabase/migrations/002_chat_messages.sql` — enables persisted chat history (below). Safe to skip initially; the app falls back to in-memory-only chat if this hasn't been run yet.
+
+Both are also folded into `supabase/schema.sql` for fresh projects set up from scratch.
 
 ### Verifying the integration
 

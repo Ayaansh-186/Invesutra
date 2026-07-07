@@ -150,7 +150,7 @@ export default function PortfolioPage() {
 
           {/* Holdings */}
           <h2 className="mb-3 text-sm font-semibold text-[var(--shell-text)]">Holdings</h2>
-          <HoldingsTable funds={portfolio.funds} totalValue={portfolio.currentValue} />
+          <HoldingsTable funds={portfolio.funds} totalValue={portfolio.currentValue} onChanged={refresh} />
 
           {/* Rebalancing suggestions */}
           {analysis.rebalancingSuggestions.length > 0 && (

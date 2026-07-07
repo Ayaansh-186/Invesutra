@@ -39,7 +39,7 @@ export default function Footer() {
         </div>
 
         <div className="mt-10 pt-6 border-t border-slate-800 flex flex-col md:flex-row items-center justify-between gap-3">
-          <p className="text-xs text-slate-600">© 2024 Invesutra. All rights reserved.</p>
+          <p className="text-xs text-slate-600">© {new Date().getFullYear()} Invesutra. All rights reserved.</p>
           <p className="text-xs text-slate-600">
             For informational purposes only. Not financial advice.
           </p>
