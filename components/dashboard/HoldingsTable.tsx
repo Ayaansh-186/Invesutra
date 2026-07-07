@@ -79,8 +79,8 @@ export default function HoldingsTable({
   }
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-[var(--shell-border)] bg-[var(--shell-surface)]">
-      <table className="w-full text-left text-sm">
+    <div className="overflow-x-auto rounded-2xl border border-[var(--shell-border)] bg-[var(--shell-surface)]">
+      <table className="w-full min-w-[640px] text-left text-sm">
         <thead>
           <tr className="border-b border-[var(--shell-border)] text-[10px] font-semibold uppercase tracking-wider text-[var(--shell-text-faint)]">
             <th className="px-4 py-3">Fund</th>

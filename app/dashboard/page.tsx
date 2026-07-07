@@ -35,7 +35,7 @@ function DashboardPageInner() {
 
   if (loading) {
     return (
-      <div className="flex h-screen flex-col items-center justify-center gap-3">
+      <div className="flex h-full flex-col items-center justify-center gap-3">
         <div className="relative">
           <div className="h-12 w-12 rounded-full border-2 border-cyan-400/20 border-t-cyan-400 animate-spin" />
           <Sparkles className="absolute inset-0 m-auto h-5 w-5 text-cyan-400" />
@@ -46,7 +46,7 @@ function DashboardPageInner() {
   }
 
   return (
-    <div className="flex h-screen flex-col overflow-hidden">
+    <div className="flex h-full flex-col overflow-hidden">
       {/* Status banners */}
       {isDemo && !user && (
         <div className="shrink-0 flex items-center gap-3 border-b border-cyan-400/20 bg-cyan-400/10 px-4 py-2.5">

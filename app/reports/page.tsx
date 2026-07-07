@@ -279,12 +279,12 @@ export default function ReportsPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-4 p-4 bg-slate-50 rounded-xl">
+            <div className="grid grid-cols-1 gap-4 p-4 bg-slate-50 rounded-xl sm:grid-cols-3">
               <div className="text-center">
                 <p className="text-2xl font-bold text-slate-900">{report.healthScore}/100</p>
                 <p className="text-xs text-slate-500 mt-1">Health Score</p>
               </div>
-              <div className="text-center border-x border-slate-200">
+              <div className="text-center sm:border-x sm:border-slate-200">
                 <p
                   className={`text-2xl font-bold capitalize ${
                     report.overallHealth === "excellent"
