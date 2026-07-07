@@ -146,40 +146,40 @@ export default function AddFundModal({ portfolioId, onClose, onAdded }: Props) {
   // Not signed in at all
   if (portfolioId === null) {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
-        <div className="bg-white rounded-2xl max-w-sm w-full p-8 text-center shadow-2xl">
-          <div className="w-12 h-12 bg-sky-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm">
+        <div className="bg-[var(--shell-surface)] rounded-2xl max-w-sm w-full p-8 text-center shadow-2xl">
+          <div className="w-12 h-12 bg-cyan-400/10 rounded-2xl flex items-center justify-center mx-auto mb-4">
             <span className="text-2xl">🔐</span>
           </div>
-          <h2 className="text-lg font-bold text-slate-900 mb-2">Sign in to add funds</h2>
-          <p className="text-sm text-slate-500 mb-6 leading-relaxed">
+          <h2 className="text-lg font-bold text-[var(--shell-text)] mb-2">Sign in to add funds</h2>
+          <p className="text-sm text-[var(--shell-text-faint)] mb-6 leading-relaxed">
             Create a free Invesutra account to build and save your own portfolio.
           </p>
           <Link
             href="/auth/signup"
-            className="block w-full py-3 bg-slate-900 text-white text-sm font-semibold rounded-xl hover:bg-slate-800 transition-colors mb-3"
+            className="block w-full py-3 bg-cyan-400 text-slate-950 text-sm font-semibold rounded-xl hover:bg-cyan-300 transition-colors mb-3"
           >
             Create free account
           </Link>
-          <button onClick={onClose} className="text-sm text-slate-500 hover:text-slate-700">Cancel</button>
+          <button onClick={onClose} className="text-sm text-[var(--shell-text-faint)] hover:text-[var(--shell-text)]">Cancel</button>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto shadow-2xl">
-        <div className="flex items-center justify-between p-5 border-b border-slate-100 sticky top-0 bg-white rounded-t-2xl z-10">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm">
+      <div className="bg-[var(--shell-surface)] rounded-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto shadow-2xl">
+        <div className="flex items-center justify-between p-5 border-b border-[var(--shell-border)] sticky top-0 bg-[var(--shell-surface)] rounded-t-2xl z-10">
           <div>
-            <h2 className="text-base font-semibold text-slate-900">Add Mutual Fund</h2>
-            <p className="text-xs text-slate-400 mt-0.5">
+            <h2 className="text-base font-semibold text-[var(--shell-text)]">Add Mutual Fund</h2>
+            <p className="text-xs text-[var(--shell-text-faint)] mt-0.5">
               {mode === "search" && "Search real Indian mutual fund schemes (AMFI data)"}
               {mode === "selected" && "Confirm your invested amount"}
               {mode === "manual" && "Enter your fund details manually"}
             </p>
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 transition-colors">
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-[var(--shell-surface-2)] text-[var(--shell-text-faint)] transition-colors">
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -188,20 +188,20 @@ export default function AddFundModal({ portfolioId, onClose, onAdded }: Props) {
         {mode === "search" && (
           <div className="p-5 space-y-3">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--shell-text-faint)]" />
               <input
                 autoFocus
                 type="text"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="e.g. HDFC Flexi Cap, Mirae Asset Large Cap..."
-                className="w-full pl-9 pr-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-sky-400 focus:ring-1 focus:ring-sky-100"
+                className="w-full pl-9 pr-3 py-2.5 border border-[var(--shell-border)] rounded-xl text-sm focus:outline-none focus:border-cyan-500/40 focus:ring-1 focus:ring-cyan-500/10"
               />
-              {searching && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 animate-spin" />}
+              {searching && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--shell-text-faint)] animate-spin" />}
             </div>
 
             {query.trim().length > 0 && query.trim().length < 2 && (
-              <p className="text-xs text-slate-400">Keep typing — at least 2 characters.</p>
+              <p className="text-xs text-[var(--shell-text-faint)]">Keep typing — at least 2 characters.</p>
             )}
 
             {results.length > 0 && (
@@ -211,12 +211,12 @@ export default function AddFundModal({ portfolioId, onClose, onAdded }: Props) {
                     key={`${fund.symbol || fund.name}-${i}`}
                     type="button"
                     onClick={() => selectFund(fund)}
-                    className="w-full text-left p-3 border border-slate-200 rounded-xl hover:border-sky-300 hover:bg-sky-50/50 transition-colors"
+                    className="w-full text-left p-3 border border-[var(--shell-border)] rounded-xl hover:border-sky-300 hover:bg-cyan-400/10/50 transition-colors"
                   >
-                    <p className="text-sm font-medium text-slate-900 truncate">{fund.name}</p>
-                    <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-500">
+                    <p className="text-sm font-medium text-[var(--shell-text)] truncate">{fund.name}</p>
+                    <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-[var(--shell-text-faint)]">
                       {fund.category && (
-                        <span className="px-1.5 py-0.5 bg-slate-100 rounded-md">{categoryLabel(fund.category)}</span>
+                        <span className="px-1.5 py-0.5 bg-[var(--shell-surface-2)] rounded-md">{categoryLabel(fund.category)}</span>
                       )}
                       {fund.nav !== undefined && <span>NAV ₹{fund.nav}</span>}
                       {fund.returns1Y !== undefined && <span>1Y {formatPercent(fund.returns1Y)}</span>}
@@ -227,13 +227,13 @@ export default function AddFundModal({ portfolioId, onClose, onAdded }: Props) {
             )}
 
             {!searching && query.trim().length >= 2 && results.length === 0 && (
-              <p className="text-xs text-slate-400">{searchMessage || "No matching funds found."}</p>
+              <p className="text-xs text-[var(--shell-text-faint)]">{searchMessage || "No matching funds found."}</p>
             )}
 
             <button
               type="button"
               onClick={() => { setForm(emptyForm); setMode("manual"); }}
-              className="text-xs text-slate-500 hover:text-slate-700 underline underline-offset-2"
+              className="text-xs text-[var(--shell-text-faint)] hover:text-[var(--shell-text)] underline underline-offset-2"
             >
               Can't find your fund? Add it manually instead
             </button>
@@ -253,14 +253,14 @@ export default function AddFundModal({ portfolioId, onClose, onAdded }: Props) {
             <div className="flex items-start gap-2 p-3 bg-emerald-50 border border-emerald-200 rounded-xl">
               <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5 text-emerald-600" />
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium text-slate-900 truncate">{form.name}</p>
-                <p className="text-xs text-slate-500 mt-0.5">
+                <p className="text-sm font-medium text-[var(--shell-text)] truncate">{form.name}</p>
+                <p className="text-xs text-[var(--shell-text-faint)] mt-0.5">
                   {categoryLabel(form.category)} · {form.riskLevel.replace(/_/g, " ")} risk
                   {form.nav ? ` · NAV ₹${form.nav}` : ""}
                   {form.returns1Y ? ` · 1Y ${formatPercent(form.returns1Y)}` : ""}
                 </p>
               </div>
-              <button type="button" onClick={backToSearch} className="shrink-0 flex items-center gap-1 text-xs text-slate-500 hover:text-slate-700">
+              <button type="button" onClick={backToSearch} className="shrink-0 flex items-center gap-1 text-xs text-[var(--shell-text-faint)] hover:text-[var(--shell-text)]">
                 <ArrowLeft className="w-3 h-3" />
                 Change
               </button>
@@ -268,7 +268,7 @@ export default function AddFundModal({ portfolioId, onClose, onAdded }: Props) {
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-xs font-medium text-slate-600 mb-1.5 block">Amount Invested (₹)</label>
+                <label className="text-xs font-medium text-[var(--shell-text-muted)] mb-1.5 block">Amount Invested (₹)</label>
                 <input
                   type="number" required value={form.investedAmount}
                   onChange={(e) => {
@@ -280,27 +280,27 @@ export default function AddFundModal({ portfolioId, onClose, onAdded }: Props) {
                       units: prev.nav ? Number((investedAmount / prev.nav).toFixed(4)) : prev.units,
                     }));
                   }}
-                  className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-sky-400"
+                  className="w-full px-3 py-2.5 border border-[var(--shell-border)] rounded-xl text-sm focus:outline-none focus:border-cyan-500/40"
                 />
               </div>
               <div>
-                <label className="text-xs font-medium text-slate-600 mb-1.5 block">Current Value (₹)</label>
+                <label className="text-xs font-medium text-[var(--shell-text-muted)] mb-1.5 block">Current Value (₹)</label>
                 <input
                   type="number" value={form.currentValue}
                   onChange={(e) => setForm({ ...form, currentValue: +e.target.value })}
-                  className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-sky-400"
+                  className="w-full px-3 py-2.5 border border-[var(--shell-border)] rounded-xl text-sm focus:outline-none focus:border-cyan-500/40"
                 />
               </div>
             </div>
 
             <div className="flex gap-3 pt-2">
               <button type="submit" disabled={submitting}
-                className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-slate-900 text-white text-sm font-semibold rounded-xl hover:bg-slate-800 disabled:opacity-60 transition-colors">
+                className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-cyan-400 text-slate-950 text-sm font-semibold rounded-xl hover:bg-cyan-300 disabled:opacity-60 transition-colors">
                 {submitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                 {submitting ? "Adding..." : "Add Fund"}
               </button>
               <button type="button" onClick={onClose}
-                className="px-5 py-2.5 text-slate-600 text-sm border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors">
+                className="px-5 py-2.5 text-[var(--shell-text-muted)] text-sm border border-[var(--shell-border)] rounded-xl hover:bg-[var(--shell-surface-2)] transition-colors">
                 Cancel
               </button>
             </div>
@@ -320,71 +320,71 @@ export default function AddFundModal({ portfolioId, onClose, onAdded }: Props) {
             <button
               type="button"
               onClick={() => setMode("search")}
-              className="flex items-center gap-1 text-xs text-slate-500 hover:text-slate-700"
+              className="flex items-center gap-1 text-xs text-[var(--shell-text-faint)] hover:text-[var(--shell-text)]"
             >
               <ArrowLeft className="w-3 h-3" />
               Back to search
             </button>
 
             <div>
-              <label className="text-xs font-medium text-slate-600 mb-1.5 block">Fund Name *</label>
+              <label className="text-xs font-medium text-[var(--shell-text-muted)] mb-1.5 block">Fund Name *</label>
               <input
                 type="text" required value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
                 placeholder="e.g. Mirae Asset Large Cap Fund"
-                className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-sky-400 focus:ring-1 focus:ring-sky-100"
+                className="w-full px-3 py-2.5 border border-[var(--shell-border)] rounded-xl text-sm focus:outline-none focus:border-cyan-500/40 focus:ring-1 focus:ring-cyan-500/10"
               />
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-xs font-medium text-slate-600 mb-1.5 block">Category</label>
+                <label className="text-xs font-medium text-[var(--shell-text-muted)] mb-1.5 block">Category</label>
                 <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value as FundCategory })}
-                  className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-sky-400 bg-white">
+                  className="w-full px-3 py-2.5 border border-[var(--shell-border)] rounded-xl text-sm focus:outline-none focus:border-cyan-500/40 bg-[var(--shell-surface)]">
                   {CATEGORIES.map((c) => <option key={c} value={c}>{categoryLabel(c)}</option>)}
                 </select>
               </div>
               <div>
-                <label className="text-xs font-medium text-slate-600 mb-1.5 block">Risk Level</label>
+                <label className="text-xs font-medium text-[var(--shell-text-muted)] mb-1.5 block">Risk Level</label>
                 <select value={form.riskLevel} onChange={(e) => setForm({ ...form, riskLevel: e.target.value as RiskLevel })}
-                  className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-sky-400 bg-white">
+                  className="w-full px-3 py-2.5 border border-[var(--shell-border)] rounded-xl text-sm focus:outline-none focus:border-cyan-500/40 bg-[var(--shell-surface)]">
                   {RISK_LEVELS.map((r) => <option key={r} value={r}>{r.replace(/_/g, " ")}</option>)}
                 </select>
               </div>
               <div>
-                <label className="text-xs font-medium text-slate-600 mb-1.5 block">Amount Invested (₹)</label>
+                <label className="text-xs font-medium text-[var(--shell-text-muted)] mb-1.5 block">Amount Invested (₹)</label>
                 <input type="number" value={form.investedAmount}
                   onChange={(e) => setForm({ ...form, investedAmount: +e.target.value })}
-                  className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-sky-400" />
+                  className="w-full px-3 py-2.5 border border-[var(--shell-border)] rounded-xl text-sm focus:outline-none focus:border-cyan-500/40" />
               </div>
               <div>
-                <label className="text-xs font-medium text-slate-600 mb-1.5 block">Current Value (₹)</label>
+                <label className="text-xs font-medium text-[var(--shell-text-muted)] mb-1.5 block">Current Value (₹)</label>
                 <input type="number" value={form.currentValue}
                   onChange={(e) => setForm({ ...form, currentValue: +e.target.value })}
-                  className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-sky-400" />
+                  className="w-full px-3 py-2.5 border border-[var(--shell-border)] rounded-xl text-sm focus:outline-none focus:border-cyan-500/40" />
               </div>
               <div>
-                <label className="text-xs font-medium text-slate-600 mb-1.5 block">1-Year Returns (%)</label>
+                <label className="text-xs font-medium text-[var(--shell-text-muted)] mb-1.5 block">1-Year Returns (%)</label>
                 <input type="number" step="0.1" value={form.returns1Y}
                   onChange={(e) => setForm({ ...form, returns1Y: +e.target.value })}
-                  className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-sky-400" />
+                  className="w-full px-3 py-2.5 border border-[var(--shell-border)] rounded-xl text-sm focus:outline-none focus:border-cyan-500/40" />
               </div>
               <div>
-                <label className="text-xs font-medium text-slate-600 mb-1.5 block">Expense Ratio (%)</label>
+                <label className="text-xs font-medium text-[var(--shell-text-muted)] mb-1.5 block">Expense Ratio (%)</label>
                 <input type="number" step="0.01" value={form.expenseRatio}
                   onChange={(e) => setForm({ ...form, expenseRatio: +e.target.value })}
-                  className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-sky-400" />
+                  className="w-full px-3 py-2.5 border border-[var(--shell-border)] rounded-xl text-sm focus:outline-none focus:border-cyan-500/40" />
               </div>
             </div>
 
             <div className="flex gap-3 pt-2">
               <button type="submit" disabled={submitting}
-                className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-slate-900 text-white text-sm font-semibold rounded-xl hover:bg-slate-800 disabled:opacity-60 transition-colors">
+                className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-cyan-400 text-slate-950 text-sm font-semibold rounded-xl hover:bg-cyan-300 disabled:opacity-60 transition-colors">
                 {submitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                 {submitting ? "Adding..." : "Add Fund"}
               </button>
               <button type="button" onClick={onClose}
-                className="px-5 py-2.5 text-slate-600 text-sm border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors">
+                className="px-5 py-2.5 text-[var(--shell-text-muted)] text-sm border border-[var(--shell-border)] rounded-xl hover:bg-[var(--shell-surface-2)] transition-colors">
                 Cancel
               </button>
             </div>
