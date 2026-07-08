@@ -125,8 +125,8 @@ export default function ScreenerPage() {
     <div className="max-w-5xl mx-auto">
       <div className="flex items-start justify-between mb-8">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 mb-1">AI Portfolio Screener</h1>
-          <p className="text-sm text-slate-500">
+          <h1 className="text-2xl font-bold text-[var(--shell-text)] mb-1">AI Portfolio Screener</h1>
+          <p className="text-sm text-[var(--shell-text-faint)]">
             {portfolioLoading
               ? "Loading your portfolio..."
               : isDemo
@@ -137,7 +137,7 @@ export default function ScreenerPage() {
         <button
           onClick={handleAnalyze}
           disabled={analyzing || funds.length === 0}
-          className="flex items-center gap-2 px-5 py-2.5 bg-sky-600 text-white text-sm font-semibold rounded-xl hover:bg-sky-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          className="flex items-center gap-2 px-5 py-2.5 bg-cyan-400 text-slate-950 text-sm font-semibold rounded-xl hover:bg-cyan-300 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
           {analyzing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
           {analyzing ? "Analyzing..." : "Run AI Analysis"}
@@ -148,45 +148,45 @@ export default function ScreenerPage() {
         {/* Fund list */}
         <div className="lg:col-span-3 space-y-4">
           {/* Summary bar */}
-          <div className="bg-white border border-slate-200 rounded-xl p-4 flex items-center justify-between">
+          <div className="bg-[var(--shell-surface)] border border-[var(--shell-border)] rounded-xl p-4 flex items-center justify-between">
             <div className="flex gap-6">
               <div>
-                <p className="text-xs text-slate-500">Total Invested</p>
-                <p className="font-semibold text-slate-900">{formatCurrency(totalInvested, true)}</p>
+                <p className="text-xs text-[var(--shell-text-faint)]">Total Invested</p>
+                <p className="font-semibold text-[var(--shell-text)]">{formatCurrency(totalInvested, true)}</p>
               </div>
               <div>
-                <p className="text-xs text-slate-500">Current Value</p>
-                <p className="font-semibold text-slate-900">{formatCurrency(totalValue, true)}</p>
+                <p className="text-xs text-[var(--shell-text-faint)]">Current Value</p>
+                <p className="font-semibold text-[var(--shell-text)]">{formatCurrency(totalValue, true)}</p>
               </div>
               <div>
-                <p className="text-xs text-slate-500">Returns</p>
+                <p className="text-xs text-[var(--shell-text-faint)]">Returns</p>
                 <p className={`font-semibold ${totalValue >= totalInvested ? "text-emerald-600" : "text-red-500"}`}>
                   {formatPercent(((totalValue - totalInvested) / totalInvested) * 100)}
                 </p>
               </div>
             </div>
-            <span className="text-xs text-slate-500">{funds.length} funds</span>
+            <span className="text-xs text-[var(--shell-text-faint)]">{funds.length} funds</span>
           </div>
 
           {/* Fund rows */}
           {funds.map((fund) => (
-            <div key={fund.id} className="bg-white border border-slate-200 rounded-xl p-4 flex items-center gap-4">
+            <div key={fund.id} className="bg-[var(--shell-surface)] border border-[var(--shell-border)] rounded-xl p-4 flex items-center gap-4">
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
-                  <p className="font-medium text-slate-900 text-sm truncate">{fund.name || "Unnamed Fund"}</p>
+                  <p className="font-medium text-[var(--shell-text)] text-sm truncate">{fund.name || "Unnamed Fund"}</p>
                   <span className={`px-2 py-0.5 rounded-full text-xs border ${getRiskBg(fund.riskLevel)}`}>
                     {fund.riskLevel.replace(/_/g, " ")}
                   </span>
                 </div>
-                <p className="text-xs text-slate-500 mt-0.5">{categoryLabel(fund.category)} · ER: {fund.expenseRatio}%</p>
+                <p className="text-xs text-[var(--shell-text-faint)] mt-0.5">{categoryLabel(fund.category)} · ER: {fund.expenseRatio}%</p>
               </div>
               <div className="text-right shrink-0">
-                <p className="text-sm font-semibold text-slate-900">{formatCurrency(fund.currentValue, true)}</p>
+                <p className="text-sm font-semibold text-[var(--shell-text)]">{formatCurrency(fund.currentValue, true)}</p>
                 <p className={`text-xs font-medium ${fund.returns1Y >= 0 ? "text-emerald-600" : "text-red-500"}`}>
                   {formatPercent(fund.returns1Y)} (1Y)
                 </p>
               </div>
-              <button onClick={() => handleRemoveFund(fund.id)} className="p-1.5 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-500 transition-colors">
+              <button onClick={() => handleRemoveFund(fund.id)} className="p-1.5 rounded-lg hover:bg-rose-500/10 text-[var(--shell-text-faint)] hover:text-rose-500 transition-colors">
                 <Trash2 className="w-4 h-4" />
               </button>
             </div>
@@ -194,82 +194,82 @@ export default function ScreenerPage() {
 
           {/* Add fund form */}
           {showAddForm ? (
-            <div className="bg-white border border-sky-200 rounded-xl p-5 space-y-3">
-              <h3 className="text-sm font-semibold text-slate-900 mb-3">Add Fund</h3>
+            <div className="bg-[var(--shell-surface)] border border-cyan-500/30 rounded-xl p-5 space-y-3">
+              <h3 className="text-sm font-semibold text-[var(--shell-text)] mb-3">Add Fund</h3>
               <div className="grid grid-cols-2 gap-3">
                 <div className="col-span-2">
-                  <label className="text-xs text-slate-500 mb-1 block">Fund Name</label>
+                  <label className="text-xs text-[var(--shell-text-faint)] mb-1 block">Fund Name</label>
                   <input
                     type="text"
                     value={newFund.name}
                     onChange={e => setNewFund({...newFund, name: e.target.value})}
                     placeholder="e.g. Mirae Asset Large Cap Fund"
-                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-sky-400"
+                    className="w-full px-3 py-2 border border-[var(--shell-border)] bg-[var(--shell-surface)] rounded-lg text-sm text-[var(--shell-text)] focus:outline-none focus:border-cyan-500/40"
                   />
                 </div>
                 <div>
-                  <label className="text-xs text-slate-500 mb-1 block">Category</label>
+                  <label className="text-xs text-[var(--shell-text-faint)] mb-1 block">Category</label>
                   <select
                     value={newFund.category}
                     onChange={e => setNewFund({...newFund, category: e.target.value as FundCategory})}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-sky-400"
+                    className="w-full px-3 py-2 border border-[var(--shell-border)] bg-[var(--shell-surface)] rounded-lg text-sm text-[var(--shell-text)] focus:outline-none focus:border-cyan-500/40"
                   >
                     {CATEGORIES.map(c => <option key={c} value={c}>{categoryLabel(c)}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="text-xs text-slate-500 mb-1 block">Risk Level</label>
+                  <label className="text-xs text-[var(--shell-text-faint)] mb-1 block">Risk Level</label>
                   <select
                     value={newFund.riskLevel}
                     onChange={e => setNewFund({...newFund, riskLevel: e.target.value as RiskLevel})}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-sky-400"
+                    className="w-full px-3 py-2 border border-[var(--shell-border)] bg-[var(--shell-surface)] rounded-lg text-sm text-[var(--shell-text)] focus:outline-none focus:border-cyan-500/40"
                   >
                     {RISK_LEVELS.map(r => <option key={r} value={r}>{r.replace(/_/g, " ")}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="text-xs text-slate-500 mb-1 block">Invested (₹)</label>
+                  <label className="text-xs text-[var(--shell-text-faint)] mb-1 block">Invested (₹)</label>
                   <input
                     type="number"
                     value={newFund.investedAmount}
                     onChange={e => setNewFund({...newFund, investedAmount: +e.target.value})}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-sky-400"
+                    className="w-full px-3 py-2 border border-[var(--shell-border)] bg-[var(--shell-surface)] rounded-lg text-sm text-[var(--shell-text)] focus:outline-none focus:border-cyan-500/40"
                   />
                 </div>
                 <div>
-                  <label className="text-xs text-slate-500 mb-1 block">Current Value (₹)</label>
+                  <label className="text-xs text-[var(--shell-text-faint)] mb-1 block">Current Value (₹)</label>
                   <input
                     type="number"
                     value={newFund.currentValue}
                     onChange={e => setNewFund({...newFund, currentValue: +e.target.value})}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-sky-400"
+                    className="w-full px-3 py-2 border border-[var(--shell-border)] bg-[var(--shell-surface)] rounded-lg text-sm text-[var(--shell-text)] focus:outline-none focus:border-cyan-500/40"
                   />
                 </div>
                 <div>
-                  <label className="text-xs text-slate-500 mb-1 block">1Y Returns (%)</label>
+                  <label className="text-xs text-[var(--shell-text-faint)] mb-1 block">1Y Returns (%)</label>
                   <input
                     type="number"
                     value={newFund.returns1Y}
                     onChange={e => setNewFund({...newFund, returns1Y: +e.target.value})}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-sky-400"
+                    className="w-full px-3 py-2 border border-[var(--shell-border)] bg-[var(--shell-surface)] rounded-lg text-sm text-[var(--shell-text)] focus:outline-none focus:border-cyan-500/40"
                   />
                 </div>
                 <div>
-                  <label className="text-xs text-slate-500 mb-1 block">Expense Ratio (%)</label>
+                  <label className="text-xs text-[var(--shell-text-faint)] mb-1 block">Expense Ratio (%)</label>
                   <input
                     type="number"
                     step="0.01"
                     value={newFund.expenseRatio}
                     onChange={e => setNewFund({...newFund, expenseRatio: +e.target.value})}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-sky-400"
+                    className="w-full px-3 py-2 border border-[var(--shell-border)] bg-[var(--shell-surface)] rounded-lg text-sm text-[var(--shell-text)] focus:outline-none focus:border-cyan-500/40"
                   />
                 </div>
               </div>
               <div className="flex gap-2 pt-2">
-                <button onClick={handleAddFund} className="px-4 py-2 bg-slate-900 text-white text-sm font-medium rounded-lg hover:bg-slate-800">
+                <button onClick={handleAddFund} className="px-4 py-2 bg-cyan-400 text-slate-950 text-sm font-medium rounded-lg hover:bg-cyan-300">
                   Add Fund
                 </button>
-                <button onClick={() => setShowAddForm(false)} className="px-4 py-2 text-slate-600 text-sm border border-slate-200 rounded-lg hover:bg-slate-50">
+                <button onClick={() => setShowAddForm(false)} className="px-4 py-2 text-[var(--shell-text-muted)] text-sm border border-[var(--shell-border)] rounded-lg hover:bg-[var(--shell-surface-2)]">
                   Cancel
                 </button>
               </div>
@@ -277,7 +277,7 @@ export default function ScreenerPage() {
           ) : (
             <button
               onClick={() => setShowAddForm(true)}
-              className="w-full flex items-center justify-center gap-2 py-3 border-2 border-dashed border-slate-200 rounded-xl text-sm text-slate-500 hover:border-sky-300 hover:text-sky-600 transition-colors"
+              className="w-full flex items-center justify-center gap-2 py-3 border-2 border-dashed border-[var(--shell-border)] rounded-xl text-sm text-[var(--shell-text-faint)] hover:border-cyan-500/40 hover:text-cyan-500 transition-colors"
             >
               <Plus className="w-4 h-4" />
               Add another fund
@@ -290,43 +290,43 @@ export default function ScreenerPage() {
           {analysis ? (
             <>
               {/* Health Score */}
-              <div className="bg-white border border-slate-200 rounded-xl p-5">
+              <div className="bg-[var(--shell-surface)] border border-[var(--shell-border)] rounded-xl p-5">
                 <div className="flex items-center gap-2 mb-3">
-                  <Brain className="w-4 h-4 text-sky-600" />
-                  <h3 className="text-sm font-semibold text-slate-900">Portfolio Health</h3>
+                  <Brain className="w-4 h-4 text-cyan-500" />
+                  <h3 className="text-sm font-semibold text-[var(--shell-text)]">Portfolio Health</h3>
                 </div>
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-3xl font-bold text-slate-900">{analyzing ? "—" : Math.round((analysis.diversificationScore + 40) * 0.72)}/100</span>
+                  <span className="text-3xl font-bold text-[var(--shell-text)]">{analyzing ? "—" : Math.round((analysis.diversificationScore + 40) * 0.72)}/100</span>
                   <span className={`px-3 py-1 rounded-full text-xs font-semibold capitalize ${
-                    analysis.overallHealth === "excellent" ? "bg-emerald-50 text-emerald-700" :
-                    analysis.overallHealth === "good" ? "bg-blue-50 text-blue-700" :
-                    analysis.overallHealth === "fair" ? "bg-amber-50 text-amber-700" :
-                    "bg-red-50 text-red-700"
+                    analysis.overallHealth === "excellent" ? "bg-emerald-500/15 text-emerald-500" :
+                    analysis.overallHealth === "good" ? "bg-blue-500/15 text-blue-500" :
+                    analysis.overallHealth === "fair" ? "bg-amber-500/15 text-amber-500" :
+                    "bg-rose-500/15 text-rose-500"
                   }`}>{analysis.overallHealth}</span>
                 </div>
-                <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                <div className="h-2 bg-[var(--shell-surface-2)] rounded-full overflow-hidden">
                   <div className={`h-full rounded-full transition-all ${
                     analysis.overallHealth === "excellent" ? "bg-emerald-500" :
                     analysis.overallHealth === "good" ? "bg-blue-500" :
                     analysis.overallHealth === "fair" ? "bg-amber-500" : "bg-red-500"
                   }`} style={{ width: `${analysis.diversificationScore}%` }} />
                 </div>
-                <p className="text-xs text-slate-500 mt-2">Diversification Score: {analysis.diversificationScore}/100</p>
+                <p className="text-xs text-[var(--shell-text-faint)] mt-2">Diversification Score: {analysis.diversificationScore}/100</p>
               </div>
 
               {/* Rebalancing suggestions */}
               {rebalanceSuggestions.length > 0 && (
-                <div className="bg-white border border-slate-200 rounded-xl p-5">
+                <div className="bg-[var(--shell-surface)] border border-[var(--shell-border)] rounded-xl p-5">
                   <div className="flex items-center gap-2 mb-3">
                     <TrendingUp className="w-4 h-4 text-emerald-600" />
-                    <h3 className="text-sm font-semibold text-slate-900">Rebalancing Actions</h3>
+                    <h3 className="text-sm font-semibold text-[var(--shell-text)]">Rebalancing Actions</h3>
                   </div>
                   <div className="space-y-3">
                     {rebalanceSuggestions.map((s, i) => (
                       <div key={i} className={`p-3 rounded-lg border text-xs ${
-                        s.action === "exit" ? "bg-red-50 border-red-200" :
-                        s.action === "decrease" || s.action === "reduce" ? "bg-amber-50 border-amber-200" :
-                        "bg-emerald-50 border-emerald-200"
+                        s.action === "exit" ? "bg-rose-500/10 border-rose-500/20" :
+                        s.action === "decrease" || s.action === "reduce" ? "bg-amber-500/10 border-amber-500/20" :
+                        "bg-emerald-500/10 border-emerald-500/20"
                       }`}>
                         <div className="flex items-center gap-2 mb-1">
                           {s.action === "exit" ? (
@@ -334,9 +334,9 @@ export default function ScreenerPage() {
                           ) : (
                             <CheckCircle className="w-3.5 h-3.5 text-emerald-500" />
                           )}
-                          <span className="font-semibold text-slate-800 capitalize">{s.action}: {s.fundName}</span>
+                          <span className="font-semibold text-[var(--shell-text)] capitalize">{s.action}: {s.fundName}</span>
                         </div>
-                        <p className="text-slate-600 leading-relaxed">{s.reasoning}</p>
+                        <p className="text-[var(--shell-text-muted)] leading-relaxed">{s.reasoning}</p>
                       </div>
                     ))}
                   </div>
@@ -344,15 +344,15 @@ export default function ScreenerPage() {
               )}
 
               {/* AI Insights */}
-              <div className="bg-white border border-slate-200 rounded-xl p-5">
+              <div className="bg-[var(--shell-surface)] border border-[var(--shell-border)] rounded-xl p-5">
                 <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-sm font-semibold text-slate-900">AI Insights</h3>
+                  <h3 className="text-sm font-semibold text-[var(--shell-text)]">AI Insights</h3>
                   {aiSource && (
                     <span
                       className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
                         aiSource && aiSource !== "deterministic"
-                          ? "bg-violet-50 text-violet-700"
-                          : "bg-slate-100 text-slate-500"
+                          ? "bg-violet-500/15 text-violet-500"
+                          : "bg-[var(--shell-surface-2)] text-[var(--shell-text-faint)]"
                       }`}
                     >
                       {aiSource && aiSource !== "deterministic" ? "AI-generated" : "Algorithmic"}
@@ -360,13 +360,13 @@ export default function ScreenerPage() {
                   )}
                 </div>
                 {aiSummary && (
-                  <p className="text-xs text-slate-700 leading-relaxed bg-sky-50 border border-sky-100 rounded-lg p-3 mb-3">
+                  <p className="text-xs text-[var(--shell-text-muted)] leading-relaxed bg-cyan-400/10 border border-cyan-500/20 rounded-lg p-3 mb-3">
                     {aiSummary}
                   </p>
                 )}
                 <div className="space-y-2">
                   {analysis.aiInsights.map((insight, i) => (
-                    <p key={i} className="text-xs text-slate-600 leading-relaxed py-2 border-b border-slate-100 last:border-0">
+                    <p key={i} className="text-xs text-[var(--shell-text-muted)] leading-relaxed py-2 border-b border-[var(--shell-border)] last:border-0">
                       {insight}
                     </p>
                   ))}
@@ -374,9 +374,9 @@ export default function ScreenerPage() {
               </div>
             </>
           ) : (
-            <div className="bg-white border border-slate-200 rounded-xl p-8 text-center">
-              <Brain className="w-8 h-8 text-slate-300 mx-auto mb-3" />
-              <p className="text-sm text-slate-500">Add funds and run AI analysis to see portfolio insights</p>
+            <div className="bg-[var(--shell-surface)] border border-[var(--shell-border)] rounded-xl p-8 text-center">
+              <Brain className="w-8 h-8 text-[var(--shell-text-faint)] mx-auto mb-3" />
+              <p className="text-sm text-[var(--shell-text-faint)]">Add funds and run AI analysis to see portfolio insights</p>
             </div>
           )}
         </div>

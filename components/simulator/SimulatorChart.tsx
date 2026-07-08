@@ -21,12 +21,12 @@ interface Props {
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload?.length) {
     return (
-      <div className="bg-white border border-slate-200 rounded-xl p-3 shadow-lg text-xs min-w-[160px]">
-        <p className="text-slate-500 mb-2 font-medium">{label}</p>
+      <div className="bg-[var(--shell-surface)] border border-[var(--shell-border)] rounded-xl p-3 shadow-lg text-xs min-w-[160px]">
+        <p className="text-[var(--shell-text-faint)] mb-2 font-medium">{label}</p>
         {payload.map((p: any) => (
           <div key={p.dataKey} className="flex justify-between gap-4 mb-1">
             <span style={{ color: p.color }}>{p.name}</span>
-            <span className="font-semibold text-slate-800">
+            <span className="font-semibold text-[var(--shell-text)]">
               ₹{(p.value / 100000).toFixed(2)}L
             </span>
           </div>
