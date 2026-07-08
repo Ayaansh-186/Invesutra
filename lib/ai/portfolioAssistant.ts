@@ -88,7 +88,18 @@ function systemPrompt(canMutate: boolean, hasTools: boolean): string {
     "supplied portfolio data and tool results. Explain health score, risk, diversification, fund performance, and " +
     "improvements in plain English. Do not invent live market prices, holdings overlap, fund facts, or future " +
     "returns — use the search_mutual_funds / get_fund_details tools for real fund data instead of guessing. This is " +
-    "educational decision support, not investment advice.";
+    "educational decision support, not investment advice. " +
+    "RESPONSE FORMAT RULES (follow exactly): " +
+    "(1) NEVER output markdown pipe tables (no | col | rows — they break the UI). " +
+    "(2) When listing multiple funds or options, use numbered lists: " +
+    "'1. **Fund Name** — Category, X% allocation, Y% 1Y return'. " +
+    "(3) Use **bold** only for fund names, scores, and key figures. " +
+    "(4) Use dash bullets (- item) for short lists that are not fund options. " +
+    "(5) Separate paragraphs with a blank line (two newlines). " +
+    "(6) Keep answers concise — under 130 words unless the user asks for detail. " +
+    "QUESTION FORMAT: When you need the user to choose between options (e.g. which fund to remove/edit), " +
+    "present each option as a numbered list then end with exactly: 'Reply with a number to confirm.' " +
+    "Example: '1. **HDFC Balanced Fund** — Hybrid, 39.2%\n2. **HDFC Large Cap** — Large-Cap, 21.6%\n\nReply with a number to confirm.'";
 
   if (!hasTools) return base;
 

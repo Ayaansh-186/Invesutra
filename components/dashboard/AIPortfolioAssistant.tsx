@@ -263,58 +263,121 @@ export default function AIPortfolioAssistant({
     }
   }
 
-  function renderInline(text: string, keyPrefix: string) {
-    return text.split(/(\*\*[^*]+\*\*)/).map((part, i) =>
-      part.startsWith("**") && part.endsWith("**") ? (
-        <strong key={`${keyPrefix}-${i}`} className="font-semibold text-[var(--shell-text)]">
-          {part.slice(2, -2)}
-        </strong>
-      ) : (
-        <span key={`${keyPrefix}-${i}`}>{part}</span>
-      )
-    );
+  // ── Inline renderer: **bold** and *italic* ──────────────────────────────
+  function renderInline(text: string, keyPrefix: string): React.ReactNode[] {
+    return text.split(/(\*\*[^*]+\*\*|\*[^*]+\*)/).map((part, i) => {
+      if (part.startsWith("**") && part.endsWith("**"))
+        return (
+          <strong key={`${keyPrefix}-b${i}`} className="font-semibold text-[var(--shell-text)]">
+            {part.slice(2, -2)}
+          </strong>
+        );
+      if (part.startsWith("*") && part.endsWith("*"))
+        return (
+          <em key={`${keyPrefix}-i${i}`} className="italic text-[var(--shell-text-muted)]">
+            {part.slice(1, -1)}
+          </em>
+        );
+      return <span key={`${keyPrefix}-t${i}`}>{part}</span>;
+    });
   }
 
-  // Groups the model's raw text into paragraph and bullet-list blocks
-  // instead of dumping it as one run-on line — a plain string with \n in
-  // JSX collapses whitespace, which is why replies used to read as a wall
-  // of text with literal "*" characters instead of real bullets.
-  function renderMessageContent(content: string) {
-    const lines = content
+  // ── Full message renderer ─────────────────────────────────────────────────
+  // Handles: numbered lists (1. 2.), bullet lists (- •), paragraphs,
+  // **bold**, *italic*. Pipe table rows are stripped so they never render
+  // as broken text even if the model emits them.
+  function renderMessageContent(raw: string) {
+    // Strip any pipe-table rows the model might emit
+    const content = raw
       .split("\n")
-      .map((l) => l.trim())
-      .filter((l) => l.length > 0);
+      .filter((l) => !/^\s*\|.*\|/.test(l) && !/^\s*[-|:]+\s*$/.test(l))
+      .join("\n");
 
-    type Block = { type: "p" | "ul"; lines: string[] };
+    type Block = { type: "p" | "ol" | "ul"; lines: string[] };
     const blocks: Block[] = [];
 
-    for (const line of lines) {
-      const bulletMatch = line.match(/^[*\-•]\s+(.*)/);
-      const text = bulletMatch ? bulletMatch[1] : line;
-      const kind: Block["type"] = bulletMatch ? "ul" : "p";
-      const last = blocks[blocks.length - 1];
-      if (last && last.type === kind) {
-        last.lines.push(text);
+    for (const chunk of content.split(/\n{2,}/)) {
+      const lines = chunk.split("\n").map((l) => l.trim()).filter(Boolean);
+      if (!lines.length) continue;
+      const allNumbered = lines.every((l) => /^\d+\.\s/.test(l));
+      const allBullet   = lines.every((l) => /^[-•*]\s/.test(l));
+
+      if (allNumbered) {
+        blocks.push({ type: "ol", lines: lines.map((l) => l.replace(/^\d+\.\s/, "")) });
+      } else if (allBullet) {
+        blocks.push({ type: "ul", lines: lines.map((l) => l.replace(/^[-•*]\s/, "")) });
       } else {
-        blocks.push({ type: kind, lines: [text] });
+        blocks.push({ type: "p", lines });
       }
     }
 
     return (
       <div className="space-y-3">
-        {blocks.map((block, bi) =>
-          block.type === "ul" ? (
-            <ul key={bi} className="list-disc space-y-1.5 pl-5">
+        {blocks.map((block, bi) => {
+          if (block.type === "ol")
+            return (
+              <ol key={bi} className="list-none space-y-2">
+                {block.lines.map((line, li) => (
+                  <li key={li} className="flex items-start gap-2.5">
+                    <span className="mt-0.5 flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full bg-[var(--shell-surface-2)] text-[10px] font-bold text-[var(--shell-text-muted)]">
+                      {li + 1}
+                    </span>
+                    <span className="leading-relaxed">{renderInline(line, `b${bi}l${li}`)}</span>
+                  </li>
+                ))}
+              </ol>
+            );
+          if (block.type === "ul")
+            return (
+              <ul key={bi} className="space-y-1.5">
+                {block.lines.map((line, li) => (
+                  <li key={li} className="flex items-start gap-2">
+                    <span className="mt-[7px] h-1 w-1 shrink-0 rounded-full bg-[var(--shell-text-faint)]" />
+                    <span className="leading-relaxed">{renderInline(line, `b${bi}l${li}`)}</span>
+                  </li>
+                ))}
+              </ul>
+            );
+          return (
+            <p key={bi} className="leading-relaxed">
               {block.lines.map((line, li) => (
-                <li key={li}>{renderInline(line, `${bi}-${li}`)}</li>
+                <span key={li}>
+                  {li > 0 && <br />}
+                  {renderInline(line, `b${bi}l${li}`)}
+                </span>
               ))}
-            </ul>
-          ) : (
-            <p key={bi}>{renderInline(block.lines.join(" "), `${bi}`)}</p>
-          )
-        )}
+            </p>
+          );
+        })}
       </div>
     );
+  }
+
+  // ── MCQ parser ────────────────────────────────────────────────────────────
+  // Detects when the AI ends a reply with "Reply with a number to confirm"
+  // and extracts the numbered options so we can render them as click buttons.
+  function parseMCQ(content: string): { preamble: string; options: string[] } | null {
+    const trigger = /reply with (a|the) number/i;
+    if (!trigger.test(content)) return null;
+
+    const lines = content.split("\n").map((l) => l.trim()).filter(Boolean);
+    const options: string[] = [];
+    const preamble: string[] = [];
+    let seenFirst = false;
+
+    for (const line of lines) {
+      const m = line.match(/^(\d+)\.\s+(.*)/);
+      if (m) {
+        seenFirst = true;
+        options.push(m[2]);
+      } else if (!seenFirst) {
+        preamble.push(line);
+      }
+      // lines after options (the "Reply with a number" prompt) are omitted —
+      // we replace them with the button row
+    }
+
+    return options.length >= 2 ? { preamble: preamble.join("\n"), options } : null;
   }
 
   if (historyStatus !== "ready") {
@@ -443,7 +506,34 @@ export default function AIPortfolioAssistant({
                 <div className="flex gap-3">
                   <Sparkle className="mt-1 h-4 w-4 shrink-0 text-cyan-600" strokeWidth={1.5} />
                   <div className="min-w-0 flex-1 text-[15px] leading-relaxed text-[var(--shell-text)]">
-                    {renderMessageContent(message.content)}
+                    {(() => {
+                      const mcq = index === messages.length - 1 ? parseMCQ(message.content) : null;
+                      if (mcq) {
+                        return (
+                          <div className="space-y-3">
+                            {mcq.preamble && renderMessageContent(mcq.preamble)}
+                            <div className="mt-2 flex flex-col gap-2">
+                              {mcq.options.map((opt, oi) => (
+                                <button
+                                  key={oi}
+                                  disabled={loading}
+                                  onClick={() => askAssistant(String(oi + 1))}
+                                  className="flex items-center gap-3 rounded-xl border border-[var(--shell-border)] bg-[var(--shell-surface)] px-4 py-2.5 text-left text-[14px] transition hover:border-cyan-500/40 hover:bg-[var(--shell-surface-2)] disabled:opacity-50"
+                                >
+                                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-[var(--shell-border)] text-[11px] font-semibold text-[var(--shell-text-muted)]">
+                                    {oi + 1}
+                                  </span>
+                                  <span className="flex-1 text-[var(--shell-text)]">
+                                    {renderInline(opt, `mcq-${index}-${oi}`)}
+                                  </span>
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      }
+                      return renderMessageContent(message.content);
+                    })()}
                   </div>
                 </div>
               )}
