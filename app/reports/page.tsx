@@ -44,6 +44,18 @@ function generateReport(portfolio: Portfolio) {
   }, 0);
   const alphaDeployment = eligibleAlpha > 0 ? allocationEngine.deployAlphaPool(eligibleAlpha, portfolio.funds) : null;
 
+  // Dry Powder preview — the QRP spec's other capital pool (Page 3). Unlike
+  // the Alpha Pool above (which deploys against *any* fund in drawback),
+  // Dry Powder is meant to sit in a liquid/debt instrument until a fund
+  // crosses a deeper "structural correction point" (the spec's example:
+  // an individual fund down 5%+ from cost basis), then sweep out to buy
+  // that specific dip. This shows what a hypothetical reserve equal to
+  // the current eligible alpha would do against today's portfolio — an
+  // illustrative preview, since a real persisted reserve balance would
+  // need to be tracked across actual rebalance events over time.
+  const dryPowderPreview =
+    eligibleAlpha > 0 ? allocationEngine.deployDryPowder(eligibleAlpha, portfolio.funds, 5) : null;
+
   const returns = formatPercent(portfolio.returnsPercent);
   const value = formatCurrency(portfolio.currentValue, true);
 
@@ -57,6 +69,7 @@ function generateReport(portfolio: Portfolio) {
     analysis,
     rebalanceSuggestions,
     alphaDeployment,
+    dryPowderPreview,
     funds: portfolio.funds,
     riskMetrics: analysis.riskMetrics,
     allocationBreakdown: analysis.allocationBreakdown,
@@ -401,6 +414,51 @@ export default function ReportsPage() {
                     No fund is currently trading below its cost basis, so this alpha would be swept into the Dry
                     Powder reserve ({formatCurrency(report.alphaDeployment.sweptToDryPowder, true)}) rather than
                     forced into already-elevated positions — per the QRP Dry Powder Storage Layer rule.
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {report.dryPowderPreview && (
+            <div className="bg-[var(--shell-surface)] border border-[var(--shell-border)] rounded-2xl p-6">
+              <h3 className="text-sm font-semibold text-[var(--shell-text)] mb-1 flex items-center gap-2">
+                <Droplets className="w-4 h-4 text-blue-500" />
+                Dry Powder Reserve
+              </h3>
+              <p className="text-xs text-[var(--shell-text-faint)] mb-4">
+                {formatCurrency(report.dryPowderPreview.totalAlphaPool, true)} held as a hypothetical reserve —
+                shows how it would deploy against your current holdings if a fund crosses a 5% structural
+                correction, versus staying parked earning a stable rate.
+              </p>
+
+              {report.dryPowderPreview.triggered ? (
+                <div className="space-y-2">
+                  <p className="text-xs text-[var(--shell-text-muted)] mb-2">
+                    Correction triggered — this capital would deploy now:
+                  </p>
+                  {report.dryPowderPreview.deployments.map((d) => (
+                    <div
+                      key={d.fundId}
+                      className="flex items-center justify-between p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg text-xs"
+                    >
+                      <div>
+                        <p className="font-semibold text-[var(--shell-text)]">{d.fundName}</p>
+                        <p className="text-[var(--shell-text-faint)] mt-0.5">
+                          Down {d.drawbackPercent}% from cost basis — past the 5% correction threshold
+                        </p>
+                      </div>
+                      <p className="font-bold text-blue-500">{formatCurrency(d.capitalDeployed, true)}</p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="flex items-start gap-3 p-4 bg-blue-500/10 border border-blue-500/20 rounded-xl text-xs">
+                  <Droplets className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" />
+                  <p className="text-blue-500 leading-relaxed">
+                    No fund has crossed the 5% correction threshold yet, so this reserve stays parked in a
+                    liquid/debt instrument rather than being deployed early — per the QRP Dry Powder Storage
+                    Layer rule. It only moves once a genuine dip appears to buy.
                   </p>
                 </div>
               )}

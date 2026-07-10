@@ -75,6 +75,15 @@ export class QuantRebalanceEngine {
     let realizedProfitLedger = 0;
     let totalFrictionCost = 0;
 
+    // Per-fund Pillar Base — the spec's A_i = P0/N (Page 2). Computed once,
+    // from the *original* fund universe before this pass mutates anything,
+    // as the average allocation across all funds. This is the fixed
+    // structural slice each fund's principal is isolated to; it must not
+    // be derived from any single fund's own (mutating) cost basis, or the
+    // whole point of Principal Layer Isolation collapses back into the
+    // "Structural Defect" the algorithm exists to fix (Page 2).
+    const pillarBase = this.computePillarBase(funds);
+
     for (const fund of updatedFunds) {
       const costBasis = fund.investedAmount;
       if (costBasis <= 0) continue;
@@ -84,9 +93,12 @@ export class QuantRebalanceEngine {
 
       if (returnPercent < triggerPercent) continue;
 
-      const pillarBase = this.getPillarBase(costBasis);
       const grossRedemption = fund.currentValue;
-      const grossAlpha = Math.max(0, grossRedemption - pillarBase);
+      // Never "reinvest" more than what was actually redeemed — guards
+      // against a fund whose position is smaller than the portfolio's
+      // average pillar size (e.g. a newly added, small allocation).
+      const principalReinvestment = Math.min(pillarBase, grossRedemption);
+      const grossAlpha = Math.max(0, grossRedemption - principalReinvestment);
       const frictionCost = this.calculateFrictionCost(fund, grossRedemption, grossAlpha);
       const netAlpha = Math.max(0, grossAlpha - frictionCost);
 
@@ -106,13 +118,13 @@ export class QuantRebalanceEngine {
         fundId: fund.id,
         fundName: fund.name,
         action: "reinvest_principal",
-        amount: pillarBase,
+        amount: principalReinvestment,
         reasoning: "Core principal is restored to preserve the compounding engine.",
       });
 
-      fund.currentValue = pillarBase;
-      fund.investedAmount = pillarBase;
-      fund.units = fund.nav > 0 ? pillarBase / fund.nav : fund.units;
+      fund.currentValue = principalReinvestment;
+      fund.investedAmount = principalReinvestment;
+      fund.units = fund.nav > 0 ? principalReinvestment / fund.nav : fund.units;
     }
 
     const deploymentPlan = allocationEngine.deployAlphaPool(netAlphaPool, updatedFunds);
@@ -240,9 +252,11 @@ export class QuantRebalanceEngine {
     return this.config.alphaTriggerPercent;
   }
 
-  private getPillarBase(costBasis: number): number {
-    if (this.config.principalAmount <= 0) return costBasis;
-    return Math.min(costBasis, this.config.principalAmount);
+  private computePillarBase(funds: FundProtocolInput[]): number {
+    const eligible = funds.filter((f) => f.investedAmount > 0);
+    if (eligible.length === 0) return 0;
+    const totalPrincipal = eligible.reduce((sum, f) => sum + f.investedAmount, 0);
+    return totalPrincipal / eligible.length;
   }
 
   private calculateFrictionCost(fund: FundProtocolInput, grossRedemption: number, grossAlpha: number): number {

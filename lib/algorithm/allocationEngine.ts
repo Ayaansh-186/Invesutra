@@ -113,6 +113,72 @@ export class AllocationEngine {
       capitalDeployed: alphaPool * (d.drawbackPercent / total),
     }));
   }
+
+  /**
+   * The other half of the "Dry Powder Storage Layer" (Page 3): capital
+   * doesn't just sweep IN when no fund is in drawdown — it's meant to
+   * sweep back OUT once a fund crosses a deeper "structural correction
+   * point" (the spec's example: an individual fund drop of ≤ -5% from
+   * cost basis), buying the dip rather than sitting idle indefinitely.
+   *
+   * This only considers funds crossing `correctionThresholdPercent` — a
+   * deeper bar than the Weighted Drawback Vector's "any drawback" rule,
+   * since Dry Powder is meant to be held for genuine corrections, not
+   * spent on every minor dip the way fresh Alpha Pool capital is.
+   */
+  deployDryPowder(
+    dryPowderReserve: number,
+    funds: Fund[],
+    correctionThresholdPercent = 5
+  ): AllocationResult & { triggered: boolean } {
+    if (dryPowderReserve <= 0) {
+      return {
+        totalAlphaPool: 0,
+        totalSystemicDrawback: 0,
+        deployments: [],
+        sweptToDryPowder: 0,
+        routedVia: "dry_powder_sweep",
+        triggered: false,
+      };
+    }
+
+    const correctionFunds = this.computeDrawbacks(funds).filter(
+      (entry) => entry.drawbackPercent >= correctionThresholdPercent
+    );
+
+    if (correctionFunds.length === 0) {
+      // No fund has crossed the correction threshold — stay in reserve.
+      return {
+        totalAlphaPool: dryPowderReserve,
+        totalSystemicDrawback: 0,
+        deployments: [],
+        sweptToDryPowder: dryPowderReserve,
+        routedVia: "dry_powder_sweep",
+        triggered: false,
+      };
+    }
+
+    const totalDrawback = correctionFunds.reduce((sum, d) => sum + d.drawbackPercent, 0);
+    const deployments: AllocationDeployment[] = correctionFunds.map((entry) => {
+      const weight = entry.drawbackPercent / totalDrawback;
+      return {
+        fundId: entry.fundId,
+        fundName: entry.fundName,
+        drawbackPercent: parseFloat(entry.drawbackPercent.toFixed(2)),
+        weight: parseFloat(weight.toFixed(4)),
+        capitalDeployed: parseFloat((dryPowderReserve * weight).toFixed(2)),
+      };
+    });
+
+    return {
+      totalAlphaPool: dryPowderReserve,
+      totalSystemicDrawback: parseFloat(totalDrawback.toFixed(2)),
+      deployments,
+      sweptToDryPowder: 0,
+      routedVia: "weighted_drawback_vector",
+      triggered: true,
+    };
+  }
 }
 
 export const allocationEngine = new AllocationEngine();

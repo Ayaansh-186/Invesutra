@@ -2,10 +2,11 @@
 
 import { useState } from "react";
 import { runSimulation } from "@/lib/algorithm/simulationEngine";
+import { runScenarioMatrix, type ScenarioResult } from "@/lib/algorithm/scenarioEngine";
 import type { SimulationInput, SimulationResult } from "@/lib/types";
 import { formatCurrency, formatPercent } from "@/lib/utils/format";
 import SimulatorChart from "@/components/simulator/SimulatorChart";
-import { Play, RefreshCw, TrendingUp, BarChart2, Zap, Shield, PieChart } from "lucide-react";
+import { Play, RefreshCw, TrendingUp, BarChart2, Zap, Shield, PieChart, Flame } from "lucide-react";
 import { categoryLabel } from "@/lib/utils/format";
 
 const DEFAULT_INPUT: SimulationInput = {
@@ -28,6 +29,8 @@ export default function SimulatorPage() {
   const [input, setInput] = useState<SimulationInput>(DEFAULT_INPUT);
   const [result, setResult] = useState<SimulationResult | null>(null);
   const [running, setRunning] = useState(false);
+  const [stressResults, setStressResults] = useState<ScenarioResult[] | null>(null);
+  const [runningStress, setRunningStress] = useState(false);
 
   function handleRun() {
     setRunning(true);
@@ -36,6 +39,16 @@ export default function SimulatorPage() {
       setResult(res);
       setRunning(false);
     }, 800);
+  }
+
+  function handleRunStressTest() {
+    setRunningStress(true);
+    setTimeout(() => {
+      const fundCount = input.funds && input.funds.length > 0 ? input.funds.length : 4;
+      const res = runScenarioMatrix(input.initialInvestment, fundCount);
+      setStressResults(res);
+      setRunningStress(false);
+    }, 600);
   }
 
   return (
@@ -324,6 +337,81 @@ export default function SimulatorPage() {
             </div>
           )}
         </div>
+      </div>
+
+      {/* QRP Scenario Stress Test — Page 4 of the algorithm spec */}
+      <div className="mt-6 bg-[var(--shell-surface)] border border-[var(--shell-border)] rounded-xl p-6">
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-1">
+          <h2 className="text-sm font-semibold text-[var(--shell-text)] flex items-center gap-2">
+            <Flame className="w-4 h-4 text-amber-500" />
+            QRP Scenario Stress Test
+          </h2>
+          <button
+            onClick={handleRunStressTest}
+            disabled={runningStress}
+            className="flex items-center gap-2 px-4 py-2 bg-cyan-400 text-slate-950 text-xs font-semibold rounded-lg hover:bg-cyan-300 disabled:opacity-50 transition-colors"
+          >
+            {runningStress ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Flame className="w-3.5 h-3.5" />}
+            {runningStress ? "Running..." : "Run Stress Test"}
+          </button>
+        </div>
+        <p className="text-xs text-[var(--shell-text-faint)] mb-5">
+          Runs your current investment amount through 5 canonical market conditions, comparing naive buy-and-hold
+          against QRP at a 15% and a 10% profit-booking trigger — each scenario uses one shared random market path
+          across all three models for a fair comparison.
+        </p>
+
+        {stressResults ? (
+          <div className="overflow-x-auto -mx-2">
+            <table className="w-full min-w-[720px] text-left text-xs">
+              <thead>
+                <tr className="border-b border-[var(--shell-border)] text-[10px] font-semibold uppercase tracking-wider text-[var(--shell-text-faint)]">
+                  <th className="px-2 py-2">Scenario</th>
+                  <th className="px-2 py-2 text-right">Naive (No Rebalancing)</th>
+                  <th className="px-2 py-2 text-right">QRP 15% Trigger</th>
+                  <th className="px-2 py-2 text-right">QRP 10% Trigger</th>
+                </tr>
+              </thead>
+              <tbody>
+                {stressResults.map((r) => {
+                  const best = Math.max(r.naive.returnPercent, r.qrp15.returnPercent, r.qrp10.returnPercent);
+                  return (
+                    <tr key={r.scenario.key} className="border-b border-[var(--shell-border)] last:border-0">
+                      <td className="px-2 py-3">
+                        <p className="font-medium text-[var(--shell-text)]">{r.scenario.label}</p>
+                        <p className="text-[var(--shell-text-faint)] mt-0.5">{r.scenario.description}</p>
+                      </td>
+                      {[r.naive, r.qrp15, r.qrp10].map((model, i) => (
+                        <td key={i} className="px-2 py-3 text-right">
+                          <p
+                            className={`font-semibold ${
+                              model.returnPercent === best ? "text-emerald-500" : "text-[var(--shell-text)]"
+                            }`}
+                          >
+                            {formatCurrency(model.finalValue, true)}
+                          </p>
+                          <p className="text-[var(--shell-text-faint)] mt-0.5">
+                            {formatPercent(model.returnPercent)}
+                            {model.rebalanceEvents > 0 && ` · ${model.rebalanceEvents} rebalance${model.rebalanceEvents === 1 ? "" : "s"}`}
+                          </p>
+                        </td>
+                      ))}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+            <p className="text-[10px] text-[var(--shell-text-faint)] mt-4 px-2 leading-relaxed">
+              Illustrative — each run uses a fresh random market path per scenario, so results will vary slightly
+              each time you run the test. This models the QRP methodology's behavior across market regimes, not a
+              guarantee of future returns.
+            </p>
+          </div>
+        ) : (
+          <div className="flex flex-col items-center justify-center h-32 border border-dashed border-[var(--shell-border)] rounded-xl">
+            <p className="text-xs text-[var(--shell-text-faint)]">Run the stress test to compare all 5 scenarios</p>
+          </div>
+        )}
       </div>
     </div>
   );
