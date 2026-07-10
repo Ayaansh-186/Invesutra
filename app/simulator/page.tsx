@@ -25,12 +25,26 @@ const DEFAULT_INPUT: SimulationInput = {
   ],
 };
 
+// Page 6 rule: a low, high-turnover trigger (≤10%) is only appropriate for
+// Zero Exit Load Large-Cap Index/ETF/Smart-Beta funds. Active, higher-churn
+// categories (Mid Cap, Small Cap, Sectoral) should stay bound to a 15–20%
+// trigger to avoid excessive turnover costs eating into the alpha captured.
+const HIGH_TURNOVER_RISK_CATEGORIES = new Set(["mid_cap", "small_cap", "sectoral"]);
+
+function checkTriggerCategoryFit(triggerPercent: number, funds: SimulationInput["funds"]) {
+  if (triggerPercent > 10) return null;
+  const mismatched = (funds || []).filter((f) => HIGH_TURNOVER_RISK_CATEGORIES.has(f.category));
+  if (mismatched.length === 0) return null;
+  return mismatched.map((f) => f.name);
+}
+
 export default function SimulatorPage() {
   const [input, setInput] = useState<SimulationInput>(DEFAULT_INPUT);
   const [result, setResult] = useState<SimulationResult | null>(null);
   const [running, setRunning] = useState(false);
   const [stressResults, setStressResults] = useState<ScenarioResult[] | null>(null);
   const [runningStress, setRunningStress] = useState(false);
+  const triggerCategoryWarning = checkTriggerCategoryFit(input.triggerPercent, input.funds);
 
   function handleRun() {
     setRunning(true);
@@ -148,6 +162,13 @@ export default function SimulatorPage() {
                   onChange={e => setInput({...input, triggerPercent: +e.target.value})}
                   className="w-full accent-cyan-500"
                 />
+                {triggerCategoryWarning && (
+                  <p className="mt-2 text-[11px] text-amber-500 leading-relaxed">
+                    QRP recommends 15–20% for active/higher-churn categories. Your {input.triggerPercent}% trigger
+                    applies to {triggerCategoryWarning.join(", ")} too — a low trigger there means more frequent
+                    exit-load/tax friction eating into captured alpha.
+                  </p>
+                )}
               </div>
 
               <div className="pt-2 border-t border-[var(--shell-border)]">

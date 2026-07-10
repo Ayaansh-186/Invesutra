@@ -17,6 +17,10 @@ export interface FundProtocolInput extends Fund {
   lotAgeDays?: number;
   exitLoadPercent?: number;
   stcgTaxPercent?: number;
+  /** Forward NAV settlement slippage (Page 5) — mutual fund redemptions
+   * execute at the *next* business day's unknown NAV, not the NAV visible
+   * at decision time. Defaults to a conservative fixed estimate if unset. */
+  settlementSlippagePercent?: number;
 }
 
 export interface ProtocolOrder {
@@ -262,9 +266,18 @@ export class QuantRebalanceEngine {
   private calculateFrictionCost(fund: FundProtocolInput, grossRedemption: number, grossAlpha: number): number {
     const exitLoadPercent = fund.exitLoadPercent ?? (typeof fund.lotAgeDays === "number" && fund.lotAgeDays < 365 ? 1 : 0);
     const stcgTaxPercent = fund.stcgTaxPercent ?? (typeof fund.lotAgeDays === "number" && fund.lotAgeDays < 365 ? 20 : 0);
+    // Forward NAV Settlement Slippage (Page 5): a redemption placed today
+    // executes at the *next* business day's NAV, which is unknown at
+    // decision time. Rather than model this as random noise (which would
+    // make the same portfolio's friction cost flicker between renders for
+    // no reason a user could act on), this uses a fixed, conservative
+    // estimate of typical single-day NAV movement — defaults to 0.15% if
+    // the caller doesn't supply a fund-specific figure.
+    const slippagePercent = fund.settlementSlippagePercent ?? 0.15;
     const exitLoad = grossRedemption * (exitLoadPercent / 100);
     const tax = grossAlpha * (stcgTaxPercent / 100);
-    return exitLoad + tax;
+    const slippage = grossRedemption * (slippagePercent / 100);
+    return exitLoad + tax + slippage;
   }
 
   private checkDrawdownTrigger(state: QRPState, currentValue: number): boolean {
