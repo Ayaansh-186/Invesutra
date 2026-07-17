@@ -3,13 +3,49 @@
 import type { FundCategory, RiskLevel } from "@/lib/types";
 import type { FundDataProvider, FundDetails, FundSearchResult, ProviderStatus } from "./types";
 import { callMutualFundTool } from "@/lib/mcp/mcpClient";
-import { isMutualFundSourceConfigured } from "@/lib/mcp/mutualFundSource";
+import { inferRiskLevel, isMutualFundSourceConfigured, mapAmfiCategory } from "@/lib/mcp/mutualFundSource";
 
 interface McpSearchHit {
   schemeCode: number;
   name: string;
 }
 
+
+const FALLBACK_FUNDS: Array<{ schemeCode: string; name: string; categoryText: string }> = [
+  { schemeCode: "fallback-hdfc-flexi-cap", name: "HDFC Flexi Cap Fund Direct Growth", categoryText: "Equity Scheme - Flexi Cap Fund" },
+  { schemeCode: "fallback-parag-parikh-flexi-cap", name: "Parag Parikh Flexi Cap Fund Direct Growth", categoryText: "Equity Scheme - Flexi Cap Fund" },
+  { schemeCode: "fallback-axis-bluechip", name: "Axis Bluechip Fund Direct Growth", categoryText: "Equity Scheme - Large Cap Fund" },
+  { schemeCode: "fallback-icici-bluechip", name: "ICICI Prudential Bluechip Fund Direct Growth", categoryText: "Equity Scheme - Large Cap Fund" },
+  { schemeCode: "fallback-nippon-small-cap", name: "Nippon India Small Cap Fund Direct Growth", categoryText: "Equity Scheme - Small Cap Fund" },
+  { schemeCode: "fallback-sbi-small-cap", name: "SBI Small Cap Fund Direct Growth", categoryText: "Equity Scheme - Small Cap Fund" },
+  { schemeCode: "fallback-kotak-emerging-equity", name: "Kotak Emerging Equity Fund Direct Growth", categoryText: "Equity Scheme - Mid Cap Fund" },
+  { schemeCode: "fallback-motilal-midcap", name: "Motilal Oswal Midcap Fund Direct Growth", categoryText: "Equity Scheme - Mid Cap Fund" },
+  { schemeCode: "fallback-uti-nifty-50", name: "UTI Nifty 50 Index Fund Direct Growth", categoryText: "Other Scheme - Index Fund" },
+  { schemeCode: "fallback-hdfc-liquid", name: "HDFC Liquid Fund Direct Growth", categoryText: "Debt Scheme - Liquid Fund" },
+];
+
+function fallbackSearchResults(query: string): FundSearchResult[] {
+  const terms = query.toLowerCase().split(/\s+/).filter(Boolean);
+  if (terms.length === 0) return [];
+
+  return FALLBACK_FUNDS.filter((fund) => {
+    const haystack = `${fund.name} ${fund.categoryText}`.toLowerCase();
+    return terms.every((term) => haystack.includes(term));
+  }).slice(0, 5).map((fund) => {
+    const category = mapAmfiCategory(fund.categoryText, fund.name);
+    return {
+      provider: "mutual-fund-mcp",
+      symbol: fund.schemeCode,
+      name: fund.name,
+      category,
+      riskLevel: inferRiskLevel(category),
+      sourceUrl: undefined,
+      benchmark: undefined,
+      expenseRatio: undefined,
+      aum: undefined,
+    };
+  });
+}
 interface McpFundDetail {
   schemeCode: number;
   name: string;
@@ -38,8 +74,14 @@ class MutualFundMcpProvider implements FundDataProvider {
   }
 
   async searchFunds(query: string): Promise<FundSearchResult[]> {
-    const { json } = await callMutualFundTool("search_mutual_funds", { query, limit: 8 });
-    const hits = (json as { results?: McpSearchHit[] } | null)?.results || [];
+    let hits: McpSearchHit[] = [];
+    try {
+      const { json } = await callMutualFundTool("search_mutual_funds", { query, limit: 8 });
+      hits = (json as { results?: McpSearchHit[] } | null)?.results || [];
+    } catch (error) {
+      console.warn(`${this.id} live fund search unavailable, using local fallback catalog:`, error);
+      return fallbackSearchResults(query);
+    }
 
     const detailed = await Promise.all(
       hits.slice(0, 5).map(async (hit) => {
@@ -51,7 +93,7 @@ class MutualFundMcpProvider implements FundDataProvider {
       })
     );
 
-    return detailed
+    const detailedResults = detailed
       .filter((f): f is FundDetails => Boolean(f))
       .map((f) => ({
         provider: this.id,
@@ -70,6 +112,23 @@ class MutualFundMcpProvider implements FundDataProvider {
         sourceUrl: `https://www.mfapi.in/mf/${f.schemeCode}`,
         asOf: f.navAsOf,
       }));
+
+    if (detailedResults.length > 0) return detailedResults;
+
+    return hits.slice(0, 5).map((hit) => {
+      const category = mapAmfiCategory("", hit.name);
+      return {
+        provider: this.id,
+        symbol: String(hit.schemeCode),
+        name: hit.name,
+        category,
+        riskLevel: inferRiskLevel(category),
+        expenseRatio: undefined,
+        aum: undefined,
+        benchmark: undefined,
+        sourceUrl: `https://www.mfapi.in/mf/${hit.schemeCode}`,
+      };
+    });
   }
 
   async getFundDetails(schemeCode: string): Promise<FundDetails> {

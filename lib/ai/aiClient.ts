@@ -288,6 +288,7 @@ export async function getAIChatCompletion(
       const { text } = await attempt.call();
       return { text, provider: attempt.provider };
     } catch (error) {
+      markRateLimited(attempt.provider, error);
       console.error(`AI provider "${attempt.provider}" failed, trying next:`, error);
       lastError = error;
     }
@@ -333,6 +334,7 @@ export async function getAIChatCompletionWithTools(
       const { text, toolCalls } = await attempt.call();
       return { text, provider: attempt.provider, toolCalls };
     } catch (error) {
+      markRateLimited(attempt.provider, error);
       console.error(`AI provider "${attempt.provider}" (tools) failed, trying next:`, error);
       lastError = error;
     }
