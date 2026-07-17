@@ -3,7 +3,7 @@
 import type { FundCategory, RiskLevel } from "@/lib/types";
 
 export interface FundDetails {
-  schemeCode: number;
+  schemeCode: number | string;
   name: string;
   fundHouse?: string;
   category: FundCategory;

@@ -49,6 +49,7 @@ export interface MfApiSchemeDetail {
 // still saves repeated upstream calls across tool calls within one warm
 // invocation (e.g. search then get-details in the same chat turn).
 const CACHE_TTL_MS = 15 * 60 * 1000;
+const FETCH_TIMEOUT_MS = 6_000;
 const cache = new Map<string, { at: number; value: unknown }>();
 
 async function cachedFetchJson<T>(url: string): Promise<T> {
@@ -56,7 +57,16 @@ async function cachedFetchJson<T>(url: string): Promise<T> {
   if (hit && Date.now() - hit.at < CACHE_TTL_MS) {
     return hit.value as T;
   }
-  const res = await fetch(url, { headers: { Accept: "application/json" } });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  let res: Response;
+  try {
+    res = await fetch(url, { headers: { Accept: "application/json" }, signal: controller.signal });
+  } catch (error) {
+    throw new Error(`mfapi.in request failed for ${url}: ${error instanceof Error ? error.message : "network error"}`);
+  } finally {
+    clearTimeout(timeout);
+  }
   if (!res.ok) {
     throw new Error(`mfapi.in request failed (${res.status}) for ${url}`);
   }

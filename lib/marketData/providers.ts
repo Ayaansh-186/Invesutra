@@ -46,6 +46,19 @@ function fallbackSearchResults(query: string): FundSearchResult[] {
     };
   });
 }
+
+function fallbackFundDetails(schemeCode: string): FundDetails | null {
+  const fund = FALLBACK_FUNDS.find((item) => item.schemeCode === schemeCode);
+  if (!fund) return null;
+  const category = mapAmfiCategory(fund.categoryText, fund.name);
+  return {
+    schemeCode: fund.schemeCode,
+    name: fund.name,
+    fundHouse: fund.name.split(" ")[0],
+    category,
+    riskLevel: inferRiskLevel(category),
+  };
+}
 interface McpFundDetail {
   schemeCode: number;
   name: string;
@@ -132,6 +145,9 @@ class MutualFundMcpProvider implements FundDataProvider {
   }
 
   async getFundDetails(schemeCode: string): Promise<FundDetails> {
+    const fallbackDetail = fallbackFundDetails(schemeCode);
+    if (fallbackDetail) return fallbackDetail;
+
     const { json } = await callMutualFundTool("get_fund_details", { schemeCode });
     const detail = json as McpFundDetail | null;
     if (!detail) {
