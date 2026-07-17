@@ -57,15 +57,37 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   }
 
   const body = await request.json();
+  const name = String(body.name || "").trim();
+  const investedAmount = Number(body.investedAmount);
+  const currentValue = body.currentValue === undefined ? investedAmount : Number(body.currentValue);
 
-  if (!body.name || !body.category || !body.riskLevel) {
+  if (!name || !body.category || !body.riskLevel) {
     return NextResponse.json(
       { error: "Fund requires at least name, category, and riskLevel" },
       { status: 400 }
     );
   }
 
-  const insertPayload = fundToDbInsert(body, id);
+  if (!Number.isFinite(investedAmount) || investedAmount <= 0) {
+    return NextResponse.json({ error: "Invested amount must be greater than 0." }, { status: 400 });
+  }
+
+  if (!Number.isFinite(currentValue) || currentValue < 0) {
+    return NextResponse.json({ error: "Current value must be 0 or greater." }, { status: 400 });
+  }
+
+  const { data: existingFunds } = await supabase
+    .from("funds")
+    .select("id, name")
+    .eq("portfolio_id", id);
+  const duplicate = (existingFunds as { id: string; name: string }[] | null)?.find(
+    (fund) => fund.name.trim().toLowerCase() === name.toLowerCase()
+  );
+  if (duplicate) {
+    return NextResponse.json({ error: `A fund named "${duplicate.name}" already exists in this portfolio.` }, { status: 409 });
+  }
+
+  const insertPayload = fundToDbInsert({ ...body, name, investedAmount, currentValue }, id);
 
   const { data, error } = await supabase.from("funds").insert(insertPayload).select().single();
 

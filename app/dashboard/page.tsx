@@ -8,7 +8,7 @@ import { useActivePortfolio } from "@/lib/hooks/useActivePortfolio";
 import { useAuth } from "@/lib/hooks/useAuth";
 import AIPortfolioAssistant from "@/components/dashboard/AIPortfolioAssistant";
 import AddFundModal from "@/components/dashboard/AddFundModal";
-import { Sparkles, CheckCircle2, Plus } from "lucide-react";
+import { Sparkles, CheckCircle2, Plus, AlertTriangle } from "lucide-react";
 
 export default function DashboardPage() {
   return (
@@ -20,7 +20,7 @@ export default function DashboardPage() {
 
 function DashboardPageInner() {
   const { user } = useAuth();
-  const { portfolio, loading, isDemo, isEmpty, refresh } = useActivePortfolio();
+  const { portfolio, loading, isDemo, isEmpty, error, refresh } = useActivePortfolio();
   const [showAddFund, setShowAddFund] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const analysis = portfolio.analysis ?? riskEngine.analyzePortfolio(portfolio);
@@ -48,6 +48,13 @@ function DashboardPageInner() {
   return (
     <div className="flex h-full flex-col overflow-hidden">
       {/* Status banners */}
+      {error && (
+        <div className="shrink-0 flex items-center gap-3 border-b border-amber-400/20 bg-amber-400/10 px-4 py-2.5">
+          <AlertTriangle className="h-4 w-4 shrink-0 text-amber-400" />
+          <p className="flex-1 text-xs text-[var(--shell-text-muted)]">{error}</p>
+          <button onClick={handleRefresh} className="text-xs font-semibold text-amber-300 hover:underline">Retry</button>
+        </div>
+      )}
       {isDemo && !user && (
         <div className="shrink-0 flex items-center gap-3 border-b border-cyan-400/20 bg-cyan-400/10 px-4 py-2.5">
           <Sparkles className="h-4 w-4 shrink-0 text-cyan-400" />

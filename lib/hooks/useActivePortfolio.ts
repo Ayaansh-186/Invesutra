@@ -46,6 +46,7 @@ export function useActivePortfolio(): UsePortfolioResult {
       if (!res.ok) {
         // DB error (tables not set up, etc.) — show demo data but DON'T say "create account"
         console.warn("Portfolio API error:", data.error);
+        setError(data.error || "Could not load your saved portfolio.");
         setPortfolio(SAMPLE_PORTFOLIO);
         setIsEmpty(true);
         setLoading(false);
@@ -64,6 +65,7 @@ export function useActivePortfolio(): UsePortfolioResult {
       }
     } catch (err) {
       console.error("Failed to load portfolio:", err);
+      setError("Could not reach the portfolio service. Showing sample data for now.");
       setPortfolio(SAMPLE_PORTFOLIO);
       setIsEmpty(true);
     } finally {

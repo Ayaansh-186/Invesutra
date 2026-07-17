@@ -174,6 +174,27 @@ export default function AIPortfolioAssistant({
     return null;
   }
 
+  function localFallbackReply(question: string): string {
+    const lower = question.toLowerCase();
+    const firstRisk = analysis.concentrationRisk[0];
+    const topHolding = [...portfolio.funds].sort((a, b) => b.currentValue - a.currentValue)[0];
+
+    if (lower.includes("risk")) {
+      return firstRisk
+        ? `The cloud assistant is unavailable, so here is the local read: **${firstRisk.label}** is the biggest risk at **${firstRisk.currentPercent.toFixed(1)}%** versus the **${firstRisk.recommendedMax}%** guide. Your overall risk score is **${portfolio.riskScore}/100**.`
+        : `The cloud assistant is unavailable, so here is the local read: risk score is **${portfolio.riskScore}/100**, beta is **${analysis.riskMetrics.beta.toFixed(2)}**, and max drawdown estimate is **${analysis.riskMetrics.maxDrawdown.toFixed(1)}%**.`;
+    }
+
+    if (lower.includes("divers") || lower.includes("allocation")) {
+      return `The cloud assistant is unavailable, so here is the local read: diversification is **${analysis.diversificationScore}/100**. Largest holding: **${topHolding?.name || "none"}**. Keep category concentration controlled before adding more aggressive funds.`;
+    }
+
+    if (lower.includes("holding") || lower.includes("fund")) {
+      return `The cloud assistant is unavailable, so here is the local read: you have **${portfolio.funds.length}** fund${portfolio.funds.length === 1 ? "" : "s"}. Current value is **${formatCurrency(portfolio.currentValue, true)}**, with total return of **${formatPercent(portfolio.returnsPercent)}**.`;
+    }
+
+    return `The cloud assistant is unavailable, so I used the local engine. Health is **${portfolio.healthScore}/100** (${analysis.overallHealth}), risk is **${portfolio.riskScore}/100**, and returns are **${formatPercent(portfolio.returnsPercent)}**.`;
+  }
   async function askAssistant(question: string) {
     const trimmed = question.trim();
     if (!trimmed || loading) return;
@@ -234,14 +255,13 @@ export default function AIPortfolioAssistant({
       if (data.portfolioChanged) {
         onRefresh();
       }
-    } catch (error) {
+    } catch {
+      setSource("deterministic");
       setMessages([
         ...nextMessages,
         {
           role: "assistant",
-          content: error instanceof Error
-            ? `I couldn't complete that analysis: ${error.message}`
-            : "I couldn't complete that analysis right now. Please try again.",
+          content: localFallbackReply(trimmed),
         },
       ]);
     } finally {
