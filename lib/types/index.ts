@@ -102,6 +102,7 @@ export interface RiskMetrics {
 // QuantRebalance Protocol Types
 export interface QRPConfig {
   principalAmount: number;
+  pillarBaseAmount?: number; // fixed A_i principal per fund slot
   alphaTriggerPercent: number; // e.g. 12 = 12%
   drawbackPercent: number; // e.g. 10 = 10%
   dryPowderPercent: number; // e.g. 20 = 20%

@@ -17,6 +17,7 @@ export interface FundProtocolInput extends Fund {
   lotAgeDays?: number;
   exitLoadPercent?: number;
   stcgTaxPercent?: number;
+  pillarBaseAmount?: number;
   /** Forward NAV settlement slippage (Page 5) — mutual fund redemptions
    * execute at the *next* business day's unknown NAV, not the NAV visible
    * at decision time. Defaults to a conservative fixed estimate if unset. */
@@ -79,13 +80,9 @@ export class QuantRebalanceEngine {
     let realizedProfitLedger = 0;
     let totalFrictionCost = 0;
 
-    // Per-fund Pillar Base — the spec's A_i = P0/N (Page 2). Computed once,
-    // from the *original* fund universe before this pass mutates anything,
-    // as the average allocation across all funds. This is the fixed
-    // structural slice each fund's principal is isolated to; it must not
-    // be derived from any single fund's own (mutating) cost basis, or the
-    // whole point of Principal Layer Isolation collapses back into the
-    // "Structural Defect" the algorithm exists to fix (Page 2).
+    // Per-fund Pillar Base: A_i = P0 / N (Page 2). Prefer an explicit
+    // configured or fund-level base so redeployed alpha does not inflate
+    // the principal layer in later cycles.
     const pillarBase = this.computePillarBase(funds);
 
     for (const fund of updatedFunds) {
@@ -259,6 +256,11 @@ export class QuantRebalanceEngine {
   private computePillarBase(funds: FundProtocolInput[]): number {
     const eligible = funds.filter((f) => f.investedAmount > 0);
     if (eligible.length === 0) return 0;
+    const fundLevelBase = eligible.find((f) => typeof f.pillarBaseAmount === "number" && f.pillarBaseAmount > 0)
+      ?.pillarBaseAmount;
+    if (fundLevelBase) return fundLevelBase;
+    if (this.config.pillarBaseAmount && this.config.pillarBaseAmount > 0) return this.config.pillarBaseAmount;
+    if (this.config.principalAmount > 0) return this.config.principalAmount / eligible.length;
     const totalPrincipal = eligible.reduce((sum, f) => sum + f.investedAmount, 0);
     return totalPrincipal / eligible.length;
   }
@@ -419,7 +421,7 @@ export class QuantRebalanceEngine {
 // Singleton factory
 export function createRebalanceEngine(config?: Partial<QRPConfig>): QuantRebalanceEngine {
   const defaultConfig: QRPConfig = {
-    principalAmount: 100000,
+    principalAmount: 0,
     alphaTriggerPercent: 12,
     drawbackPercent: 10,
     dryPowderPercent: 20,

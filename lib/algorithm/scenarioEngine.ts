@@ -95,9 +95,11 @@ function runNaive(initialInvestment: number, monthlyPath: number[]): ScenarioMod
 }
 
 function runQRP(initialInvestment: number, fundCount: number, monthlyPath: number[], triggerPercent: number): ScenarioModelResult {
-  const engine = createRebalanceEngine({ alphaTriggerPercent: triggerPercent });
+  const pillarBaseAmount = initialInvestment / Math.max(1, fundCount);
+  const engine = createRebalanceEngine({ alphaTriggerPercent: triggerPercent, principalAmount: initialInvestment, pillarBaseAmount });
   let funds = buildSyntheticFunds(fundCount, initialInvestment);
   let cumulativeAlpha = 0;
+  let dryPowderReserve = 0;
   let rebalanceEvents = 0;
 
   for (const monthlyReturn of monthlyPath) {
@@ -110,16 +112,16 @@ function runQRP(initialInvestment: number, fundCount: number, monthlyPath: numbe
     funds = result.updatedFunds;
     if (result.realizedProfitLedger > 0) {
       cumulativeAlpha += result.realizedProfitLedger;
+      dryPowderReserve += result.dryPowderAdded;
       rebalanceEvents += 1;
     }
   }
 
-  // Extracted alpha isn't withdrawn from the system — per the spec it's
-  // redeployed elsewhere in the same portfolio (Weighted Drawback Vector)
-  // or held as Dry Powder — so it still counts toward total wealth here,
-  // just held separately from the still-invested fund principal.
+  // Extracted alpha is either already redeployed into updated fund values or
+  // held separately as Dry Powder. Only the reserve is added here to avoid
+  // double-counting alpha deployed through the Weighted Drawback Vector.
   const totalFundValue = funds.reduce((sum, f) => sum + f.currentValue, 0);
-  const finalValue = totalFundValue + cumulativeAlpha;
+  const finalValue = totalFundValue + dryPowderReserve;
 
   return {
     finalValue,

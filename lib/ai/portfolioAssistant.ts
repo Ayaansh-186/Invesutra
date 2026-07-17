@@ -44,42 +44,63 @@ function getTopAllocations(portfolio: Portfolio) {
 
 function fallbackAnswer(portfolio: Portfolio, question: string): string {
   const analysis = riskEngine.analyzePortfolio(portfolio);
+  const engine = createRebalanceEngine();
+  const totalValue = portfolio.currentValue || portfolio.totalInvested || 1;
   const topRisk = analysis.concentrationRisk[0];
   const debtPct = analysis.allocationBreakdown.byCategory.debt || 0;
+  const hybridPct = analysis.allocationBreakdown.byCategory.hybrid || 0;
   const smallPct = analysis.allocationBreakdown.byMarketCap.small;
   const midPct = analysis.allocationBreakdown.byMarketCap.mid;
   const underperformers = portfolio.funds.filter((fund) => analysis.underperformers.includes(fund.id));
+  const suggestions = engine.generateRebalancingSuggestions(portfolio.funds, totalValue);
+  const topHoldings = [...portfolio.funds]
+    .sort((a, b) => b.currentValue - a.currentValue)
+    .slice(0, 3)
+    .map((fund) => `${fund.name} (${((fund.currentValue / totalValue) * 100).toFixed(1)}%)`);
+  const eligibleAlpha = portfolio.funds
+    .filter((fund) => fund.investedAmount > 0)
+    .reduce((sum, fund) => {
+      const gainPercent = ((fund.currentValue - fund.investedAmount) / fund.investedAmount) * 100;
+      return gainPercent >= 10 ? sum + Math.max(0, fund.currentValue - fund.investedAmount) : sum;
+    }, 0);
   const lower = question.toLowerCase();
+
+  if (lower.includes("qrp") || lower.includes("quant") || lower.includes("alpha") || lower.includes("dry powder")) {
+    const dryPowderNote = eligibleAlpha > 0
+      ? `About ${formatCurrency(eligibleAlpha, true)} of unrealized gain is currently eligible for alpha-capture review at a 10%+ milestone.`
+      : "No holding is currently showing enough milestone gain for alpha capture under the 10% review band.";
+    return `Using the local QuantRebalance rules, I would preserve each fund's core principal layer, capture only milestone alpha, then route that alpha toward funds trading below cost basis. ${dryPowderNote} If no fund is in drawdown, the rules keep fresh alpha as dry powder instead of forcing it into elevated holdings.`;
+  }
 
   if (lower.includes("risk")) {
     const riskReason = topRisk
-      ? `${topRisk.label.toLowerCase()} is ${topRisk.currentPercent.toFixed(1)}%, above the ${topRisk.recommendedMax}% guide.`
-      : `beta is ${analysis.riskMetrics.beta.toFixed(2)} and estimated drawdown is ${analysis.riskMetrics.maxDrawdown.toFixed(1)}%.`;
-    return `Your portfolio risk score is ${portfolio.riskScore}/100. The main driver is that ${riskReason} Mid-cap exposure is ${midPct.toFixed(1)}% and small-cap exposure is ${smallPct.toFixed(1)}%, so the assistant would first reduce concentration before adding more aggressive funds.`;
+      ? `${topRisk.label.toLowerCase()} is ${topRisk.currentPercent.toFixed(1)}%, above the ${topRisk.recommendedMax}% guide`
+      : `beta is ${analysis.riskMetrics.beta.toFixed(2)} with estimated max drawdown of ${analysis.riskMetrics.maxDrawdown.toFixed(1)}%`;
+    return `Your portfolio risk score is ${portfolio.riskScore}/100. Main driver: ${riskReason}. Mid-cap exposure is ${midPct.toFixed(1)}%, small-cap is ${smallPct.toFixed(1)}%, and debt plus hybrid is ${(debtPct + hybridPct).toFixed(1)}%, so the first risk-control move is reducing concentration before adding more aggressive funds.`;
   }
 
   if (lower.includes("health") || lower.includes("score")) {
-    return `Your health score is ${portfolio.healthScore}/100, which currently reads as ${analysis.overallHealth}. The score is shaped by diversification (${analysis.diversificationScore}/100), risk metrics like beta ${analysis.riskMetrics.beta.toFixed(2)}, and ${underperformers.length} underperforming fund${underperformers.length === 1 ? "" : "s"}.`;
+    return `Your health score is ${portfolio.healthScore}/100 (${analysis.overallHealth}). The local engine is weighing diversification at ${analysis.diversificationScore}/100, beta at ${analysis.riskMetrics.beta.toFixed(2)}, Sharpe at ${analysis.riskMetrics.sharpeRatio.toFixed(2)}, ${analysis.concentrationRisk.length} concentration alert${analysis.concentrationRisk.length === 1 ? "" : "s"}, and ${underperformers.length} underperforming fund${underperformers.length === 1 ? "" : "s"}.`;
   }
 
   if (lower.includes("divers") || lower.includes("allocation")) {
-    return `Your diversification score is ${analysis.diversificationScore}/100. Debt allocation is ${debtPct.toFixed(1)}%, mid-cap exposure is ${midPct.toFixed(1)}%, and small-cap exposure is ${smallPct.toFixed(1)}%. A steadier mix would usually add defensive allocation and avoid any one category dominating the portfolio.`;
+    return `Diversification score: ${analysis.diversificationScore}/100. Largest holdings: ${topHoldings.length ? topHoldings.join(", ") : "none yet"}. Debt is ${debtPct.toFixed(1)}%, mid-cap is ${midPct.toFixed(1)}%, and small-cap is ${smallPct.toFixed(1)}%. A steadier mix usually avoids one category dominating and keeps some defensive allocation available for corrections.`;
   }
 
-  if (lower.includes("improve") || lower.includes("rebalance")) {
-    const suggestions = createRebalanceEngine().generateRebalancingSuggestions(portfolio.funds, portfolio.currentValue);
+  if (lower.includes("improve") || lower.includes("rebalance") || lower.includes("suggest")) {
     if (suggestions.length === 0) {
-      return `The portfolio does not need a major rebalance based on the current rules. I would keep monitoring category weights, expense ratios, and whether any fund stays below its peer return band for multiple review cycles.`;
+      return `The local rules do not see a major mandatory rebalance right now. Keep monitoring category weights, expense ratios, and funds that stay below peer-return bands for multiple review cycles. The next useful check is whether any winning position has crossed a 10%-15% alpha-capture milestone.`;
     }
-    return `The clearest improvement is to ${suggestions[0].action} ${suggestions[0].fundName} from ${suggestions[0].currentAllocation.toFixed(1)}% toward ${suggestions[0].targetAllocation.toFixed(1)}%. Reason: ${suggestions[0].reasoning}`;
+    const ranked = suggestions.slice(0, 3).map((suggestion, index) => `${index + 1}. ${suggestion.action} ${suggestion.fundName} from ${suggestion.currentAllocation.toFixed(1)}% toward ${suggestion.targetAllocation.toFixed(1)}%: ${suggestion.reasoning}`);
+    return `Top local rebalancing moves:\n\n${ranked.join("\n")}`;
   }
 
-  if (lower.includes("perform") || lower.includes("return")) {
-    const laggards = underperformers.map((fund) => fund.name).slice(0, 3);
-    return `The portfolio return is ${formatPercent(portfolio.returnsPercent)} on ${formatCurrency(portfolio.totalInvested, true)} invested. ${laggards.length ? `Funds to review first: ${laggards.join(", ")}.` : "No major underperformer is currently flagged by the rules."}`;
+  if (lower.includes("perform") || lower.includes("return") || lower.includes("review")) {
+    const laggards = underperformers.map((fund) => `${fund.name} (${formatPercent(fund.returns1Y)} 1Y)`).slice(0, 3);
+    return `Portfolio return is ${formatPercent(portfolio.returnsPercent)} on ${formatCurrency(portfolio.totalInvested, true)} invested. ${laggards.length ? `Review these first: ${laggards.join(", ")}.` : "No major underperformer is currently flagged by the local rules."} Current Sharpe estimate is ${analysis.riskMetrics.sharpeRatio.toFixed(2)}.`;
   }
 
-  return `I reviewed your current portfolio data: ${portfolio.funds.length} funds, ${formatCurrency(portfolio.currentValue, true)} current value, ${formatPercent(portfolio.returnsPercent)} total return, health score ${portfolio.healthScore}/100, and risk score ${portfolio.riskScore}/100. Ask me about risk, diversification, fund performance, or how to improve the allocation.`;
+  return `Local deterministic review: ${portfolio.funds.length} funds, ${formatCurrency(portfolio.currentValue, true)} current value, ${formatPercent(portfolio.returnsPercent)} total return, health ${portfolio.healthScore}/100, risk ${portfolio.riskScore}/100. The main watchpoints are ${topRisk ? topRisk.label.toLowerCase() : "category balance"}, ${underperformers.length} underperformer${underperformers.length === 1 ? "" : "s"}, and whether winners have crossed QRP alpha-capture milestones.`;
 }
 
 function systemPrompt(canMutate: boolean, hasTools: boolean): string {
@@ -260,8 +281,12 @@ export async function answerPortfolioQuestion(
 
   try {
     if (canUseTools && toolContext) {
-      const { answer, provider, portfolioChanged } = await runToolLoop(portfolio, messages, groundingData, toolContext);
-      return { source: provider, answer, suggestedQuestions, portfolioChanged };
+      try {
+        const { answer, provider, portfolioChanged } = await runToolLoop(portfolio, messages, groundingData, toolContext);
+        return { source: provider, answer, suggestedQuestions, portfolioChanged };
+      } catch (toolError) {
+        console.error("Tool-capable AI path failed, retrying normal provider chain:", toolError);
+      }
     }
 
     const { text: answer, provider } = await getAIChatCompletion([

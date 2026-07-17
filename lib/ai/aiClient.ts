@@ -43,6 +43,42 @@ export type AIProvider = "groq" | "gemini" | "openai";
  */
 export const TOOL_CALLING_PROVIDERS: AIProvider[] = ["groq", "openai"];
 
+const RATE_LIMIT_COOLDOWN_MS = 60_000;
+const providerRetryAfter: Partial<Record<AIProvider, number>> = {};
+
+function errorText(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  if (typeof error === "string") return error;
+  try {
+    return JSON.stringify(error);
+  } catch {
+    return "";
+  }
+}
+
+function isRateLimitError(error: unknown): boolean {
+  const maybe = error as { status?: number; code?: string; error?: { code?: string; message?: string } };
+  const text = errorText(error).toLowerCase();
+  return (
+    maybe?.status === 429 ||
+    maybe?.code === "rate_limit_exceeded" ||
+    maybe?.error?.code === "rate_limit_exceeded" ||
+    text.includes("429") ||
+    text.includes("rate limit") ||
+    text.includes("quota exceeded")
+  );
+}
+
+function markRateLimited(provider: AIProvider, error: unknown) {
+  if (!isRateLimitError(error)) return;
+  providerRetryAfter[provider] = Date.now() + RATE_LIMIT_COOLDOWN_MS;
+}
+
+function isTemporarilyRateLimited(provider: AIProvider): boolean {
+  const retryAt = providerRetryAfter[provider];
+  return typeof retryAt === "number" && retryAt > Date.now();
+}
+
 /**
  * Groq exposes an OpenAI-compatible /chat/completions endpoint, so we reuse
  * the already-installed `openai` package and just point it at Groq's base
@@ -247,7 +283,7 @@ export async function getAIChatCompletion(
   );
 
   for (const attempt of attempts) {
-    if (!attempt.enabled) continue;
+    if (!attempt.enabled || isTemporarilyRateLimited(attempt.provider)) continue;
     try {
       const { text } = await attempt.call();
       return { text, provider: attempt.provider };
@@ -292,7 +328,7 @@ export async function getAIChatCompletionWithTools(
   );
 
   for (const attempt of attempts) {
-    if (!attempt.enabled) continue;
+    if (!attempt.enabled || isTemporarilyRateLimited(attempt.provider)) continue;
     try {
       const { text, toolCalls } = await attempt.call();
       return { text, provider: attempt.provider, toolCalls };
