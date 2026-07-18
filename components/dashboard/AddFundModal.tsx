@@ -211,9 +211,9 @@ export default function AddFundModal({ portfolioId, onClose, onAdded }: Props) {
                     key={`${fund.symbol || fund.name}-${i}`}
                     type="button"
                     onClick={() => selectFund(fund)}
-                    className="w-full text-left p-3 border border-[var(--shell-border)] rounded-xl hover:border-sky-300 hover:bg-cyan-400/10/50 transition-colors"
+                    className="group w-full text-left p-3 border border-[var(--shell-border)] rounded-xl bg-[var(--shell-surface)] hover:border-cyan-400/50 hover:bg-cyan-400/10 focus:outline-none focus:ring-2 focus:ring-cyan-400/20 transition-colors"
                   >
-                    <p className="text-sm font-medium text-[var(--shell-text)] truncate">{fund.name}</p>
+                    <p className="text-sm font-medium text-[var(--shell-text)] truncate group-hover:text-cyan-600">{fund.name}</p>
                     <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-[var(--shell-text-faint)]">
                       {fund.category && (
                         <span className="px-1.5 py-0.5 bg-[var(--shell-surface-2)] rounded-md">{categoryLabel(fund.category)}</span>
@@ -233,7 +233,7 @@ export default function AddFundModal({ portfolioId, onClose, onAdded }: Props) {
             <button
               type="button"
               onClick={() => { setForm(emptyForm); setMode("manual"); }}
-              className="text-xs text-[var(--shell-text-faint)] hover:text-[var(--shell-text)] underline underline-offset-2"
+              className="inline-flex rounded-lg px-1 py-0.5 text-xs font-medium text-[var(--shell-text-faint)] hover:text-[var(--shell-text)] focus:outline-none focus:ring-2 focus:ring-cyan-400/20 underline underline-offset-2"
             >
               Can't find your fund? Add it manually instead
             </button>

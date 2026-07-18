@@ -47,7 +47,7 @@ function ChatInputBar({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder="Ask about risk, funds, allocation, or say 'add a fund'..."
-        className="w-full rounded-2xl border border-[var(--shell-border)] bg-[var(--shell-surface)] py-4 pl-5 pr-14 text-[15px] text-[var(--shell-text)] outline-none placeholder:text-[var(--shell-text-faint)] transition focus:border-cyan-500/40"
+        className="w-full rounded-2xl border border-[var(--shell-border)] bg-[var(--shell-surface)] py-4 pl-5 pr-14 text-[15px] text-[var(--shell-text)] shadow-sm outline-none placeholder:text-[var(--shell-text-faint)] transition focus:border-cyan-500/50 focus:ring-4 focus:ring-cyan-400/10"
       />
       <button
         type="submit"
@@ -591,7 +591,7 @@ export default function AIPortfolioAssistant({
               <Sparkle className="h-4 w-4 text-cyan-600" strokeWidth={1.5} />
               <span className="inline-flex items-center gap-1.5">
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                Thinking...
+                Checking your portfolio...
               </span>
             </div>
           )}

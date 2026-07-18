@@ -100,8 +100,39 @@ function fallbackAnswer(portfolio: Portfolio, question: string): string {
     return `Portfolio return is ${formatPercent(portfolio.returnsPercent)} on ${formatCurrency(portfolio.totalInvested, true)} invested. ${laggards.length ? `Review these first: ${laggards.join(", ")}.` : "No major underperformer is currently flagged by the local rules."} Current Sharpe estimate is ${analysis.riskMetrics.sharpeRatio.toFixed(2)}.`;
   }
 
+  if (lower.includes("sip") && (lower.includes("what") || lower.includes("how") || lower.includes("explain"))) {
+    return `A SIP (Systematic Investment Plan) is a fixed amount invested into a mutual fund at a regular interval (usually monthly), rather than investing a lump sum. It buys more units when the price is low and fewer when it's high, averaging your purchase cost over time (rupee-cost averaging) and building the discipline of investing regularly. It doesn't guarantee returns — the fund's underlying performance still drives your outcome — but it removes the need to time the market.`;
+  }
+
+  if (lower.includes("stcg") || lower.includes("ltcg") || (lower.includes("tax") && !lower.includes("attack"))) {
+    return `For equity mutual funds in India: gains on units held under 12 months are Short-Term Capital Gains (STCG), taxed at a flat rate; units held 12 months or longer qualify as Long-Term Capital Gains (LTCG), taxed more favorably above an annual exemption threshold. Debt funds are taxed at your income slab rate regardless of holding period. Selling within the exit-load window (commonly the first 365 days for many funds) can also cost 0.5-1% of the redemption on top of tax. This is why the QuantRebalance approach in this app times profit-booking around the 365-day mark where practical — check the specific fund's exit-load and taxation rules before redeeming, as these vary by fund.`;
+  }
+
+  if (lower.includes("compar") && portfolio.funds.length >= 2) {
+    const compared = [...portfolio.funds]
+      .sort((a, b) => b.returns1Y - a.returns1Y)
+      .map((f) => `${f.name}: ${formatPercent(f.returns1Y)} 1Y, ${categoryLabel(f.category)}, ${f.expenseRatio}% expense ratio`);
+    return `Comparing your holdings by 1-year return:
+
+${compared.slice(0, 5).join("\n")}${compared.length > 5 ? `\n...and ${compared.length - 5} more` : ""}`;
+  }
+
+  if (lower.includes("expense") || lower.includes("fee") || lower.includes("cost")) {
+    const avgExpense = portfolio.funds.length
+      ? portfolio.funds.reduce((sum, f) => sum + f.expenseRatio, 0) / portfolio.funds.length
+      : 0;
+    const priciest = [...portfolio.funds].sort((a, b) => b.expenseRatio - a.expenseRatio)[0];
+    return `Your portfolio's average expense ratio is ${avgExpense.toFixed(2)}%. ${priciest ? `${priciest.name} is your highest at ${priciest.expenseRatio}%.` : ""} Expense ratio is charged annually regardless of performance, so on a large holding even a 0.5-1% difference compounds meaningfully over a decade — it's worth checking whether a lower-cost fund in the same category tracks similar returns before staying loyal to a pricier one.`;
+  }
+
+  if (lower.includes("what is") || lower.includes("explain") || lower.includes("what's")) {
+    return `I can walk through most mutual fund concepts (SIP, STCG/LTCG tax, expense ratio, NAV, exit load, diversification) using local rules even without a live AI connection — try asking about one of those directly, or ask about your own portfolio's risk, health score, diversification, or performance and I'll pull the real numbers.`;
+  }
+
   return `Local deterministic review: ${portfolio.funds.length} funds, ${formatCurrency(portfolio.currentValue, true)} current value, ${formatPercent(portfolio.returnsPercent)} total return, health ${portfolio.healthScore}/100, risk ${portfolio.riskScore}/100. The main watchpoints are ${topRisk ? topRisk.label.toLowerCase() : "category balance"}, ${underperformers.length} underperformer${underperformers.length === 1 ? "" : "s"}, and whether winners have crossed QRP alpha-capture milestones.`;
 }
+
+
 
 function systemPrompt(canMutate: boolean, hasTools: boolean): string {
   const base =

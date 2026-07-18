@@ -34,14 +34,12 @@ export interface ChatCompletionResult {
 export type AIProvider = "groq" | "gemini" | "openai";
 
 /**
- * Tool/function calling is supported for Groq and OpenAI (both expose an
- * OpenAI-compatible /chat/completions API with native `tools` support).
- * Gemini's function-calling request/response shape is different enough
- * that it isn't wired up here — if only Gemini is configured, the
- * assistant still answers from the grounding data already embedded in the
- * prompt, it just can't call search/add/remove-fund tools mid-conversation.
+ * Tool/function calling is supported for all three providers. Groq and
+ * OpenAI share an OpenAI-compatible /chat/completions shape; Gemini uses
+ * its own functionDeclarations/functionCall format, handled separately
+ * below (toGeminiContentsWithTools / callGeminiWithTools).
  */
-export const TOOL_CALLING_PROVIDERS: AIProvider[] = ["groq", "openai"];
+export const TOOL_CALLING_PROVIDERS: AIProvider[] = ["groq", "gemini", "openai"];
 
 const RATE_LIMIT_COOLDOWN_MS = 60_000;
 const providerRetryAfter: Partial<Record<AIProvider, number>> = {};
@@ -218,6 +216,122 @@ async function callGemini(messages: ChatTurn[], jsonMode?: boolean): Promise<str
   return text;
 }
 
+/** Gemini accepts a JSON-Schema-like "functionDeclarations" shape that our
+ * existing ToolDefinition.parameters (plain JSON Schema) maps onto directly
+ * — no conversion needed beyond wrapping. */
+function toGeminiTools(tools?: ToolDefinition[]) {
+  if (!tools || tools.length === 0) return undefined;
+  return [
+    {
+      functionDeclarations: tools.map((t) => ({
+        name: t.name,
+        description: t.description,
+        parameters: t.parameters,
+      })),
+    },
+  ];
+}
+
+function safeJsonParse(text: string): unknown {
+  try {
+    return JSON.parse(text);
+  } catch {
+    return { result: text };
+  }
+}
+
+/** Converts our provider-agnostic ChatTurn[] into Gemini's `contents` shape,
+ * including assistant tool-call turns and tool-response turns — Gemini's
+ * function-calling conversation format, distinct from plain callGemini(). */
+function toGeminiContentsWithTools(messages: ChatTurn[]) {
+  const systemMessages = messages.filter((m) => m.role === "system").map((m) => m.content);
+  const conversation = messages.filter((m) => m.role !== "system");
+  let systemFolded = false;
+
+  return conversation.map((m) => {
+    if (m.role === "tool") {
+      return {
+        role: "function",
+        parts: [{ functionResponse: { name: m.name || "unknown_tool", response: safeJsonParse(m.content) } }],
+      };
+    }
+
+    if (m.role === "assistant" && m.toolCalls?.length) {
+      return {
+        role: "model",
+        parts: m.toolCalls.map((tc) => ({
+          functionCall: { name: tc.name, args: safeJsonParse(tc.arguments) },
+        })),
+      };
+    }
+
+    const prefix = !systemFolded && systemMessages.length && m.role === "user" ? `${systemMessages.join("\n\n")}\n\n` : "";
+    if (prefix) systemFolded = true;
+
+    return {
+      role: m.role === "assistant" ? "model" : "user",
+      parts: [{ text: `${prefix}${m.content}` }],
+    };
+  });
+}
+
+async function callGeminiWithTools(
+  messages: ChatTurn[],
+  tools?: ToolDefinition[],
+  jsonMode?: boolean,
+  toolChoice?: "auto" | "none"
+): Promise<ProviderCallResult> {
+  if (!process.env.GEMINI_API_KEY) {
+    throw new Error("GEMINI_API_KEY is not set.");
+  }
+
+  const contents = toGeminiContentsWithTools(messages);
+  const geminiTools = toGeminiTools(tools);
+
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-goog-api-key": process.env.GEMINI_API_KEY,
+      },
+      body: JSON.stringify({
+        contents,
+        ...(geminiTools ? { tools: geminiTools } : {}),
+        ...(geminiTools && toolChoice === "none"
+          ? { toolConfig: { functionCallingConfig: { mode: "NONE" } } }
+          : {}),
+        generationConfig: {
+          temperature: 0.35,
+          ...(jsonMode ? { responseMimeType: "application/json" } : {}),
+        },
+      }),
+    }
+  );
+
+  if (!response.ok) {
+    const errorBody = await response.text().catch(() => "");
+    throw new Error(`Gemini request failed (${response.status}): ${errorBody.slice(0, 300)}`);
+  }
+
+  const data = await response.json();
+  const parts: Array<{ text?: string; functionCall?: { name: string; args: unknown } }> =
+    data?.candidates?.[0]?.content?.parts || [];
+
+  const text = parts.map((p) => p.text || "").join("").trim();
+  const toolCalls: ToolCall[] = parts
+    .filter((p) => p.functionCall)
+    .map((p, i) => ({
+      id: `gemini-${Date.now()}-${i}`,
+      name: p.functionCall!.name,
+      arguments: JSON.stringify(p.functionCall!.args ?? {}),
+    }));
+
+  if (!text && toolCalls.length === 0) throw new Error("Empty Gemini response");
+  return { text, toolCalls: toolCalls.length ? toolCalls : undefined };
+}
+
 let openaiClient: OpenAI | null = null;
 function getOpenAIClient(): OpenAI {
   if (!process.env.OPENAI_API_KEY) {
@@ -299,10 +413,9 @@ export async function getAIChatCompletion(
 
 /**
  * Same provider fallback chain as getAIChatCompletion, but supports tool
- * (function) calling. Only Groq and OpenAI are attempted — see
- * TOOL_CALLING_PROVIDERS. If neither is configured (e.g. only
- * GEMINI_API_KEY is set), throws so the caller can fall back to a
- * non-tool-calling completion or the deterministic answer.
+ * (function) calling — Groq, Gemini, and OpenAI, in that order. If none
+ * are configured, throws so the caller can fall back to the deterministic
+ * answer.
  */
 export async function getAIChatCompletionWithTools(
   messages: ChatTurn[],
@@ -318,6 +431,11 @@ export async function getAIChatCompletionWithTools(
       call: () => callGroq(messages, jsonMode, tools, toolChoice),
     },
     {
+      provider: "gemini",
+      enabled: Boolean(process.env.GEMINI_API_KEY),
+      call: () => callGeminiWithTools(messages, tools, jsonMode, toolChoice),
+    },
+    {
       provider: "openai",
       enabled: Boolean(process.env.OPENAI_API_KEY),
       call: () => callOpenAI(messages, jsonMode, tools, toolChoice),
@@ -325,7 +443,7 @@ export async function getAIChatCompletionWithTools(
   ];
 
   let lastError: unknown = new Error(
-    "No tool-calling-capable AI provider is configured. Set GROQ_API_KEY or OPENAI_API_KEY."
+    "No tool-calling-capable AI provider is configured. Set GROQ_API_KEY, GEMINI_API_KEY, or OPENAI_API_KEY."
   );
 
   for (const attempt of attempts) {
