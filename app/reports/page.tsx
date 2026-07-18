@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useActivePortfolio } from "@/lib/hooks/useActivePortfolio";
 import { riskEngine } from "@/lib/algorithm/riskEngine";
 import { createRebalanceEngine } from "@/lib/algorithm/rebalanceEngine";
 import { allocationEngine } from "@/lib/algorithm/allocationEngine";
 import { formatCurrency, formatPercent, categoryLabel } from "@/lib/utils/format";
+import { downloadReportPdf } from "@/lib/pdf/generateReportPdf";
 import type { Portfolio } from "@/lib/types";
 import {
   FileText,
@@ -21,6 +22,8 @@ import {
   BarChart2,
   Info,
   Droplets,
+  Lock,
+  Loader2,
 } from "lucide-react";
 
 function generateReport(portfolio: Portfolio) {
@@ -102,6 +105,22 @@ export default function ReportsPage() {
   const { portfolio, loading: portfolioLoading, isDemo } = useActivePortfolio();
   const [report, setReport] = useState<ReturnType<typeof generateReport> | null>(null);
   const [generating, setGenerating] = useState(false);
+  const [plan, setPlan] = useState<"free" | "pro" | "premium">("free");
+  const [exportingPdf, setExportingPdf] = useState(false);
+
+  useEffect(() => {
+    if (isDemo) return;
+    fetch("/api/user/me")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data?.plan === "pro" || data?.plan === "premium") setPlan(data.plan);
+      })
+      .catch(() => {
+        // Non-fatal — PDF export button just stays gated on failure.
+      });
+  }, [isDemo]);
+
+  const isPremium = plan === "premium";
 
   function handleGenerate() {
     setGenerating(true);
@@ -176,6 +195,31 @@ export default function ReportsPage() {
     a.download = `${report.id}-invesutra-report.txt`;
     a.click();
     URL.revokeObjectURL(url);
+  }
+
+  async function handleDownloadPdf() {
+    if (!report || !isPremium || exportingPdf) return;
+    setExportingPdf(true);
+    try {
+      await downloadReportPdf({
+        id: report.id,
+        generatedAt: report.generatedAt,
+        portfolio: report.portfolio,
+        healthScore: report.healthScore,
+        overallHealth: report.overallHealth,
+        summary: report.summary,
+        analysis: report.analysis,
+        funds: report.funds,
+        riskMetrics: report.riskMetrics,
+        issues: report.issues,
+        recommendations: report.recommendations,
+        algorithmExplanation: report.algorithmExplanation,
+      });
+    } catch {
+      // Non-fatal — the plain-text export remains available as a fallback.
+    } finally {
+      setExportingPdf(false);
+    }
   }
 
   const severityConfig = {
@@ -287,8 +331,31 @@ export default function ReportsPage() {
                   className="flex items-center gap-1.5 px-3 py-1.5 border border-[var(--shell-border)] text-[var(--shell-text-muted)] text-xs font-medium rounded-lg hover:bg-[var(--shell-surface-2)] transition-colors"
                 >
                   <Download className="w-3.5 h-3.5" />
-                  Export Report
+                  Export .txt
                 </button>
+                {isPremium ? (
+                  <button
+                    onClick={handleDownloadPdf}
+                    disabled={exportingPdf}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-cyan-400 text-slate-950 text-xs font-semibold rounded-lg hover:bg-cyan-300 disabled:opacity-60 transition-colors"
+                  >
+                    {exportingPdf ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <FileText className="w-3.5 h-3.5" />
+                    )}
+                    {exportingPdf ? "Preparing PDF..." : "Export PDF"}
+                  </button>
+                ) : (
+                  <a
+                    href="/pricing"
+                    title="PDF export for advisors is a Premium feature"
+                    className="flex items-center gap-1.5 px-3 py-1.5 border border-dashed border-[var(--shell-border)] text-[var(--shell-text-faint)] text-xs font-medium rounded-lg hover:bg-[var(--shell-surface-2)] hover:text-[var(--shell-text-muted)] transition-colors"
+                  >
+                    <Lock className="w-3.5 h-3.5" />
+                    Export PDF
+                  </a>
+                )}
               </div>
             </div>
 
