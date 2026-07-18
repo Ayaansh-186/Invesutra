@@ -94,7 +94,17 @@ export default function AIPortfolioAssistant({
   /** True when this is a real, signed-in-owned portfolio — enables loading/saving chat history so it survives a page reload. Omit/false for demo sessions. */
   historyEnabled?: boolean;
 }) {
-  const greeting = `Hi! I'm **Invesutra AI**, your portfolio copilot. I've analyzed your ${portfolio.funds.length} fund${portfolio.funds.length === 1 ? "" : "s"} worth ${formatCurrency(portfolio.currentValue, true)}.\n\n• Health: **${portfolio.healthScore}/100** (${analysis.overallHealth})\n• Risk: **${portfolio.riskScore}/100**\n• Returns: **${formatPercent(portfolio.returnsPercent)}**\n\nAsk me anything — risk drivers, fund performance, rebalancing, or say "add a fund" to manage holdings.`;
+  const milestoneFunds = portfolio.funds.filter((f) => {
+    if (f.investedAmount <= 0) return false;
+    const gainPercent = ((f.currentValue - f.investedAmount) / f.investedAmount) * 100;
+    return gainPercent >= 12; // matches the QRP engine's default alphaTriggerPercent
+  });
+  const milestoneCallout =
+    milestoneFunds.length > 0
+      ? `\n\n🎉 **${milestoneFunds.length} fund${milestoneFunds.length === 1 ? "" : "s"}** just crossed a profit-booking milestone — say "show milestones" and I'll break it down.`
+      : "";
+
+  const greeting = `Hi! I'm **Invesutra AI**, your portfolio copilot. I've analyzed your ${portfolio.funds.length} fund${portfolio.funds.length === 1 ? "" : "s"} worth ${formatCurrency(portfolio.currentValue, true)}.\n\n• Health: **${portfolio.healthScore}/100** (${analysis.overallHealth})\n• Risk: **${portfolio.riskScore}/100**\n• Returns: **${formatPercent(portfolio.returnsPercent)}**${milestoneCallout}\n\nAsk me anything — risk drivers, fund performance, rebalancing, or say "add a fund" to manage holdings.`;
 
   const [messages, setMessages] = useState<ChatMessage[]>([{ role: "assistant", content: greeting }]);
   const [input, setInput] = useState("");

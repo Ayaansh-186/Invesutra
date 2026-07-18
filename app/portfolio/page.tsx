@@ -7,6 +7,7 @@ import { useActivePortfolio } from "@/lib/hooks/useActivePortfolio";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { formatCurrency, formatPercent, getHealthColor } from "@/lib/utils/format";
 import HoldingsTable from "@/components/dashboard/HoldingsTable";
+import MilestoneTracker from "@/components/dashboard/MilestoneTracker";
 import PortfolioContextPanel from "@/components/dashboard/PortfolioContextPanel";
 import PortfolioChart from "@/components/dashboard/PortfolioChart";
 import AddFundModal from "@/components/dashboard/AddFundModal";
@@ -151,6 +152,11 @@ export default function PortfolioPage() {
           {/* Holdings */}
           <h2 className="mb-3 text-sm font-semibold text-[var(--shell-text)]">Holdings</h2>
           <HoldingsTable funds={portfolio.funds} totalValue={portfolio.currentValue} onChanged={refresh} />
+
+          {/* Milestone Tracker */}
+          <div className="mt-6">
+            <MilestoneTracker funds={portfolio.funds} />
+          </div>
 
           {/* Rebalancing suggestions */}
           {analysis.rebalancingSuggestions.length > 0 && (
