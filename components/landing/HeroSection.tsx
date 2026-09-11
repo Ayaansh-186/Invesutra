@@ -7,6 +7,14 @@ import {
   ArrowRight, Bot, CheckCircle2, MessageSquare, Search,
   ShieldCheck, Sparkles, Send, TrendingUp, Zap,
 } from "lucide-react";
+import AiOrb from "./AiOrb";
+
+const orbLines = [
+  "hey. I already have thoughts about your portfolio.",
+  "I remember every fund you said you'd sell and didn't.",
+  "real numbers, real opinions — zero jargon.",
+  "ask me anything. I've been paying attention.",
+];
 
 const chatMessages = [
   { role: "assistant" as const, text: "okay I went through your funds and we need to talk about that small-cap allocation 👀" },
@@ -29,10 +37,44 @@ const allocation = [
   { label: "Small cap", width: "14%", color: "bg-rose-400" },
 ];
 
+type Phase = "typing" | "holding" | "deleting";
+
+function useTypewriter(lines: string[]) {
+  const [lineIndex, setLineIndex] = useState(0);
+  const [text, setText] = useState("");
+  const [phase, setPhase] = useState<Phase>("typing");
+
+  useEffect(() => {
+    const current = lines[lineIndex];
+    let timer: ReturnType<typeof setTimeout>;
+
+    if (phase === "typing") {
+      if (text.length < current.length) {
+        timer = setTimeout(() => setText(current.slice(0, text.length + 1)), 28);
+      } else {
+        timer = setTimeout(() => setPhase("holding"), 1900);
+      }
+    } else if (phase === "holding") {
+      timer = setTimeout(() => setPhase("deleting"), 1200);
+    } else {
+      if (text.length > 0) {
+        timer = setTimeout(() => setText(current.slice(0, text.length - 1)), 14);
+      } else {
+        setPhase("typing");
+        setLineIndex((i) => (i + 1) % lines.length);
+      }
+    }
+    return () => clearTimeout(timer);
+  }, [text, phase, lineIndex, lines]);
+
+  return { text, speaking: phase !== "holding" };
+}
+
 export default function HeroSection() {
   const router = useRouter();
   const [visibleMessages, setVisibleMessages] = useState(0);
   const [askQuery, setAskQuery] = useState("");
+  const { text: orbText, speaking } = useTypewriter(orbLines);
 
   function handleAsk(e: React.FormEvent) {
     e.preventDefault();
@@ -53,177 +95,186 @@ export default function HeroSection() {
       <div className="absolute top-32 left-1/4 w-72 h-72 rounded-full bg-cyan-500/10 blur-3xl animate-glow-pulse" />
       <div className="absolute top-48 right-1/4 w-96 h-96 rounded-full bg-emerald-500/8 blur-3xl animate-glow-pulse" style={{ animationDelay: "1.5s" }} />
 
-      <div className="relative mx-auto max-w-7xl px-6 pb-10">
-        <div className="grid min-h-[calc(100vh-96px)] items-center gap-12 lg:grid-cols-[0.88fr_1.12fr]">
-          <div className="max-w-3xl py-12">
-            <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1.5 text-xs font-medium text-cyan-200">
-              <Sparkles className="h-3.5 w-3.5 text-cyan-300" />
-              An AI that actually remembers your portfolio
+      <div className="relative mx-auto max-w-3xl px-6 pb-16 pt-8 text-center">
+        <div className="mx-auto mb-6 inline-flex items-center gap-2 rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1.5 text-xs font-medium text-cyan-200">
+          <Sparkles className="h-3.5 w-3.5 text-cyan-300" />
+          An AI that actually remembers your portfolio
+        </div>
+
+        <h1 className="text-balance text-5xl font-semibold leading-[1.02] tracking-tight md:text-7xl">
+          Your money, finally talking back
+        </h1>
+        <p className="mx-auto mt-6 max-w-xl text-xl leading-8 text-slate-300">
+          Invesutra tracks your Indian mutual funds and talks to you like it&apos;s actually been paying attention. No jargon, no hand-holding.
+        </p>
+
+        <div className="mt-10 flex justify-center">
+          <AiOrb speaking={speaking} />
+        </div>
+
+        <p className="mx-auto mt-2 min-h-[2rem] max-w-md text-base text-slate-300">
+          <span>{orbText}</span>
+          <span className="ml-0.5 inline-block h-4 w-[2px] -translate-y-0.5 animate-pulse bg-cyan-300 align-middle" />
+        </p>
+
+        <form onSubmit={handleAsk} className="relative mx-auto mt-8 max-w-xl">
+          <input
+            value={askQuery}
+            onChange={(e) => setAskQuery(e.target.value)}
+            placeholder="Ask Invesutra: 'Roast my portfolio'"
+            className="w-full rounded-2xl border border-white/15 bg-white/[0.06] py-4 pl-5 pr-14 text-sm text-white shadow-lg outline-none backdrop-blur placeholder:text-slate-400 transition focus:border-cyan-300/50 focus:ring-2 focus:ring-cyan-300/20"
+          />
+          <button
+            type="submit"
+            className="absolute right-2.5 top-1/2 inline-flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-xl bg-cyan-300 text-slate-950 transition hover:bg-cyan-200"
+            aria-label="Ask Invesutra AI"
+          >
+            <Send className="h-4 w-4" />
+          </button>
+        </form>
+
+        <div className="mt-4 flex flex-col items-center justify-center gap-3 sm:flex-row">
+          <Link
+            href="/dashboard"
+            className="group inline-flex items-center justify-center gap-2 rounded-xl bg-cyan-300 px-6 py-3.5 text-sm font-semibold text-slate-950 transition hover:bg-cyan-200 ai-glow"
+          >
+            <MessageSquare className="h-4 w-4" />
+            Start chatting with Invesutra AI
+            <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
+          </Link>
+          <Link
+            href="/screener"
+            className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/5 px-6 py-3.5 text-sm font-semibold text-white transition hover:bg-white/10"
+          >
+            <Search className="h-4 w-4" />
+            Explore funds
+          </Link>
+        </div>
+
+        <div className="mt-10 flex flex-wrap items-center justify-center gap-x-6 gap-y-3 text-sm text-slate-400">
+          {[
+            "Portfolio analysis in plain English",
+            "No invented market data",
+            "Built for Indian AMCs",
+          ].map((item) => (
+            <div key={item} className="flex items-center gap-2">
+              <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-400" />
+              <span>{item}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="relative mx-auto max-w-6xl px-6 pb-20">
+        <p className="mb-6 text-center text-xs font-medium uppercase tracking-wider text-slate-500">
+          Inside your dashboard
+        </p>
+        <div className="grid items-start gap-6 lg:grid-cols-[1.12fr_0.88fr]">
+          <div className="overflow-hidden rounded-2xl border border-white/10 bg-slate-950/90 shadow-2xl shadow-black/50 backdrop-blur ai-glow">
+            <div className="flex items-center justify-between border-b border-white/10 px-5 py-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-400 to-emerald-400 text-slate-950">
+                  <Bot className="h-4.5 w-4.5" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold">Invesutra AI</p>
+                  <p className="text-xs text-slate-400">Invesutra portfolio copilot</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="relative flex h-2 w-2">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                  <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
+                </span>
+                <span className="text-xs font-medium text-emerald-300">Live</span>
+              </div>
             </div>
 
-            <h1 className="text-balance text-5xl font-semibold leading-[1.02] tracking-tight md:text-7xl">
-              Your money, finally talking back
-            </h1>
-            <p className="mt-6 max-w-2xl text-xl leading-8 text-slate-300">
-              Invesutra tracks your Indian mutual funds and talks to you like it's actually been paying attention — real numbers, real opinions, callbacks to that fund you keep meaning to sell. No jargon, no hand-holding.
-            </p>
-
-            <form onSubmit={handleAsk} className="relative mt-8 max-w-xl">
-              <input
-                value={askQuery}
-                onChange={(e) => setAskQuery(e.target.value)}
-                placeholder="Ask Invesutra: 'Roast my portfolio'"
-                className="w-full rounded-2xl border border-white/15 bg-white/[0.06] py-4 pl-5 pr-14 text-sm text-white shadow-lg outline-none backdrop-blur placeholder:text-slate-400 transition focus:border-cyan-300/50 focus:ring-2 focus:ring-cyan-300/20"
-              />
-              <button
-                type="submit"
-                className="absolute right-2.5 top-1/2 inline-flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-xl bg-cyan-300 text-slate-950 transition hover:bg-cyan-200"
-                aria-label="Ask Invesutra AI"
-              >
-                <Send className="h-4 w-4" />
-              </button>
-            </form>
-
-            <div className="mt-4 flex flex-col gap-3 sm:flex-row">
-              <Link
-                href="/dashboard"
-                className="group inline-flex items-center justify-center gap-2 rounded-xl bg-cyan-300 px-6 py-3.5 text-sm font-semibold text-slate-950 transition hover:bg-cyan-200 ai-glow"
-              >
-                <MessageSquare className="h-4 w-4" />
-                Start chatting with Invesutra AI
-                <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
-              </Link>
-              <Link
-                href="/screener"
-                className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/5 px-6 py-3.5 text-sm font-semibold text-white transition hover:bg-white/10"
-              >
-                <Search className="h-4 w-4" />
-                Explore funds
-              </Link>
-            </div>
-
-            <div className="mt-10 flex flex-wrap gap-x-6 gap-y-3 text-sm text-slate-400">
-              {[
-                "Portfolio analysis in plain English",
-                "No invented market data",
-                "Built for Indian AMCs",
-              ].map((item) => (
-                <div key={item} className="flex items-center gap-2">
-                  <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-400" />
-                  <span>{item}</span>
+            <div className="space-y-3 px-4 py-4">
+              {chatMessages.slice(0, visibleMessages).map((msg, i) => (
+                <div
+                  key={i}
+                  className={`flex gap-2.5 animate-fade-up ${msg.role === "user" ? "justify-end" : ""}`}
+                >
+                  {msg.role === "assistant" && (
+                    <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-cyan-400/20">
+                      <Sparkles className="h-3 w-3 text-cyan-300" />
+                    </div>
+                  )}
+                  <div
+                    className={`max-w-[85%] rounded-xl px-3.5 py-2.5 text-xs leading-relaxed ${
+                      msg.role === "user"
+                        ? "bg-white/10 text-slate-200"
+                        : "border border-white/10 bg-white/[0.04] text-slate-300"
+                    }`}
+                  >
+                    {msg.text}
+                  </div>
                 </div>
               ))}
             </div>
-          </div>
 
-          <div className="relative pb-12 lg:pb-0">
-            <div className="overflow-hidden rounded-2xl border border-white/10 bg-slate-950/90 shadow-2xl shadow-black/50 backdrop-blur ai-glow">
-              <div className="flex items-center justify-between border-b border-white/10 px-5 py-4">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-400 to-emerald-400 text-slate-950">
-                    <Bot className="h-4.5 w-4.5" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold">Invesutra AI</p>
-                    <p className="text-xs text-slate-400">Invesutra portfolio copilot</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="relative flex h-2 w-2">
-                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-                    <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
-                  </span>
-                  <span className="text-xs font-medium text-emerald-300">Live</span>
-                </div>
-              </div>
-
-              <div className="grid gap-3 p-4 md:grid-cols-3">
-                {metrics.map((m) => (
-                  <div key={m.label} className="rounded-xl border border-white/10 bg-white/[0.04] p-3.5">
-                    <p className="text-[10px] font-medium uppercase tracking-wider text-slate-500">{m.label}</p>
-                    <p className={`mt-1 text-2xl font-semibold ${m.color}`}>{m.value}</p>
-                    <p className="mt-0.5 text-[10px] text-slate-500">{m.trend}</p>
-                  </div>
-                ))}
-              </div>
-
-              <div className="space-y-3 px-4 pb-4">
-                {chatMessages.slice(0, visibleMessages).map((msg, i) => (
-                  <div
-                    key={i}
-                    className={`flex gap-2.5 animate-fade-up ${msg.role === "user" ? "justify-end" : ""}`}
-                  >
-                    {msg.role === "assistant" && (
-                      <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-cyan-400/20">
-                        <Sparkles className="h-3 w-3 text-cyan-300" />
-                      </div>
-                    )}
-                    <div
-                      className={`max-w-[85%] rounded-xl px-3.5 py-2.5 text-xs leading-relaxed ${
-                        msg.role === "user"
-                          ? "bg-white/10 text-slate-200"
-                          : "border border-white/10 bg-white/[0.04] text-slate-300"
-                      }`}
-                    >
-                      {msg.text}
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              <div className="border-t border-white/10 px-4 py-3">
-                <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2.5">
-                  <input
-                    readOnly
-                    placeholder="Ask Invesutra about your portfolio..."
-                    className="flex-1 bg-transparent text-xs text-slate-400 outline-none placeholder:text-slate-600"
-                  />
-                  <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-cyan-400 text-slate-950">
-                    <ArrowRight className="h-3.5 w-3.5" />
-                  </div>
+            <div className="border-t border-white/10 px-4 py-3">
+              <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2.5">
+                <input
+                  readOnly
+                  placeholder="Ask Invesutra about your portfolio..."
+                  className="flex-1 bg-transparent text-xs text-slate-400 outline-none placeholder:text-slate-600"
+                />
+                <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-cyan-400 text-slate-950">
+                  <ArrowRight className="h-3.5 w-3.5" />
                 </div>
               </div>
             </div>
+          </div>
 
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
-                <div className="mb-3 flex items-center justify-between">
-                  <p className="text-xs font-semibold text-slate-300">Allocation</p>
-                  <TrendingUp className="h-3.5 w-3.5 text-emerald-400" />
+          <div className="space-y-4">
+            <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1 lg:gap-3">
+              {metrics.map((m) => (
+                <div key={m.label} className="rounded-xl border border-white/10 bg-white/[0.04] p-3.5">
+                  <p className="text-[10px] font-medium uppercase tracking-wider text-slate-500">{m.label}</p>
+                  <p className={`mt-1 text-2xl font-semibold ${m.color}`}>{m.value}</p>
+                  <p className="mt-0.5 text-[10px] text-slate-500">{m.trend}</p>
                 </div>
-                <div className="space-y-2.5">
-                  {allocation.map((item) => (
-                    <div key={item.label}>
-                      <div className="mb-1 flex justify-between text-[10px] text-slate-500">
-                        <span>{item.label}</span>
-                        <span>{item.width}</span>
-                      </div>
-                      <div className="h-1.5 overflow-hidden rounded-full bg-white/10">
-                        <div className={`h-full rounded-full ${item.color}`} style={{ width: item.width }} />
-                      </div>
-                    </div>
-                  ))}
-                </div>
+              ))}
+            </div>
+            <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
+              <div className="mb-3 flex items-center justify-between">
+                <p className="text-xs font-semibold text-slate-300">Allocation</p>
+                <TrendingUp className="h-3.5 w-3.5 text-emerald-400" />
               </div>
-              <div className="flex flex-col justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] p-4">
-                <div className="flex items-center gap-2 text-xs text-slate-400">
-                  <ShieldCheck className="h-4 w-4 text-emerald-400" />
-                  Grounded on your holdings
-                </div>
-                <div className="flex items-center gap-2 text-xs text-slate-400">
-                  <Zap className="h-4 w-4 text-cyan-400" />
-                  QuantRebalance engine
-                </div>
-                <div className="flex items-center gap-2 text-xs text-slate-400">
-                  <Bot className="h-4 w-4 text-violet-400" />
-                  AI-powered explanations
-                </div>
+              <div className="space-y-2.5">
+                {allocation.map((item) => (
+                  <div key={item.label}>
+                    <div className="mb-1 flex justify-between text-[10px] text-slate-500">
+                      <span>{item.label}</span>
+                      <span>{item.width}</span>
+                    </div>
+                    <div className="h-1.5 overflow-hidden rounded-full bg-white/10">
+                      <div className={`h-full rounded-full ${item.color}`} style={{ width: item.width }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="flex flex-col justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] p-4">
+              <div className="flex items-center gap-2 text-xs text-slate-400">
+                <ShieldCheck className="h-4 w-4 text-emerald-400" />
+                Grounded on your holdings
+              </div>
+              <div className="flex items-center gap-2 text-xs text-slate-400">
+                <Zap className="h-4 w-4 text-cyan-400" />
+                QuantRebalance engine
+              </div>
+              <div className="flex items-center gap-2 text-xs text-slate-400">
+                <Bot className="h-4 w-4 text-violet-400" />
+                AI-powered explanations
               </div>
             </div>
           </div>
         </div>
 
-        <div className="relative -mb-8 grid gap-3 rounded-2xl border border-slate-200/80 bg-white p-4 text-slate-900 shadow-xl md:grid-cols-4">
+        <div className="relative -mb-8 mt-10 grid gap-3 rounded-2xl border border-slate-200/80 bg-white p-4 text-slate-900 shadow-xl md:grid-cols-4">
           {[
             ["Chat", "Ask anything about your portfolio"],
             ["Analyze", "Health, risk, and fund-level insights"],
