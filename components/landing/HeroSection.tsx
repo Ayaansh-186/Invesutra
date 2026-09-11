@@ -9,10 +9,11 @@ import {
 } from "lucide-react";
 
 const chatMessages = [
+  { role: "assistant" as const, text: "okay I went through your funds and we need to talk about that small-cap allocation 👀" },
   { role: "user" as const, text: "Why is my portfolio risk score 68?" },
-  { role: "assistant" as const, text: "Your small-cap allocation (22%) and sector overlap in two flexi-cap funds are pushing risk above your comfort band. Mid-cap exposure adds volatility." },
+  { role: "assistant" as const, text: "That, plus sector overlap in two flexi-caps you probably forgot you own. Classic." },
   { role: "user" as const, text: "What should I do first?" },
-  { role: "assistant" as const, text: "Trim the most volatile satellite fund by 5–8% and redeploy toward your index or debt allocation. I can model the impact if you'd like." },
+  { role: "assistant" as const, text: "Trim the loudest offender by 5–8% and move it somewhere boring. I'll show you the math, receipts and all." },
 ];
 
 const metrics = [
@@ -57,22 +58,21 @@ export default function HeroSection() {
           <div className="max-w-3xl py-12">
             <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1.5 text-xs font-medium text-cyan-200">
               <Sparkles className="h-3.5 w-3.5 text-cyan-300" />
-              AI-first mutual fund intelligence
+              An AI that actually remembers your portfolio
             </div>
 
             <h1 className="text-balance text-5xl font-semibold leading-[1.02] tracking-tight md:text-7xl">
-              Your portfolio,{" "}
-              <span className="gradient-text">understood by AI</span>
+              Your money, finally talking back
             </h1>
             <p className="mt-6 max-w-2xl text-xl leading-8 text-slate-300">
-              Invesutra is an investment copilot for Indian mutual fund investors. Chat with Invesutra AI to analyze holdings, understand risk, and get actionable rebalancing guidance — grounded in your real portfolio data.
+              Invesutra tracks your Indian mutual funds and talks to you like it's actually been paying attention — real numbers, real opinions, callbacks to that fund you keep meaning to sell. No jargon, no hand-holding.
             </p>
 
             <form onSubmit={handleAsk} className="relative mt-8 max-w-xl">
               <input
                 value={askQuery}
                 onChange={(e) => setAskQuery(e.target.value)}
-                placeholder="Ask Invesutra: 'Is my portfolio too risky?'"
+                placeholder="Ask Invesutra: 'Roast my portfolio'"
                 className="w-full rounded-2xl border border-white/15 bg-white/[0.06] py-4 pl-5 pr-14 text-sm text-white shadow-lg outline-none backdrop-blur placeholder:text-slate-400 transition focus:border-cyan-300/50 focus:ring-2 focus:ring-cyan-300/20"
               />
               <button
