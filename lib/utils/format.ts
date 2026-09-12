@@ -27,7 +27,7 @@ export function cn(...classes: (string | undefined | false | null)[]): string {
 export function getRiskColor(risk: string): string {
   const map: Record<string, string> = {
     low: "text-emerald-500",
-    moderate: "text-blue-500",
+    moderate: "text-cyan-500",
     moderately_high: "text-amber-500",
     high: "text-orange-500",
     very_high: "text-red-500",
@@ -38,7 +38,7 @@ export function getRiskColor(risk: string): string {
 export function getRiskBg(risk: string): string {
   const map: Record<string, string> = {
     low: "bg-emerald-50 text-emerald-700 border-emerald-200",
-    moderate: "bg-blue-50 text-blue-700 border-blue-200",
+    moderate: "bg-cyan-50 text-cyan-700 border-cyan-200",
     moderately_high: "bg-amber-50 text-amber-700 border-amber-200",
     high: "bg-orange-50 text-orange-700 border-orange-200",
     very_high: "bg-red-50 text-red-700 border-red-200",
@@ -48,7 +48,7 @@ export function getRiskBg(risk: string): string {
 
 export function getHealthColor(score: number): string {
   if (score >= 80) return "text-emerald-500";
-  if (score >= 60) return "text-blue-500";
+  if (score >= 60) return "text-cyan-500";
   if (score >= 40) return "text-amber-500";
   return "text-red-500";
 }

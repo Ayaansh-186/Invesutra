@@ -52,8 +52,8 @@ export default function PortfolioChart({
         <AreaChart data={data} margin={{ top: 5, right: 5, bottom: 0, left: 0 }}>
           <defs>
             <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="#0ea5e9" stopOpacity={0.15} />
-              <stop offset="95%" stopColor="#0ea5e9" stopOpacity={0} />
+              <stop offset="5%" stopColor="#0891b2" stopOpacity={0.15} />
+              <stop offset="95%" stopColor="#0891b2" stopOpacity={0} />
             </linearGradient>
           </defs>
           <XAxis
@@ -74,11 +74,11 @@ export default function PortfolioChart({
           <Area
             type="monotone"
             dataKey="value"
-            stroke="#0ea5e9"
+            stroke="#0891b2"
             strokeWidth={2}
             fill="url(#colorValue)"
             dot={false}
-            activeDot={{ r: 4, fill: "#0ea5e9" }}
+            activeDot={{ r: 4, fill: "#0891b2" }}
           />
         </AreaChart>
       </ResponsiveContainer>

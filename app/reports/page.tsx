@@ -225,7 +225,7 @@ export default function ReportsPage() {
   const severityConfig = {
     critical: { icon: AlertCircle, bg: "bg-rose-500/10 border-rose-500/20", text: "text-rose-500", icon_color: "text-red-500" },
     warning: { icon: AlertTriangle, bg: "bg-amber-500/10 border-amber-500/20", text: "text-amber-500", icon_color: "text-amber-500" },
-    info: { icon: Info, bg: "bg-blue-500/10 border-blue-500/20", text: "text-blue-500", icon_color: "text-blue-500" },
+    info: { icon: Info, bg: "bg-cyan-500/10 border-cyan-500/20", text: "text-cyan-500", icon_color: "text-cyan-500" },
   };
 
   if (portfolioLoading) {
@@ -370,7 +370,7 @@ export default function ReportsPage() {
                     report.overallHealth === "excellent"
                       ? "text-emerald-500"
                       : report.overallHealth === "good"
-                      ? "text-blue-500"
+                      ? "text-cyan-500"
                       : report.overallHealth === "fair"
                       ? "text-amber-500"
                       : "text-rose-500"
@@ -490,7 +490,7 @@ export default function ReportsPage() {
           {report.dryPowderPreview && (
             <div className="bg-[var(--shell-surface)] border border-[var(--shell-border)] rounded-2xl p-6">
               <h3 className="text-sm font-semibold text-[var(--shell-text)] mb-1 flex items-center gap-2">
-                <Droplets className="w-4 h-4 text-blue-500" />
+                <Droplets className="w-4 h-4 text-cyan-500" />
                 Dry Powder Reserve
               </h3>
               <p className="text-xs text-[var(--shell-text-faint)] mb-4">
@@ -507,7 +507,7 @@ export default function ReportsPage() {
                   {report.dryPowderPreview.deployments.map((d) => (
                     <div
                       key={d.fundId}
-                      className="flex items-center justify-between p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg text-xs"
+                      className="flex items-center justify-between p-3 bg-cyan-500/10 border border-cyan-500/20 rounded-lg text-xs"
                     >
                       <div>
                         <p className="font-semibold text-[var(--shell-text)]">{d.fundName}</p>
@@ -515,14 +515,14 @@ export default function ReportsPage() {
                           Down {d.drawbackPercent}% from cost basis — past the 5% correction threshold
                         </p>
                       </div>
-                      <p className="font-bold text-blue-500">{formatCurrency(d.capitalDeployed, true)}</p>
+                      <p className="font-bold text-cyan-500">{formatCurrency(d.capitalDeployed, true)}</p>
                     </div>
                   ))}
                 </div>
               ) : (
-                <div className="flex items-start gap-3 p-4 bg-blue-500/10 border border-blue-500/20 rounded-xl text-xs">
-                  <Droplets className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" />
-                  <p className="text-blue-500 leading-relaxed">
+                <div className="flex items-start gap-3 p-4 bg-cyan-500/10 border border-cyan-500/20 rounded-xl text-xs">
+                  <Droplets className="w-4 h-4 text-cyan-500 shrink-0 mt-0.5" />
+                  <p className="text-cyan-500 leading-relaxed">
                     No fund has crossed the 5% correction threshold yet, so this reserve stays parked in a
                     liquid/debt instrument rather than being deployed early — per the QRP Dry Powder Storage
                     Layer rule. It only moves once a genuine dip appears to buy.

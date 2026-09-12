@@ -299,7 +299,7 @@ export default function ScreenerPage() {
                   <span className="text-3xl font-bold text-[var(--shell-text)]">{analyzing ? "—" : Math.round((analysis.diversificationScore + 40) * 0.72)}/100</span>
                   <span className={`px-3 py-1 rounded-full text-xs font-semibold capitalize ${
                     analysis.overallHealth === "excellent" ? "bg-emerald-500/15 text-emerald-500" :
-                    analysis.overallHealth === "good" ? "bg-blue-500/15 text-blue-500" :
+                    analysis.overallHealth === "good" ? "bg-cyan-500/15 text-cyan-500" :
                     analysis.overallHealth === "fair" ? "bg-amber-500/15 text-amber-500" :
                     "bg-rose-500/15 text-rose-500"
                   }`}>{analysis.overallHealth}</span>
@@ -307,7 +307,7 @@ export default function ScreenerPage() {
                 <div className="h-2 bg-[var(--shell-surface-2)] rounded-full overflow-hidden">
                   <div className={`h-full rounded-full transition-all ${
                     analysis.overallHealth === "excellent" ? "bg-emerald-500" :
-                    analysis.overallHealth === "good" ? "bg-blue-500" :
+                    analysis.overallHealth === "good" ? "bg-cyan-500" :
                     analysis.overallHealth === "fair" ? "bg-amber-500" : "bg-red-500"
                   }`} style={{ width: `${analysis.diversificationScore}%` }} />
                 </div>
