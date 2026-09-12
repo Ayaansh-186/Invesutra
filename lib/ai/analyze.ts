@@ -48,7 +48,7 @@ function buildDeterministicNarrative(
     return gainPercent >= 10 ? sum + Math.max(0, fund.currentValue - fund.investedAmount) : sum;
   }, 0);
 
-  const summary = `Local deterministic analysis rates this portfolio as ${analysis.overallHealth} with a ${portfolio.healthScore}/100 health score, ${analysis.diversificationScore}/100 diversification score, and ${portfolio.riskScore}/100 risk score. ${topRisk ? `The largest alert is ${topRisk.label.toLowerCase()} at ${topRisk.currentPercent.toFixed(1)}%.` : "No critical concentration alert is currently active."}`;
+  const summary = `Quick read: this portfolio is ${analysis.overallHealth} — ${portfolio.healthScore}/100 health, ${analysis.diversificationScore}/100 diversification, ${portfolio.riskScore}/100 risk. ${topRisk ? `The biggest flag is ${topRisk.label.toLowerCase()} at ${topRisk.currentPercent.toFixed(1)}%.` : "No critical concentration alert is currently active."}`;
 
   const narrativeInsights: AINarrativeInsight[] = [
     {
@@ -131,7 +131,14 @@ export async function analyzePortfolioWithAI(portfolio: Portfolio): Promise<AIAn
         {
           role: "system",
           content:
-            'You are a portfolio analysis writer for Invesutra, an Indian mutual fund decision-support platform built around the QuantRebalance Protocol. You will be given pre-computed deterministic analysis data. Your job is only to write a clear, professional narrative explaining that data. Never invent numbers, percentages, financial figures, holdings overlap, or future returns. Always note that this is informational, not investment advice. Respond with strict JSON: { "summary": string, "insights": [{ "title": string, "body": string, "tone": "positive" | "neutral" | "warning" }] }. Produce 3 to 5 insights, each 1-2 sentences, written for a retail investor.',
+            'You are Invesutra, writing the narrative insights for a portfolio dashboard. You will be given ' +
+            'pre-computed deterministic analysis data — turn it into a clear, direct narrative, not a generic ' +
+            'advisory-report tone. You have real opinions grounded in the actual numbers (never invented ones): ' +
+            'be plainspoken, occasionally blunt about a bad allocation, but never sacrifice accuracy for personality. ' +
+            'Never invent numbers, percentages, financial figures, holdings overlap, or future returns. Always note ' +
+            'that this is informational, not investment advice. Respond with strict JSON: { "summary": string, ' +
+            '"insights": [{ "title": string, "body": string, "tone": "positive" | "neutral" | "warning" }] }. ' +
+            'Produce 3 to 5 insights, each 1-2 sentences, written for a retail investor.',
         },
         {
           role: "user",

@@ -42,6 +42,32 @@ function getTopAllocations(portfolio: Portfolio) {
     }));
 }
 
+function buildSuggestedQuestions(
+  portfolio: Portfolio,
+  analysis: ReturnType<typeof riskEngine.analyzePortfolio>
+): string[] {
+  const questions: string[] = [];
+  const topRisk = analysis.concentrationRisk[0];
+  if (topRisk) {
+    questions.push(`Why is my ${topRisk.label.toLowerCase()} exposure a problem?`);
+  }
+
+  const topUnderperformer = portfolio.funds.find((fund) => analysis.underperformers.includes(fund.id));
+  if (topUnderperformer) {
+    questions.push(`Should I exit ${topUnderperformer.name}?`);
+  }
+
+  const totalValue = portfolio.currentValue || portfolio.totalInvested || 1;
+  const topSuggestion = createRebalanceEngine().generateRebalancingSuggestions(portfolio.funds, totalValue)[0];
+  if (topSuggestion && !questions.some((q) => q.includes(topSuggestion.fundName))) {
+    questions.push(`What should I do about ${topSuggestion.fundName}?`);
+  }
+
+  questions.push("How can I improve diversification?", "Find a large cap fund for me");
+
+  return Array.from(new Set(questions)).slice(0, 4);
+}
+
 function fallbackAnswer(portfolio: Portfolio, question: string): string {
   const analysis = riskEngine.analyzePortfolio(portfolio);
   const engine = createRebalanceEngine();
@@ -264,12 +290,7 @@ export async function answerPortfolioQuestion(
 ): Promise<PortfolioAssistantResponse> {
   const analysis = riskEngine.analyzePortfolio(portfolio);
   const latestQuestion = messages.filter((m) => m.role === "user").at(-1)?.content?.trim() || "";
-  const suggestedQuestions = [
-    "Why is my portfolio risk high?",
-    "How can I improve diversification?",
-    "Which fund should I review first?",
-    "Find a large cap fund for me",
-  ];
+  const suggestedQuestions = buildSuggestedQuestions(portfolio, analysis);
 
   const hasAnyProvider =
     process.env.GROQ_API_KEY || process.env.GEMINI_API_KEY || process.env.OPENAI_API_KEY;
