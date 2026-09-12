@@ -14,7 +14,7 @@ function getInsightTone(insight: string): { border: string; bg: string; icon: st
     return { border: "border-emerald-200", bg: "bg-emerald-50", icon: "text-emerald-600", dot: "bg-emerald-400" };
   if (normalized.includes("underperform") || normalized.includes("low"))
     return { border: "border-red-200", bg: "bg-red-50", icon: "text-red-500", dot: "bg-red-400" };
-  return { border: "border-sky-200", bg: "bg-sky-50", icon: "text-sky-600", dot: "bg-sky-400" };
+  return { border: "border-cyan-200", bg: "bg-cyan-50", icon: "text-cyan-600", dot: "bg-cyan-400" };
 }
 
 export default function AIInsightsPanel({
@@ -33,8 +33,8 @@ export default function AIInsightsPanel({
         className="w-full flex items-center justify-between p-5 hover:bg-slate-50/50 transition-colors"
       >
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-sky-500 to-indigo-600 flex items-center justify-center">
-            <Brain className="w-4 h-4 text-white" />
+          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-cyan-400 to-emerald-400 flex items-center justify-center">
+            <Brain className="w-4 h-4 text-slate-950" />
           </div>
           <div className="text-left">
             <p className="text-sm font-semibold text-slate-900">AI Portfolio Intelligence</p>

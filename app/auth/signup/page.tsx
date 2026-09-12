@@ -80,7 +80,7 @@ export default function SignupPage() {
           <p className="text-sm text-slate-500 mb-6">
             We&apos;ve sent a confirmation link to <strong>{email}</strong>. Click it to activate your account.
           </p>
-          <Link href="/auth/login" className="text-sky-600 text-sm font-medium hover:underline">
+          <Link href="/auth/login" className="text-cyan-600 text-sm font-medium hover:underline">
             Back to sign in
           </Link>
         </div>
@@ -92,8 +92,8 @@ export default function SignupPage() {
     <main className="min-h-screen flex items-center justify-center p-6 bg-slate-50">
       <div className="max-w-md w-full">
         <Link href="/" className="flex items-center justify-center gap-2.5 mb-8">
-          <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-sky-500 to-blue-600 flex items-center justify-center">
-            <TrendingUp className="w-4.5 h-4.5 text-white" strokeWidth={2.5} />
+          <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-cyan-400 to-emerald-400 flex items-center justify-center">
+            <TrendingUp className="w-4.5 h-4.5 text-slate-950" strokeWidth={2.5} />
           </div>
           <span className="font-semibold text-slate-900">Invesutra</span>
         </Link>
@@ -144,7 +144,7 @@ export default function SignupPage() {
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="Ayaansh Sharma"
-                  className="w-full pl-10 pr-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-sky-400 focus:ring-1 focus:ring-sky-400"
+                  className="w-full pl-10 pr-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400"
                 />
               </div>
             </div>
@@ -159,7 +159,7 @@ export default function SignupPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="you@example.com"
-                  className="w-full pl-10 pr-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-sky-400 focus:ring-1 focus:ring-sky-400"
+                  className="w-full pl-10 pr-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400"
                 />
               </div>
             </div>
@@ -175,7 +175,7 @@ export default function SignupPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="At least 8 characters"
-                  className="w-full pl-10 pr-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-sky-400 focus:ring-1 focus:ring-sky-400"
+                  className="w-full pl-10 pr-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400"
                 />
               </div>
             </div>
@@ -192,7 +192,7 @@ export default function SignupPage() {
 
           <p className="text-xs text-slate-500 text-center mt-6">
             Already have an account?{" "}
-            <Link href="/auth/login" className="text-sky-600 font-medium hover:underline">
+            <Link href="/auth/login" className="text-cyan-600 font-medium hover:underline">
               Sign in
             </Link>
           </p>

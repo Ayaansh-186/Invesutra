@@ -94,7 +94,7 @@ export default function FundCard({ fund, totalValue }: { fund: Fund; totalValue:
       {expanded && fund.aiRecommendation && (
         <div className="border-t border-slate-100 px-4 py-3 bg-slate-50">
           <div className="flex items-start gap-2">
-            <Brain className="w-3.5 h-3.5 text-sky-500 shrink-0 mt-0.5" />
+            <Brain className="w-3.5 h-3.5 text-cyan-500 shrink-0 mt-0.5" />
             <div className="flex-1">
               <div className="flex items-center gap-2 mb-1">
                 <span className="text-xs font-semibold text-slate-700">AI Recommendation</span>

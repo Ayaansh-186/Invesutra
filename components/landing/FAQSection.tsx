@@ -37,20 +37,25 @@ export default function FAQSection() {
     <section id="faq" className="py-24 bg-white">
       <div className="max-w-3xl mx-auto px-6">
         <div className="text-center mb-14">
-          <p className="text-sm font-semibold text-sky-600 uppercase tracking-widest mb-3">FAQ</p>
+          <p className="text-sm font-semibold text-cyan-600 uppercase tracking-widest mb-3">FAQ</p>
           <h2 className="text-4xl font-bold text-slate-900 tracking-tight">Common questions</h2>
         </div>
 
         <div className="space-y-2">
           {faqs.map((faq, i) => (
-            <div key={i} className="border border-slate-200 rounded-xl overflow-hidden">
+            <div
+              key={i}
+              className={`border rounded-xl overflow-hidden transition-colors ${
+                open === i ? "border-cyan-200" : "border-slate-200"
+              }`}
+            >
               <button
                 onClick={() => setOpen(open === i ? null : i)}
                 className="w-full flex items-center justify-between px-6 py-4 text-left hover:bg-slate-50 transition-colors"
               >
                 <span className="font-medium text-slate-900 text-sm leading-relaxed">{faq.q}</span>
                 <ChevronDown
-                  className={`w-4 h-4 text-slate-400 shrink-0 ml-4 transition-transform ${open === i ? "rotate-180" : ""}`}
+                  className={`w-4 h-4 shrink-0 ml-4 transition-transform ${open === i ? "rotate-180 text-cyan-500" : "text-slate-400"}`}
                 />
               </button>
               {open === i && (

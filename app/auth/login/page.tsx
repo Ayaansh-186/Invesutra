@@ -53,8 +53,8 @@ function LoginForm() {
     <main className="min-h-screen flex items-center justify-center p-6 bg-slate-50">
       <div className="max-w-md w-full">
         <Link href="/" className="flex items-center justify-center gap-2.5 mb-8">
-          <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-sky-500 to-blue-600 flex items-center justify-center">
-            <TrendingUp className="w-4.5 h-4.5 text-white" strokeWidth={2.5} />
+          <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-cyan-400 to-emerald-400 flex items-center justify-center">
+            <TrendingUp className="w-4.5 h-4.5 text-slate-950" strokeWidth={2.5} />
           </div>
           <span className="font-semibold text-slate-900">Invesutra</span>
         </Link>
@@ -105,7 +105,7 @@ function LoginForm() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="you@example.com"
-                  className="w-full pl-10 pr-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-sky-400 focus:ring-1 focus:ring-sky-400"
+                  className="w-full pl-10 pr-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400"
                 />
               </div>
             </div>
@@ -120,7 +120,7 @@ function LoginForm() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="w-full pl-10 pr-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-sky-400 focus:ring-1 focus:ring-sky-400"
+                  className="w-full pl-10 pr-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400"
                 />
               </div>
             </div>
@@ -137,7 +137,7 @@ function LoginForm() {
 
           <p className="text-xs text-slate-500 text-center mt-6">
             Don&apos;t have an account?{" "}
-            <Link href="/auth/signup" className="text-sky-600 font-medium hover:underline">
+            <Link href="/auth/signup" className="text-cyan-600 font-medium hover:underline">
               Create one free
             </Link>
           </p>

@@ -121,7 +121,7 @@ export default function PricingPage() {
       <section className="pt-32 pb-24">
         <div className="max-w-7xl mx-auto px-6">
           <div className="text-center mb-16">
-            <p className="text-sm font-semibold text-sky-600 uppercase tracking-widest mb-3">Pricing</p>
+            <p className="text-sm font-semibold text-cyan-600 uppercase tracking-widest mb-3">Pricing</p>
             <h1 className="text-4xl md:text-5xl font-bold text-slate-900 tracking-tight">
               Simple, transparent pricing
             </h1>
@@ -142,13 +142,13 @@ export default function PricingPage() {
                 key={plan.name}
                 className={`relative rounded-2xl p-8 flex flex-col ${
                   plan.highlighted
-                    ? "bg-slate-900 text-white shadow-2xl shadow-slate-900/20 ring-1 ring-slate-900"
+                    ? "bg-[#07111f] text-white shadow-2xl shadow-black/30 ring-1 ring-cyan-400/20 ai-glow"
                     : "bg-white border border-slate-200"
                 }`}
               >
                 {plan.badge && (
                   <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                    <span className="flex items-center gap-1 px-3 py-1 bg-sky-500 text-white text-xs font-semibold rounded-full shadow-sm">
+                    <span className="flex items-center gap-1 px-3 py-1 bg-gradient-to-r from-cyan-400 to-emerald-400 text-slate-950 text-xs font-semibold rounded-full shadow-sm">
                       <Sparkles className="w-3 h-3" />
                       {plan.badge}
                     </span>
@@ -176,7 +176,7 @@ export default function PricingPage() {
                   {plan.features.map((feature) => (
                     <li key={feature} className="flex items-center gap-2.5 text-sm">
                       <Check
-                        className={`w-4 h-4 shrink-0 ${plan.highlighted ? "text-sky-400" : "text-emerald-500"}`}
+                        className={`w-4 h-4 shrink-0 ${plan.highlighted ? "text-cyan-300" : "text-emerald-500"}`}
                         strokeWidth={2.5}
                       />
                       <span className={plan.highlighted ? "text-slate-300" : "text-slate-600"}>{feature}</span>
@@ -189,8 +189,8 @@ export default function PricingPage() {
                   disabled={loadingPlan === plan.id || authLoading}
                   className={`flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold transition-all disabled:opacity-60 ${
                     plan.highlighted
-                      ? "bg-sky-500 text-white hover:bg-sky-400"
-                      : "bg-slate-900 text-white hover:bg-slate-800"
+                      ? "bg-cyan-300 text-slate-950 hover:bg-cyan-200"
+                      : "bg-[#07111f] text-white hover:bg-slate-800"
                   }`}
                 >
                   {loadingPlan === plan.id ? (
@@ -208,7 +208,7 @@ export default function PricingPage() {
 
           <p className="text-center text-xs text-slate-400 mt-10">
             Prices in INR. Taxes may apply. Need an invoice or annual billing?{" "}
-            <Link href="mailto:support@invesutra.ai" className="text-sky-600 hover:underline">
+            <Link href="mailto:support@invesutra.ai" className="text-cyan-600 hover:underline">
               Contact us
             </Link>
             .
