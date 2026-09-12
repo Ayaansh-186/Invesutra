@@ -76,11 +76,11 @@ function fallbackAnswer(portfolio: Portfolio, question: string): string {
     const riskReason = topRisk
       ? `${topRisk.label.toLowerCase()} is ${topRisk.currentPercent.toFixed(1)}%, above the ${topRisk.recommendedMax}% guide`
       : `beta is ${analysis.riskMetrics.beta.toFixed(2)} with estimated max drawdown of ${analysis.riskMetrics.maxDrawdown.toFixed(1)}%`;
-    return `Your portfolio risk score is ${portfolio.riskScore}/100. Main driver: ${riskReason}. Mid-cap exposure is ${midPct.toFixed(1)}%, small-cap is ${smallPct.toFixed(1)}%, and debt plus hybrid is ${(debtPct + hybridPct).toFixed(1)}%, so the first risk-control move is reducing concentration before adding more aggressive funds.`;
+    return `Risk score: ${portfolio.riskScore}/100 — worth a look. Main driver: ${riskReason}. Mid-cap exposure is ${midPct.toFixed(1)}%, small-cap is ${smallPct.toFixed(1)}%, and debt plus hybrid is ${(debtPct + hybridPct).toFixed(1)}%. First move before adding anything more aggressive: bring that concentration down.`;
   }
 
   if (lower.includes("health") || lower.includes("score")) {
-    return `Your health score is ${portfolio.healthScore}/100 (${analysis.overallHealth}). The local engine is weighing diversification at ${analysis.diversificationScore}/100, beta at ${analysis.riskMetrics.beta.toFixed(2)}, Sharpe at ${analysis.riskMetrics.sharpeRatio.toFixed(2)}, ${analysis.concentrationRisk.length} concentration alert${analysis.concentrationRisk.length === 1 ? "" : "s"}, and ${underperformers.length} underperforming fund${underperformers.length === 1 ? "" : "s"}.`;
+    return `Health score: ${portfolio.healthScore}/100 (${analysis.overallHealth}). That's coming from diversification at ${analysis.diversificationScore}/100, beta ${analysis.riskMetrics.beta.toFixed(2)}, Sharpe ${analysis.riskMetrics.sharpeRatio.toFixed(2)}, ${analysis.concentrationRisk.length} concentration alert${analysis.concentrationRisk.length === 1 ? "" : "s"}, and ${underperformers.length} underperformer${underperformers.length === 1 ? "" : "s"}.`;
   }
 
   if (lower.includes("divers") || lower.includes("allocation")) {
@@ -89,10 +89,10 @@ function fallbackAnswer(portfolio: Portfolio, question: string): string {
 
   if (lower.includes("improve") || lower.includes("rebalance") || lower.includes("suggest")) {
     if (suggestions.length === 0) {
-      return `The local rules do not see a major mandatory rebalance right now. Keep monitoring category weights, expense ratios, and funds that stay below peer-return bands for multiple review cycles. The next useful check is whether any winning position has crossed a 10%-15% alpha-capture milestone.`;
+      return `Nothing urgent right now — the portfolio isn't screaming at me. Keep monitoring category weights, expense ratios, and funds that stay below peer-return bands for multiple review cycles. Next useful check: whether any winning position has crossed a 10%-15% alpha-capture milestone.`;
     }
     const ranked = suggestions.slice(0, 3).map((suggestion, index) => `${index + 1}. ${suggestion.action} ${suggestion.fundName} from ${suggestion.currentAllocation.toFixed(1)}% toward ${suggestion.targetAllocation.toFixed(1)}%: ${suggestion.reasoning}`);
-    return `Top local rebalancing moves:\n\n${ranked.join("\n")}`;
+    return `Here's what I'd actually change:\n\n${ranked.join("\n")}`;
   }
 
   if (lower.includes("perform") || lower.includes("return") || lower.includes("review")) {
@@ -129,7 +129,7 @@ ${compared.slice(0, 5).join("\n")}${compared.length > 5 ? `\n...and ${compared.l
     return `I can walk through most mutual fund concepts (SIP, STCG/LTCG tax, expense ratio, NAV, exit load, diversification) using local rules even without a live AI connection — try asking about one of those directly, or ask about your own portfolio's risk, health score, diversification, or performance and I'll pull the real numbers.`;
   }
 
-  return `Local deterministic review: ${portfolio.funds.length} funds, ${formatCurrency(portfolio.currentValue, true)} current value, ${formatPercent(portfolio.returnsPercent)} total return, health ${portfolio.healthScore}/100, risk ${portfolio.riskScore}/100. The main watchpoints are ${topRisk ? topRisk.label.toLowerCase() : "category balance"}, ${underperformers.length} underperformer${underperformers.length === 1 ? "" : "s"}, and whether winners have crossed QRP alpha-capture milestones.`;
+  return `Quick snapshot: ${portfolio.funds.length} funds, ${formatCurrency(portfolio.currentValue, true)} current value, ${formatPercent(portfolio.returnsPercent)} total return, health ${portfolio.healthScore}/100, risk ${portfolio.riskScore}/100. The main watchpoints are ${topRisk ? topRisk.label.toLowerCase() : "category balance"}, ${underperformers.length} underperformer${underperformers.length === 1 ? "" : "s"}, and whether winners have crossed QRP alpha-capture milestones.`;
 }
 
 
@@ -141,6 +141,12 @@ function systemPrompt(canMutate: boolean, hasTools: boolean): string {
     "improvements in plain English. Do not invent live market prices, holdings overlap, fund facts, or future " +
     "returns — use the search_mutual_funds / get_fund_details tools for real fund data instead of guessing. This is " +
     "educational decision support, not investment advice. " +
+    "VOICE: You're not a generic advisor reciting numbers — you're Invesutra, and you've actually been paying " +
+    "attention to this specific portfolio. Have real, direct opinions grounded in the actual data (never invented). " +
+    "When the conversation history shows the user asked about a fund or issue before, reference that naturally " +
+    "instead of treating every message like a fresh start — callbacks are part of the voice, not just facts. Keep " +
+    "the tone plainspoken and a little informal, occasionally blunt about a bad decision, but never mean and never " +
+    "sacrificing accuracy for personality. Confidence and warmth over corporate hedging. " +
     "RESPONSE FORMAT RULES (follow exactly): " +
     "(1) NEVER output markdown pipe tables (no | col | rows — they break the UI). " +
     "(2) When listing multiple funds or options, use numbered lists: " +

@@ -331,7 +331,7 @@ export class QuantRebalanceEngine {
 
     for (const fund of funds) {
       const currentAllocation = (fund.currentValue / totalValue) * 100;
-      const suggestion = this.evaluateFund(fund, currentAllocation, categoryExposure);
+      const suggestion = this.evaluateFund(fund, currentAllocation, categoryExposure, funds);
       if (suggestion) suggestions.push(suggestion);
     }
 
@@ -350,7 +350,8 @@ export class QuantRebalanceEngine {
   private evaluateFund(
     fund: Fund,
     currentAllocation: number,
-    categoryExposure: Record<string, number>
+    categoryExposure: Record<string, number>,
+    allFunds: Fund[]
   ): RebalancingSuggestion | null {
     // Mid-cap overexposure
     if (fund.category === "mid_cap" && categoryExposure["mid_cap"] > 35) {
@@ -398,6 +399,53 @@ export class QuantRebalanceEngine {
         targetAllocation: currentAllocation * 0.5,
         reasoning: `Expense ratio of ${fund.expenseRatio}% is high relative to ${fund.returns1Y}% returns. Consider switching to a lower-cost alternative.`,
       };
+    }
+
+    // Sectoral/thematic overexposure — a single-industry fund is a
+    // concentrated bet on one theme's cycle, so it deserves a tighter cap
+    // than a diversified category even at the same headline percentage.
+    if (fund.category === "sectoral" && categoryExposure["sectoral"] > 15) {
+      return {
+        fundId: fund.id,
+        fundName: fund.name,
+        action: "decrease",
+        currentAllocation,
+        targetAllocation: currentAllocation * 0.6,
+        reasoning: "Sectoral/thematic exposure exceeds 15% — these funds bet on one industry's cycle, so keep them as a smaller satellite position.",
+      };
+    }
+
+    // International fund overexposure — adds currency and geopolitical
+    // risk on top of market risk, so it's usually sized as a satellite
+    // allocation rather than a core holding.
+    if (fund.category === "international" && categoryExposure["international"] > 20) {
+      return {
+        fundId: fund.id,
+        fundName: fund.name,
+        action: "decrease",
+        currentAllocation,
+        targetAllocation: currentAllocation * 0.75,
+        reasoning: "International exposure exceeds 20% — currency risk stacks on top of market risk here, so consider capping it as a satellite allocation.",
+      };
+    }
+
+    // Redundant same-category holding — two funds in the same category
+    // typically overlap heavily in underlying stocks. If a clearly
+    // stronger peer already covers this category, the weaker one is
+    // mostly adding expense drag rather than diversification.
+    const sameCategoryPeers = allFunds.filter((f) => f.id !== fund.id && f.category === fund.category);
+    if (sameCategoryPeers.length > 0) {
+      const bestPeer = sameCategoryPeers.reduce((best, f) => (f.returns1Y > best.returns1Y ? f : best));
+      if (bestPeer.returns1Y - fund.returns1Y > 3 && fund.returns1Y < 15) {
+        return {
+          fundId: fund.id,
+          fundName: fund.name,
+          action: "reduce",
+          currentAllocation,
+          targetAllocation: currentAllocation * 0.5,
+          reasoning: `${bestPeer.name} covers the same category and has outperformed by ${(bestPeer.returns1Y - fund.returns1Y).toFixed(1)} points over 1Y — holding both mostly duplicates exposure at extra cost.`,
+        };
+      }
     }
 
     return null;
