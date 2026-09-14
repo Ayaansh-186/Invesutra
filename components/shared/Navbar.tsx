@@ -12,7 +12,7 @@ const navLinks = [
   { label: "FAQ", href: "#faq" },
 ];
 
-export default function Navbar() {
+export default function Navbar({ alwaysLight = false }: { alwaysLight?: boolean }) {
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
 
@@ -22,12 +22,12 @@ export default function Navbar() {
     return () => window.removeEventListener("scroll", handler);
   }, []);
 
-  const isDark = !scrolled;
+  const isDark = !alwaysLight && !scrolled;
 
   return (
     <header
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-        scrolled
+        scrolled || alwaysLight
           ? "bg-white/95 backdrop-blur-md border-b border-slate-200 shadow-sm"
           : "bg-transparent"
       }`}

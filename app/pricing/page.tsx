@@ -116,7 +116,7 @@ export default function PricingPage() {
 
   return (
     <main className="min-h-screen bg-white">
-      <Navbar />
+      <Navbar alwaysLight />
 
       <section className="pt-32 pb-24">
         <div className="max-w-7xl mx-auto px-6">

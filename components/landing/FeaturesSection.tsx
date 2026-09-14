@@ -23,8 +23,8 @@ const features = [
   },
   {
     icon: DatabaseZap,
-    title: "Market-data ready architecture",
-    description: "A provider layer ready for real Zerodha, Yahoo Finance, or mutual fund data adapters without fake results.",
+    title: "Real fund data, not guesses",
+    description: "Built on a live mutual fund database, not AI-invented numbers — every figure you see traces back to real fund data.",
   },
   {
     icon: FileText,
@@ -46,7 +46,7 @@ export default function FeaturesSection() {
             Built around questions investors actually ask.
           </h2>
           <p className="mt-4 max-w-2xl text-lg leading-8 text-slate-600">
-            Like Multibagg AI, Invesutra puts conversation at the center — deterministic portfolio math with AI narration, so users get clear explanations without made-up market claims.
+            Conversation is the interface — deterministic portfolio math narrated by AI, so you get clear explanations without made-up market claims.
           </p>
         </div>
 
