@@ -1,10 +1,12 @@
 "use client";
 
+import Link from "next/link";
 import { formatCurrency, formatPercent, getHealthColor, categoryLabel } from "@/lib/utils/format";
 import type { Portfolio, PortfolioAnalysis } from "@/lib/types";
 import {
   TrendingUp, TrendingDown, Shield, Zap,
   ChevronDown, ChevronUp, AlertTriangle,
+  Search, BarChart2, FileText, ArrowRight,
 } from "lucide-react";
 import { useState } from "react";
 
@@ -159,6 +161,43 @@ export default function PortfolioContextPanel({ portfolio, analysis }: Props) {
             </div>
           )}
         </Section>
+
+        {/* Explore further — close the loop into the other tools */}
+        <div className="space-y-1 border-t border-[var(--shell-border)] pt-3">
+          <p className="px-1 pb-1 text-[9px] font-semibold uppercase tracking-wider text-[var(--shell-text-faint)]">
+            Explore further
+          </p>
+          <Link
+            href="/screener"
+            className="flex items-center justify-between rounded-lg px-2 py-2 text-[11px] font-medium text-[var(--shell-text-muted)] transition hover:bg-[var(--shell-surface-2)] hover:text-[var(--shell-text)]"
+          >
+            <span className="flex items-center gap-1.5">
+              <Search className="h-3 w-3 text-cyan-500" />
+              Screen a rebalance
+            </span>
+            <ArrowRight className="h-3 w-3 opacity-60" />
+          </Link>
+          <Link
+            href="/simulator"
+            className="flex items-center justify-between rounded-lg px-2 py-2 text-[11px] font-medium text-[var(--shell-text-muted)] transition hover:bg-[var(--shell-surface-2)] hover:text-[var(--shell-text)]"
+          >
+            <span className="flex items-center gap-1.5">
+              <BarChart2 className="h-3 w-3 text-cyan-500" />
+              Simulate growth
+            </span>
+            <ArrowRight className="h-3 w-3 opacity-60" />
+          </Link>
+          <Link
+            href="/reports"
+            className="flex items-center justify-between rounded-lg px-2 py-2 text-[11px] font-medium text-[var(--shell-text-muted)] transition hover:bg-[var(--shell-surface-2)] hover:text-[var(--shell-text)]"
+          >
+            <span className="flex items-center gap-1.5">
+              <FileText className="h-3 w-3 text-cyan-500" />
+              Generate a full report
+            </span>
+            <ArrowRight className="h-3 w-3 opacity-60" />
+          </Link>
+        </div>
       </div>
     </aside>
   );

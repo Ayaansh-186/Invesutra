@@ -1,13 +1,14 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { riskEngine } from "@/lib/algorithm/riskEngine";
 import { createRebalanceEngine } from "@/lib/algorithm/rebalanceEngine";
 import { SAMPLE_PORTFOLIO } from "@/lib/utils/mockData";
 import { useActivePortfolio } from "@/lib/hooks/useActivePortfolio";
 import { formatCurrency, formatPercent, categoryLabel, getRiskBg, getHealthColor } from "@/lib/utils/format";
 import type { Fund, FundCategory, RiskLevel } from "@/lib/types";
-import { Brain, Plus, Trash2, Sparkles, AlertTriangle, CheckCircle, TrendingUp, Loader2 } from "lucide-react";
+import { Brain, Plus, Trash2, Sparkles, AlertTriangle, CheckCircle, TrendingUp, Loader2, BarChart2, MessageSquare, ArrowRight } from "lucide-react";
 
 const CATEGORIES: FundCategory[] = ["large_cap","mid_cap","small_cap","multi_cap","flexi_cap","debt","hybrid","index","sectoral","elss","international"];
 const RISK_LEVELS: RiskLevel[] = ["low","moderate","moderately_high","high","very_high"];
@@ -371,6 +372,31 @@ export default function ScreenerPage() {
                     </p>
                   ))}
                 </div>
+              </div>
+
+              {/* Next steps — close the loop into the other tools */}
+              <div className="bg-[var(--shell-surface)] border border-[var(--shell-border)] rounded-xl p-4 space-y-2">
+                <p className="text-xs font-semibold uppercase tracking-wide text-[var(--shell-text-faint)] mb-1">Next</p>
+                <Link
+                  href="/simulator"
+                  className="flex items-center justify-between rounded-lg px-3 py-2.5 text-sm text-[var(--shell-text)] hover:bg-[var(--shell-surface-2)] transition-colors"
+                >
+                  <span className="flex items-center gap-2">
+                    <BarChart2 className="h-4 w-4 text-cyan-500" />
+                    Model these changes in the Simulator
+                  </span>
+                  <ArrowRight className="h-3.5 w-3.5 text-[var(--shell-text-faint)]" />
+                </Link>
+                <Link
+                  href="/dashboard"
+                  className="flex items-center justify-between rounded-lg px-3 py-2.5 text-sm text-[var(--shell-text)] hover:bg-[var(--shell-surface-2)] transition-colors"
+                >
+                  <span className="flex items-center gap-2">
+                    <MessageSquare className="h-4 w-4 text-cyan-500" />
+                    Ask Invesutra AI to explain this
+                  </span>
+                  <ArrowRight className="h-3.5 w-3.5 text-[var(--shell-text-faint)]" />
+                </Link>
               </div>
             </>
           ) : (

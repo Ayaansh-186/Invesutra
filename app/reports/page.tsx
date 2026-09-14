@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useActivePortfolio } from "@/lib/hooks/useActivePortfolio";
 import { riskEngine } from "@/lib/algorithm/riskEngine";
 import { createRebalanceEngine } from "@/lib/algorithm/rebalanceEngine";
@@ -24,6 +25,8 @@ import {
   Droplets,
   Lock,
   Loader2,
+  MessageSquare,
+  Search,
 } from "lucide-react";
 
 function generateReport(portfolio: Portfolio) {
@@ -598,6 +601,33 @@ export default function ReportsPage() {
               QuantRebalance Protocol Explanation
             </h3>
             <p className="text-sm text-[var(--shell-text-muted)] leading-relaxed">{report.algorithmExplanation}</p>
+          </div>
+
+          <div className="bg-[var(--shell-surface)] border border-[var(--shell-border)] rounded-2xl p-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-[var(--shell-text-faint)] mb-1 px-2">Act on this</p>
+            <div className="grid sm:grid-cols-3 gap-2">
+              <Link
+                href="/dashboard"
+                className="flex items-center gap-2 rounded-xl px-3 py-3 text-sm text-[var(--shell-text)] hover:bg-[var(--shell-surface-2)] transition-colors"
+              >
+                <MessageSquare className="h-4 w-4 text-cyan-500 shrink-0" />
+                Discuss this report with Invesutra AI
+              </Link>
+              <Link
+                href="/screener"
+                className="flex items-center gap-2 rounded-xl px-3 py-3 text-sm text-[var(--shell-text)] hover:bg-[var(--shell-surface-2)] transition-colors"
+              >
+                <Search className="h-4 w-4 text-cyan-500 shrink-0" />
+                Try the suggested changes in Screener
+              </Link>
+              <Link
+                href="/simulator"
+                className="flex items-center gap-2 rounded-xl px-3 py-3 text-sm text-[var(--shell-text)] hover:bg-[var(--shell-surface-2)] transition-colors"
+              >
+                <BarChart2 className="h-4 w-4 text-cyan-500 shrink-0" />
+                Simulate the projected impact
+              </Link>
+            </div>
           </div>
 
           <div className="p-4 bg-[var(--shell-surface-2)] border border-[var(--shell-border)] rounded-xl text-xs text-[var(--shell-text-faint)] leading-relaxed">

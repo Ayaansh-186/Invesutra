@@ -1,13 +1,15 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { runSimulation } from "@/lib/algorithm/simulationEngine";
 import { runScenarioMatrix, type ScenarioResult } from "@/lib/algorithm/scenarioEngine";
 import type { SimulationInput, SimulationResult } from "@/lib/types";
 import { formatCurrency, formatPercent } from "@/lib/utils/format";
 import SimulatorChart from "@/components/simulator/SimulatorChart";
-import { Play, RefreshCw, TrendingUp, BarChart2, Zap, Shield, PieChart, Flame } from "lucide-react";
+import { Play, RefreshCw, TrendingUp, BarChart2, Zap, Shield, PieChart, Flame, Wallet, ArrowRight } from "lucide-react";
 import { categoryLabel } from "@/lib/utils/format";
+import { useActivePortfolio } from "@/lib/hooks/useActivePortfolio";
 
 const DEFAULT_INPUT: SimulationInput = {
   initialInvestment: 500000,
@@ -39,12 +41,33 @@ function checkTriggerCategoryFit(triggerPercent: number, funds: SimulationInput[
 }
 
 export default function SimulatorPage() {
+  const { portfolio: activePortfolio, loading: portfolioLoading, isDemo } = useActivePortfolio();
   const [input, setInput] = useState<SimulationInput>(DEFAULT_INPUT);
   const [result, setResult] = useState<SimulationResult | null>(null);
   const [running, setRunning] = useState(false);
   const [stressResults, setStressResults] = useState<ScenarioResult[] | null>(null);
   const [runningStress, setRunningStress] = useState(false);
+  const [loadedFromPortfolio, setLoadedFromPortfolio] = useState(false);
   const triggerCategoryWarning = checkTriggerCategoryFit(input.triggerPercent, input.funds);
+
+  function handleLoadRealPortfolio() {
+    if (!activePortfolio.funds.length) return;
+    const totalValue = activePortfolio.funds.reduce((s, f) => s + f.currentValue, 0);
+    setInput({
+      ...input,
+      initialInvestment: Math.round(activePortfolio.currentValue || totalValue),
+      funds: activePortfolio.funds.map((f) => ({
+        name: f.name,
+        allocation: totalValue > 0 ? Math.round((f.currentValue / totalValue) * 1000) / 10 : 0,
+        expectedReturn: f.returns1Y,
+        category: f.category,
+        riskLevel: f.riskLevel,
+      })),
+    });
+    setLoadedFromPortfolio(true);
+    setResult(null);
+    setStressResults(null);
+  }
 
   function handleRun() {
     setRunning(true);
@@ -67,12 +90,37 @@ export default function SimulatorPage() {
 
   return (
     <div className="max-w-6xl mx-auto">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-[var(--shell-text)] mb-1">Portfolio Simulator</h1>
-        <p className="text-sm text-[var(--shell-text-faint)]">
-          Simulate portfolio growth with the QuantRebalance Protocol and compare strategies
-        </p>
+      <div className="mb-8 flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-[var(--shell-text)] mb-1">Portfolio Simulator</h1>
+          <p className="text-sm text-[var(--shell-text-faint)]">
+            Simulate portfolio growth with the QuantRebalance Protocol and compare strategies
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          {!isDemo && !portfolioLoading && activePortfolio.funds.length > 0 && (
+            <button
+              onClick={handleLoadRealPortfolio}
+              className="flex items-center gap-2 rounded-xl border border-[var(--shell-border)] bg-[var(--shell-surface)] px-4 py-2.5 text-sm font-medium text-[var(--shell-text)] transition hover:border-cyan-500/40"
+            >
+              <Wallet className="h-4 w-4 text-cyan-500" />
+              {loadedFromPortfolio ? "Reload my portfolio" : "Load my portfolio"}
+            </button>
+          )}
+          <Link
+            href="/portfolio"
+            className="flex items-center gap-1.5 text-sm font-medium text-[var(--shell-text-muted)] hover:text-cyan-500"
+          >
+            View real portfolio
+            <ArrowRight className="h-3.5 w-3.5" />
+          </Link>
+        </div>
       </div>
+      {loadedFromPortfolio && (
+        <div className="-mt-4 mb-6 rounded-lg border border-cyan-500/20 bg-cyan-400/10 px-4 py-2.5 text-xs text-[var(--shell-text-muted)]">
+          Loaded your {activePortfolio.funds.length} real fund{activePortfolio.funds.length === 1 ? "" : "s"} — 1Y returns are used as the expected-return estimate for each.
+        </div>
+      )}
 
       <div className="grid lg:grid-cols-3 gap-6">
         {/* Input panel */}
