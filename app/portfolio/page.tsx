@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { riskEngine } from "@/lib/algorithm/riskEngine";
 import { useActivePortfolio } from "@/lib/hooks/useActivePortfolio";
 import { useAuth } from "@/lib/hooks/useAuth";
@@ -10,10 +11,13 @@ import HoldingsTable from "@/components/dashboard/HoldingsTable";
 import MilestoneTracker from "@/components/dashboard/MilestoneTracker";
 import PortfolioContextPanel from "@/components/dashboard/PortfolioContextPanel";
 import PortfolioChart from "@/components/dashboard/PortfolioChart";
-import AddFundModal from "@/components/dashboard/AddFundModal";
 import {
   Sparkles, Plus, RefreshCw, TrendingUp, TrendingDown, Shield, Zap, MessageSquare,
 } from "lucide-react";
+
+// Only loaded when the user actually opens "Add Fund" — keeps this ~19KB
+// form out of the initial bundle for the most-visited page in the app.
+const AddFundModal = dynamic(() => import("@/components/dashboard/AddFundModal"), { ssr: false });
 
 export default function PortfolioPage() {
   const { user } = useAuth();
