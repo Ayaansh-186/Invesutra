@@ -44,6 +44,21 @@ export default function PortfolioChart({
   currentValue: number;
   height?: number;
 }) {
+  // With no money invested yet (a brand-new portfolio), currentValue/invested
+  // is 0/0 — NaN propagates through every point in the series. Skip the math
+  // entirely and show a clean placeholder instead of a broken chart.
+  if (invested <= 0) {
+    return (
+      <div
+        style={{ height }}
+        className="flex flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-[var(--shell-border)] text-center"
+      >
+        <p className="text-sm font-medium text-[var(--shell-text-muted)]">No growth history yet</p>
+        <p className="text-xs text-[var(--shell-text-faint)]">Add your first fund to start tracking performance over time</p>
+      </div>
+    );
+  }
+
   const data = generateChartData(invested, currentValue);
 
   return (

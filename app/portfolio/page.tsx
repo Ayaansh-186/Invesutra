@@ -97,86 +97,94 @@ export default function PortfolioPage() {
             </div>
           </div>
 
-          {isEmpty && user && (
-            <div className="mb-6 flex items-center gap-3 rounded-xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-3">
-              <p className="flex-1 text-sm text-[var(--shell-text-muted)]">
-                Welcome! Add your first fund to start tracking your portfolio.
-              </p>
+          {isEmpty && user ? (
+            <div className="flex flex-col items-center justify-center gap-4 rounded-2xl border border-dashed border-[var(--shell-border)] bg-[var(--shell-surface)] px-6 py-16 text-center">
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-400 to-emerald-400">
+                <Plus className="h-6 w-6 text-slate-950" strokeWidth={2.5} />
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold text-[var(--shell-text)]">Add your first fund</h2>
+                <p className="mx-auto mt-1.5 max-w-sm text-sm text-[var(--shell-text-muted)]">
+                  Once you add a fund, Invesutra tracks its health, risk, and growth — and you can ask the AI about it anytime.
+                </p>
+              </div>
               <button
                 onClick={() => setShowAddFund(true)}
-                className="flex items-center gap-1 rounded-lg bg-emerald-400 px-2.5 py-1 text-xs font-semibold text-slate-950"
+                className="flex items-center gap-1.5 rounded-lg bg-cyan-400 px-4 py-2.5 text-sm font-semibold text-slate-950 transition hover:bg-cyan-300"
               >
-                <Plus className="h-3 w-3" />
-                Add fund
+                <Plus className="h-4 w-4" />
+                Add Fund
               </button>
             </div>
-          )}
-
-          {/* Metric cards */}
-          <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
-            <MetricCard
-              label="Current value"
-              value={formatCurrency(portfolio.currentValue, true)}
-              sub={`Invested ${formatCurrency(portfolio.totalInvested, true)}`}
-              icon={TrendingUp}
-              color="text-emerald-500"
-            />
-            <MetricCard
-              label="Returns"
-              value={formatPercent(portfolio.returnsPercent)}
-              sub={formatCurrency(portfolio.returns, true)}
-              icon={returnsUp ? TrendingUp : TrendingDown}
-              color={returnsUp ? "text-emerald-500" : "text-rose-500"}
-            />
-            <MetricCard
-              label="Health score"
-              value={`${portfolio.healthScore}/100`}
-              sub={analysis.overallHealth}
-              icon={Shield}
-              color={getHealthColor(portfolio.healthScore)}
-            />
-            <MetricCard
-              label="Risk score"
-              value={`${portfolio.riskScore}/100`}
-              sub={`Beta ${analysis.riskMetrics.beta.toFixed(2)}`}
-              icon={Zap}
-              color="text-amber-500"
-            />
-          </div>
-
-          {/* Growth chart — large, in the main content instead of the cramped rail */}
-          <div className="mb-6 rounded-2xl border border-[var(--shell-border)] bg-[var(--shell-surface)] p-5">
-            <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-sm font-semibold text-[var(--shell-text)]">Growth</h2>
-              <span className="text-xs text-[var(--shell-text-faint)]">Invested vs current value, last 24 months</span>
-            </div>
-            <PortfolioChart invested={portfolio.totalInvested} currentValue={portfolio.currentValue} height={320} />
-          </div>
-
-          {/* Holdings */}
-          <h2 className="mb-3 text-sm font-semibold text-[var(--shell-text)]">Holdings</h2>
-          <HoldingsTable funds={portfolio.funds} totalValue={portfolio.currentValue} onChanged={refresh} />
-
-          {/* Milestone Tracker */}
-          <div className="mt-6">
-            <MilestoneTracker funds={portfolio.funds} />
-          </div>
-
-          {/* Rebalancing suggestions */}
-          {analysis.rebalancingSuggestions.length > 0 && (
-            <div className="mt-6">
-              <h2 className="mb-3 text-sm font-semibold text-[var(--shell-text)]">Rebalancing suggestions</h2>
-              <div className="space-y-2">
-                {analysis.rebalancingSuggestions.map((s, i) => (
-                  <div key={i} className="rounded-xl border border-[var(--shell-border)] bg-[var(--shell-surface)] p-4">
-                    <p className="text-sm font-medium text-[var(--shell-text)]">
-                      {s.action} {s.fundName}: {s.currentAllocation.toFixed(1)}% → {s.targetAllocation.toFixed(1)}%
-                    </p>
-                    <p className="mt-1 text-xs text-[var(--shell-text-muted)]">{s.reasoning}</p>
-                  </div>
-                ))}
+          ) : (
+            <>
+              {/* Metric cards */}
+              <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
+                <MetricCard
+                  label="Current value"
+                  value={formatCurrency(portfolio.currentValue, true)}
+                  sub={`Invested ${formatCurrency(portfolio.totalInvested, true)}`}
+                  icon={TrendingUp}
+                  color="text-emerald-500"
+                />
+                <MetricCard
+                  label="Returns"
+                  value={formatPercent(portfolio.returnsPercent)}
+                  sub={formatCurrency(portfolio.returns, true)}
+                  icon={returnsUp ? TrendingUp : TrendingDown}
+                  color={returnsUp ? "text-emerald-500" : "text-rose-500"}
+                />
+                <MetricCard
+                  label="Health score"
+                  value={`${portfolio.healthScore}/100`}
+                  sub={analysis.overallHealth}
+                  icon={Shield}
+                  color={getHealthColor(portfolio.healthScore)}
+                />
+                <MetricCard
+                  label="Risk score"
+                  value={`${portfolio.riskScore}/100`}
+                  sub={`Beta ${analysis.riskMetrics.beta.toFixed(2)}`}
+                  icon={Zap}
+                  color="text-amber-500"
+                />
               </div>
-            </div>
+
+              {/* Growth chart — large, in the main content instead of the cramped rail */}
+              <div className="mb-6 rounded-2xl border border-[var(--shell-border)] bg-[var(--shell-surface)] p-5">
+                <div className="mb-4 flex items-center justify-between">
+                  <h2 className="text-sm font-semibold text-[var(--shell-text)]">Growth</h2>
+                  <span className="text-xs text-[var(--shell-text-faint)]">Invested vs current value, last 24 months</span>
+                </div>
+                <PortfolioChart invested={portfolio.totalInvested} currentValue={portfolio.currentValue} height={320} />
+              </div>
+
+              {/* Holdings */}
+              <h2 className="mb-3 text-sm font-semibold text-[var(--shell-text)]">Holdings</h2>
+              <HoldingsTable funds={portfolio.funds} totalValue={portfolio.currentValue} onChanged={refresh} />
+
+              {/* Milestone Tracker */}
+              <div className="mt-6">
+                <MilestoneTracker funds={portfolio.funds} />
+              </div>
+
+              {/* Rebalancing suggestions */}
+              {analysis.rebalancingSuggestions.length > 0 && (
+                <div className="mt-6">
+                  <h2 className="mb-3 text-sm font-semibold text-[var(--shell-text)]">Rebalancing suggestions</h2>
+                  <div className="space-y-2">
+                    {analysis.rebalancingSuggestions.map((s, i) => (
+                      <div key={i} className="rounded-xl border border-[var(--shell-border)] bg-[var(--shell-surface)] p-4">
+                        <p className="text-sm font-medium text-[var(--shell-text)]">
+                          {s.action} {s.fundName}: {s.currentAllocation.toFixed(1)}% → {s.targetAllocation.toFixed(1)}%
+                        </p>
+                        <p className="mt-1 text-xs text-[var(--shell-text-muted)]">{s.reasoning}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </div>
 
