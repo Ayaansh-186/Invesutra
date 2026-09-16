@@ -525,7 +525,7 @@ export default function AIPortfolioAssistant({
       <div className="min-h-0 flex-1 overflow-y-auto px-5 py-6">
         <div className="mx-auto max-w-3xl space-y-6">
           {messages.map((message, index) => (
-            <div key={`${message.role}-${index}`}>
+            <div key={`${message.role}-${index}`} className="animate-sprout">
               {message.role === "user" ? (
                 <div className="flex justify-end">
                   <div className="max-w-[80%] rounded-2xl bg-[var(--shell-surface-2)] px-4 py-2.5 text-[15px] leading-relaxed text-[var(--shell-text)]">
@@ -547,8 +547,9 @@ export default function AIPortfolioAssistant({
                                 <button
                                   key={oi}
                                   disabled={loading}
+                                  style={{ animationDelay: `${0.06 * oi + 0.08}s` }}
                                   onClick={() => askAssistant(String(oi + 1))}
-                                  className="flex items-center gap-3 rounded-xl border border-[var(--shell-border)] bg-[var(--shell-surface)] px-4 py-2.5 text-left text-[14px] transition hover:border-cyan-500/40 hover:bg-[var(--shell-surface-2)] disabled:opacity-50"
+                                  className="flex animate-sprout items-center gap-3 rounded-xl border border-[var(--shell-border)] bg-[var(--shell-surface)] px-4 py-2.5 text-left text-[14px] transition-all hover:-translate-y-0.5 hover:border-cyan-500/40 hover:bg-[var(--shell-surface-2)] hover:shadow-sm disabled:opacity-50"
                                 >
                                   <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-[var(--shell-border)] text-[11px] font-semibold text-[var(--shell-text-muted)]">
                                     {oi + 1}
@@ -572,10 +573,11 @@ export default function AIPortfolioAssistant({
                 <div className="mt-3 ml-7 space-y-2">
                   {[...portfolio.funds]
                     .sort((a, b) => b.currentValue - a.currentValue)
-                    .map((fund) => (
+                    .map((fund, fi) => (
                       <div
                         key={fund.id}
-                        className="flex items-center justify-between rounded-xl border border-[var(--shell-border)] px-4 py-3"
+                        style={{ animationDelay: `${0.05 * fi + 0.06}s` }}
+                        className="flex animate-sprout items-center justify-between rounded-xl border border-[var(--shell-border)] px-4 py-3"
                       >
                         <div className="min-w-0 flex-1">
                           <p className="truncate text-sm font-medium text-[var(--shell-text)]">{fund.name}</p>
@@ -597,12 +599,15 @@ export default function AIPortfolioAssistant({
           ))}
 
           {loading && (
-            <div className="flex items-center gap-3 text-sm text-[var(--shell-text-faint)]">
-              <Sparkle className="h-4 w-4 text-cyan-600" strokeWidth={1.5} />
-              <span className="inline-flex items-center gap-1.5">
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                Checking your portfolio...
-              </span>
+            <div className="flex animate-sprout items-center gap-3">
+              <Sparkle className="h-4 w-4 shrink-0 text-cyan-600" strokeWidth={1.5} />
+              <div className="flex items-center gap-2 rounded-2xl bg-[var(--shell-surface-2)] px-3.5 py-2.5">
+                <span className="flex items-center gap-1 text-cyan-600">
+                  <span className="typing-dot" />
+                  <span className="typing-dot" />
+                  <span className="typing-dot" />
+                </span>
+              </div>
             </div>
           )}
           <div ref={messagesEndRef} />

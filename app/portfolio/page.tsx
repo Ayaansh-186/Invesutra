@@ -134,6 +134,7 @@ export default function PortfolioPage() {
               <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
                 <MetricCard
                   label="Current value"
+                  delay={0.05}
                   value={formatCurrency(portfolio.currentValue, true)}
                   sub={`Invested ${formatCurrency(portfolio.totalInvested, true)}`}
                   icon={TrendingUp}
@@ -141,6 +142,7 @@ export default function PortfolioPage() {
                 />
                 <MetricCard
                   label="Returns"
+                  delay={0.1}
                   value={formatPercent(portfolio.returnsPercent)}
                   sub={formatCurrency(portfolio.returns, true)}
                   icon={returnsUp ? TrendingUp : TrendingDown}
@@ -148,6 +150,7 @@ export default function PortfolioPage() {
                 />
                 <MetricCard
                   label="Health score"
+                  delay={0.15}
                   value={`${portfolio.healthScore}/100`}
                   sub={analysis.overallHealth}
                   icon={Shield}
@@ -155,6 +158,7 @@ export default function PortfolioPage() {
                 />
                 <MetricCard
                   label="Risk score"
+                  delay={0.2}
                   value={`${portfolio.riskScore}/100`}
                   sub={`Beta ${analysis.riskMetrics.beta.toFixed(2)}`}
                   icon={Zap}
@@ -226,20 +230,25 @@ function MetricCard({
   sub,
   icon: Icon,
   color,
+  delay = 0,
 }: {
   label: string;
   value: string;
   sub: string;
   icon: React.ComponentType<{ className?: string; strokeWidth?: number }>;
   color: string;
+  delay?: number;
 }) {
   return (
-    <div className="rounded-xl border border-[var(--shell-border)] bg-[var(--shell-surface)] p-4">
+    <div
+      style={{ animationDelay: `${delay}s` }}
+      className="animate-sprout rounded-xl border border-[var(--shell-border)] bg-[var(--shell-surface)] p-4 transition-transform hover:-translate-y-0.5"
+    >
       <div className="mb-2 flex items-center justify-between">
         <p className="text-[10px] font-medium uppercase tracking-wider text-[var(--shell-text-faint)]">{label}</p>
         <Icon className={`h-4 w-4 ${color}`} strokeWidth={1.5} />
       </div>
-      <p className={`text-xl font-bold ${color}`}>{value}</p>
+      <p className={`text-xl font-bold tabular-nums ${color}`}>{value}</p>
       <p className="truncate text-xs text-[var(--shell-text-faint)]">{sub}</p>
     </div>
   );
