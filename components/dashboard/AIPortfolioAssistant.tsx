@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import type { Portfolio, PortfolioAnalysis } from "@/lib/types";
 import { formatCurrency, formatPercent, categoryLabel } from "@/lib/utils/format";
+import AiOrb from "@/components/landing/AiOrb";
 interface ChatMessage {
   role: "user" | "assistant";
   content: string;
@@ -436,9 +437,11 @@ export default function AIPortfolioAssistant({
         <div className="flex min-h-0 flex-1 flex-col items-center justify-center overflow-y-auto px-6 pb-16 pt-4">
           <div className="w-full max-w-2xl">
             <div className="mb-7 flex flex-col items-center text-center">
-              <Sparkle className="mb-3 h-6 w-6 text-cyan-600" strokeWidth={1.5} />
-              <h1 className="text-xl font-medium text-[var(--shell-text)]">Hi, I'm Invesutra AI</h1>
-              <div className="mt-3 max-w-xl text-sm leading-relaxed text-[var(--shell-text-muted)]">
+              <div className="mb-2 animate-sprout">
+                <AiOrb size="md" speaking={loading} />
+              </div>
+              <h1 className="animate-sprout stagger-1 text-xl font-medium text-[var(--shell-text)]">Hi, I&apos;m Invesutra AI</h1>
+              <div className="animate-sprout stagger-2 mt-3 max-w-xl text-sm leading-relaxed text-[var(--shell-text-muted)]">
                 {renderMessageContent(greeting)}
               </div>
             </div>

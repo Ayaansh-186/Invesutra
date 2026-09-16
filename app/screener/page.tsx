@@ -1,412 +1,114 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, Suspense } from "react";
 import Link from "next/link";
+import dynamic from "next/dynamic";
+import { useSearchParams } from "next/navigation";
 import { riskEngine } from "@/lib/algorithm/riskEngine";
-import { createRebalanceEngine } from "@/lib/algorithm/rebalanceEngine";
-import { SAMPLE_PORTFOLIO } from "@/lib/utils/mockData";
 import { useActivePortfolio } from "@/lib/hooks/useActivePortfolio";
-import { formatCurrency, formatPercent, categoryLabel, getRiskBg, getHealthColor } from "@/lib/utils/format";
-import type { Fund, FundCategory, RiskLevel } from "@/lib/types";
-import { Brain, Plus, Trash2, Sparkles, AlertTriangle, CheckCircle, TrendingUp, Loader2, BarChart2, MessageSquare, ArrowRight } from "lucide-react";
+import { useAuth } from "@/lib/hooks/useAuth";
+import AIPortfolioAssistant from "@/components/dashboard/AIPortfolioAssistant";
+import AiOrb from "@/components/landing/AiOrb";
+import { Sparkles, CheckCircle2, Plus, AlertTriangle } from "lucide-react";
 
-const CATEGORIES: FundCategory[] = ["large_cap","mid_cap","small_cap","multi_cap","flexi_cap","debt","hybrid","index","sectoral","elss","international"];
-const RISK_LEVELS: RiskLevel[] = ["low","moderate","moderately_high","high","very_high"];
+// Only pulled in when the user actually opens "Add Fund".
+const AddFundModal = dynamic(() => import("@/components/dashboard/AddFundModal"), { ssr: false });
 
-const emptyFund: Omit<Fund, "id"> = {
-  name: "",
-  category: "large_cap",
-  investedAmount: 50000,
-  currentValue: 55000,
-  nav: 100,
-  units: 550,
-  returns1Y: 10,
-  returns3Y: 12,
-  returns5Y: 14,
-  riskLevel: "moderately_high",
-  expenseRatio: 0.5,
-  aum: 10000,
-  benchmark: "Nifty 100",
-  manager: "",
-};
+export default function DashboardPage() {
+  return (
+    <Suspense fallback={null}>
+      <DashboardPageInner />
+    </Suspense>
+  );
+}
 
-export default function ScreenerPage() {
-  const { portfolio: activePortfolio, loading: portfolioLoading, isDemo } = useActivePortfolio();
-  const [funds, setFunds] = useState<Fund[]>(SAMPLE_PORTFOLIO.funds);
-  const [seeded, setSeeded] = useState(false);
-  const [analysis, setAnalysis] = useState<ReturnType<typeof riskEngine.analyzePortfolio> | null>(null);
-  const [rebalanceSuggestions, setRebalanceSuggestions] = useState<ReturnType<typeof createRebalanceEngine>["generateRebalancingSuggestions"] extends (...args: any[]) => infer R ? R : never>([]);
-  const [analyzing, setAnalyzing] = useState(false);
-  const [showAddForm, setShowAddForm] = useState(false);
-  const [newFund, setNewFund] = useState<Omit<Fund, "id">>(emptyFund);
+function DashboardPageInner() {
+  const { user } = useAuth();
+  const { portfolio, loading, isDemo, isEmpty, error, refresh } = useActivePortfolio();
+  const [showAddFund, setShowAddFund] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const analysis = portfolio.analysis ?? riskEngine.analyzePortfolio(portfolio);
+  const searchParams = useSearchParams();
+  const initialQuery = searchParams.get("q") || undefined;
 
-  // Seed the local working copy from the user's real portfolio once it's
-  // loaded. This only runs once per portfolio load so edits made in the
-  // screener sandbox aren't clobbered by a background refresh.
-  useEffect(() => {
-    if (!portfolioLoading && !seeded) {
-      setFunds(activePortfolio.funds.length > 0 ? activePortfolio.funds : SAMPLE_PORTFOLIO.funds);
-      setSeeded(true);
-    }
-  }, [portfolioLoading, seeded, activePortfolio]);
-
-  const totalInvested = funds.reduce((s, f) => s + f.investedAmount, 0);
-  const totalValue = funds.reduce((s, f) => s + f.currentValue, 0);
-
-  const [aiSummary, setAiSummary] = useState<string | null>(null);
-  const [aiSource, setAiSource] = useState<"groq" | "gemini" | "openai" | "deterministic" | null>(null);
-
-
-  function handleAnalyze() {
-    setAnalyzing(true);
-
-    const portfolio = {
-      ...SAMPLE_PORTFOLIO,
-      funds,
-      totalInvested,
-      currentValue: totalValue,
-      returns: totalValue - totalInvested,
-      returnsPercent: ((totalValue - totalInvested) / totalInvested) * 100,
-    };
-
-    fetch("/api/ai/analyze", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ portfolio }),
-    })
-      .then((res) => {
-        if (!res.ok) throw new Error("AI analysis request failed");
-        return res.json();
-      })
-      .then((result) => {
-        // The API route already ran the deterministic risk + rebalance
-        // engines server-side; mirror that into local state so the UI
-        // (which reads `analysis` / `rebalanceSuggestions`) stays in sync,
-        // while layering in the AI-written narrative when available.
-        const localAnalysis = riskEngine.analyzePortfolio(portfolio);
-        setAnalysis({
-          ...localAnalysis,
-          diversificationScore: result.diversificationScore ?? localAnalysis.diversificationScore,
-          concentrationRisk: result.concentrationRisk ?? localAnalysis.concentrationRisk,
-          riskMetrics: result.riskMetrics ?? localAnalysis.riskMetrics,
-          aiInsights: result.narrativeInsights?.length
-            ? result.narrativeInsights.map((i: any) => i.body)
-            : localAnalysis.aiInsights,
-        });
-        setRebalanceSuggestions(result.rebalancingSuggestions ?? []);
-        setAiSummary(result.summary ?? null);
-        setAiSource(result.source ?? "deterministic");
-      })
-      .catch(() => {
-        // Network/API failure — fall back to the deterministic engine so
-        // the screener remains fully usable offline / without API keys.
-        const result = riskEngine.analyzePortfolio(portfolio);
-        const eng = createRebalanceEngine();
-        const suggestions = eng.generateRebalancingSuggestions(funds, totalValue);
-        setAnalysis(result);
-        setRebalanceSuggestions(suggestions);
-        setAiSummary(null);
-        setAiSource("deterministic");
-      })
-      .finally(() => setAnalyzing(false));
+  async function handleRefresh() {
+    setRefreshing(true);
+    await refresh();
+    setRefreshing(false);
   }
 
-  function handleAddFund() {
-    const fund: Fund = { ...newFund, id: `f${Date.now()}` };
-    setFunds([...funds, fund]);
-    setNewFund(emptyFund);
-    setShowAddForm(false);
-  }
-
-  function handleRemoveFund(id: string) {
-    setFunds(funds.filter(f => f.id !== id));
+  if (loading) {
+    return (
+      <div className="flex h-full flex-col items-center justify-center gap-4">
+        <AiOrb size="md" speaking />
+        <p className="animate-sprout text-sm text-[var(--shell-text-muted)]">
+          Invesutra AI is loading your portfolio...
+        </p>
+      </div>
+    );
   }
 
   return (
-    <div className="max-w-5xl mx-auto">
-      <div className="flex items-start justify-between mb-8">
-        <div>
-          <h1 className="text-2xl font-bold text-[var(--shell-text)] mb-1">AI Portfolio Screener</h1>
-          <p className="text-sm text-[var(--shell-text-faint)]">
-            {portfolioLoading
-              ? "Loading your portfolio..."
-              : isDemo
-              ? "Editing a sample portfolio — sign up to screen your own funds"
-              : "Editing a working copy of your portfolio — changes here don't save automatically"}
+    <div className="flex h-full flex-col overflow-hidden">
+      {/* Status banners */}
+      {error && (
+        <div className="shrink-0 flex items-center gap-3 border-b border-amber-400/20 bg-amber-400/10 px-4 py-2.5">
+          <AlertTriangle className="h-4 w-4 shrink-0 text-amber-400" />
+          <p className="flex-1 text-xs text-[var(--shell-text-muted)]">{error}</p>
+          <button onClick={handleRefresh} className="text-xs font-semibold text-amber-300 hover:underline">Retry</button>
+        </div>
+      )}
+      {isDemo && !user && (
+        <div className="shrink-0 flex items-center gap-3 border-b border-cyan-400/20 bg-cyan-400/10 px-4 py-2.5">
+          <Sparkles className="h-4 w-4 shrink-0 text-cyan-400" />
+          <p className="flex-1 text-xs text-[var(--shell-text-muted)]">
+            Exploring with sample data.{" "}
+            <Link href="/auth/signup" className="font-semibold text-cyan-300 hover:underline">
+              Sign up free
+            </Link>{" "}
+            to add your real holdings.
           </p>
         </div>
-        <button
-          onClick={handleAnalyze}
-          disabled={analyzing || funds.length === 0}
-          className="flex items-center gap-2 px-5 py-2.5 bg-cyan-400 text-slate-950 text-sm font-semibold rounded-xl hover:bg-cyan-300 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-        >
-          {analyzing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-          {analyzing ? "Analyzing..." : "Run AI Analysis"}
-        </button>
+      )}
+      {isEmpty && user && (
+        <div className="shrink-0 flex items-center gap-3 border-b border-emerald-400/20 bg-emerald-400/10 px-4 py-2.5">
+          <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-400" />
+          <p className="flex-1 text-xs text-[var(--shell-text-muted)]">
+            Welcome! Ask Invesutra to help you add your first fund, or click Add Fund.
+          </p>
+          <button
+            onClick={() => setShowAddFund(true)}
+            className="flex items-center gap-1 rounded-lg bg-emerald-400 px-2.5 py-1 text-xs font-semibold text-slate-950"
+          >
+            <Plus className="h-3 w-3" />
+            Add fund
+          </button>
+        </div>
+      )}
+
+      {/* Main AI-first layout — full width now that Portfolio has its own page */}
+      <div className="flex min-h-0 w-full flex-1 overflow-hidden">
+        <AIPortfolioAssistant
+          portfolio={portfolio}
+          analysis={analysis}
+          onAddFund={() => setShowAddFund(true)}
+          onRefresh={handleRefresh}
+          refreshing={refreshing}
+          initialQuery={initialQuery}
+          historyEnabled={!isDemo && !isEmpty}
+        />
       </div>
 
-      <div className="grid lg:grid-cols-5 gap-6">
-        {/* Fund list */}
-        <div className="lg:col-span-3 space-y-4">
-          {/* Summary bar */}
-          <div className="bg-[var(--shell-surface)] border border-[var(--shell-border)] rounded-xl p-4 flex items-center justify-between">
-            <div className="flex gap-6">
-              <div>
-                <p className="text-xs text-[var(--shell-text-faint)]">Total Invested</p>
-                <p className="font-semibold text-[var(--shell-text)]">{formatCurrency(totalInvested, true)}</p>
-              </div>
-              <div>
-                <p className="text-xs text-[var(--shell-text-faint)]">Current Value</p>
-                <p className="font-semibold text-[var(--shell-text)]">{formatCurrency(totalValue, true)}</p>
-              </div>
-              <div>
-                <p className="text-xs text-[var(--shell-text-faint)]">Returns</p>
-                <p className={`font-semibold ${totalValue >= totalInvested ? "text-emerald-600" : "text-red-500"}`}>
-                  {formatPercent(((totalValue - totalInvested) / totalInvested) * 100)}
-                </p>
-              </div>
-            </div>
-            <span className="text-xs text-[var(--shell-text-faint)]">{funds.length} funds</span>
-          </div>
-
-          {/* Fund rows */}
-          {funds.map((fund) => (
-            <div key={fund.id} className="bg-[var(--shell-surface)] border border-[var(--shell-border)] rounded-xl p-4 flex items-center gap-4">
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <p className="font-medium text-[var(--shell-text)] text-sm truncate">{fund.name || "Unnamed Fund"}</p>
-                  <span className={`px-2 py-0.5 rounded-full text-xs border ${getRiskBg(fund.riskLevel)}`}>
-                    {fund.riskLevel.replace(/_/g, " ")}
-                  </span>
-                </div>
-                <p className="text-xs text-[var(--shell-text-faint)] mt-0.5">{categoryLabel(fund.category)} · ER: {fund.expenseRatio}%</p>
-              </div>
-              <div className="text-right shrink-0">
-                <p className="text-sm font-semibold text-[var(--shell-text)]">{formatCurrency(fund.currentValue, true)}</p>
-                <p className={`text-xs font-medium ${fund.returns1Y >= 0 ? "text-emerald-600" : "text-red-500"}`}>
-                  {formatPercent(fund.returns1Y)} (1Y)
-                </p>
-              </div>
-              <button onClick={() => handleRemoveFund(fund.id)} className="p-1.5 rounded-lg hover:bg-rose-500/10 text-[var(--shell-text-faint)] hover:text-rose-500 transition-colors">
-                <Trash2 className="w-4 h-4" />
-              </button>
-            </div>
-          ))}
-
-          {/* Add fund form */}
-          {showAddForm ? (
-            <div className="bg-[var(--shell-surface)] border border-cyan-500/30 rounded-xl p-5 space-y-3">
-              <h3 className="text-sm font-semibold text-[var(--shell-text)] mb-3">Add Fund</h3>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="col-span-2">
-                  <label className="text-xs text-[var(--shell-text-faint)] mb-1 block">Fund Name</label>
-                  <input
-                    type="text"
-                    value={newFund.name}
-                    onChange={e => setNewFund({...newFund, name: e.target.value})}
-                    placeholder="e.g. Mirae Asset Large Cap Fund"
-                    className="w-full px-3 py-2 border border-[var(--shell-border)] bg-[var(--shell-surface)] rounded-lg text-sm text-[var(--shell-text)] focus:outline-none focus:border-cyan-500/40"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs text-[var(--shell-text-faint)] mb-1 block">Category</label>
-                  <select
-                    value={newFund.category}
-                    onChange={e => setNewFund({...newFund, category: e.target.value as FundCategory})}
-                    className="w-full px-3 py-2 border border-[var(--shell-border)] bg-[var(--shell-surface)] rounded-lg text-sm text-[var(--shell-text)] focus:outline-none focus:border-cyan-500/40"
-                  >
-                    {CATEGORIES.map(c => <option key={c} value={c}>{categoryLabel(c)}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="text-xs text-[var(--shell-text-faint)] mb-1 block">Risk Level</label>
-                  <select
-                    value={newFund.riskLevel}
-                    onChange={e => setNewFund({...newFund, riskLevel: e.target.value as RiskLevel})}
-                    className="w-full px-3 py-2 border border-[var(--shell-border)] bg-[var(--shell-surface)] rounded-lg text-sm text-[var(--shell-text)] focus:outline-none focus:border-cyan-500/40"
-                  >
-                    {RISK_LEVELS.map(r => <option key={r} value={r}>{r.replace(/_/g, " ")}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="text-xs text-[var(--shell-text-faint)] mb-1 block">Invested (₹)</label>
-                  <input
-                    type="number"
-                    value={newFund.investedAmount}
-                    onChange={e => setNewFund({...newFund, investedAmount: +e.target.value})}
-                    className="w-full px-3 py-2 border border-[var(--shell-border)] bg-[var(--shell-surface)] rounded-lg text-sm text-[var(--shell-text)] focus:outline-none focus:border-cyan-500/40"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs text-[var(--shell-text-faint)] mb-1 block">Current Value (₹)</label>
-                  <input
-                    type="number"
-                    value={newFund.currentValue}
-                    onChange={e => setNewFund({...newFund, currentValue: +e.target.value})}
-                    className="w-full px-3 py-2 border border-[var(--shell-border)] bg-[var(--shell-surface)] rounded-lg text-sm text-[var(--shell-text)] focus:outline-none focus:border-cyan-500/40"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs text-[var(--shell-text-faint)] mb-1 block">1Y Returns (%)</label>
-                  <input
-                    type="number"
-                    value={newFund.returns1Y}
-                    onChange={e => setNewFund({...newFund, returns1Y: +e.target.value})}
-                    className="w-full px-3 py-2 border border-[var(--shell-border)] bg-[var(--shell-surface)] rounded-lg text-sm text-[var(--shell-text)] focus:outline-none focus:border-cyan-500/40"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs text-[var(--shell-text-faint)] mb-1 block">Expense Ratio (%)</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={newFund.expenseRatio}
-                    onChange={e => setNewFund({...newFund, expenseRatio: +e.target.value})}
-                    className="w-full px-3 py-2 border border-[var(--shell-border)] bg-[var(--shell-surface)] rounded-lg text-sm text-[var(--shell-text)] focus:outline-none focus:border-cyan-500/40"
-                  />
-                </div>
-              </div>
-              <div className="flex gap-2 pt-2">
-                <button onClick={handleAddFund} className="px-4 py-2 bg-cyan-400 text-slate-950 text-sm font-medium rounded-lg hover:bg-cyan-300">
-                  Add Fund
-                </button>
-                <button onClick={() => setShowAddForm(false)} className="px-4 py-2 text-[var(--shell-text-muted)] text-sm border border-[var(--shell-border)] rounded-lg hover:bg-[var(--shell-surface-2)]">
-                  Cancel
-                </button>
-              </div>
-            </div>
-          ) : (
-            <button
-              onClick={() => setShowAddForm(true)}
-              className="w-full flex items-center justify-center gap-2 py-3 border-2 border-dashed border-[var(--shell-border)] rounded-xl text-sm text-[var(--shell-text-faint)] hover:border-cyan-500/40 hover:text-cyan-500 transition-colors"
-            >
-              <Plus className="w-4 h-4" />
-              Add another fund
-            </button>
-          )}
-        </div>
-
-        {/* Analysis panel */}
-        <div className="lg:col-span-2 space-y-4">
-          {analysis ? (
-            <>
-              {/* Health Score */}
-              <div className="bg-[var(--shell-surface)] border border-[var(--shell-border)] rounded-xl p-5">
-                <div className="flex items-center gap-2 mb-3">
-                  <Brain className="w-4 h-4 text-cyan-500" />
-                  <h3 className="text-sm font-semibold text-[var(--shell-text)]">Portfolio Health</h3>
-                </div>
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-3xl font-bold text-[var(--shell-text)]">{analyzing ? "—" : Math.round((analysis.diversificationScore + 40) * 0.72)}/100</span>
-                  <span className={`px-3 py-1 rounded-full text-xs font-semibold capitalize ${
-                    analysis.overallHealth === "excellent" ? "bg-emerald-500/15 text-emerald-500" :
-                    analysis.overallHealth === "good" ? "bg-cyan-500/15 text-cyan-500" :
-                    analysis.overallHealth === "fair" ? "bg-amber-500/15 text-amber-500" :
-                    "bg-rose-500/15 text-rose-500"
-                  }`}>{analysis.overallHealth}</span>
-                </div>
-                <div className="h-2 bg-[var(--shell-surface-2)] rounded-full overflow-hidden">
-                  <div className={`h-full rounded-full transition-all ${
-                    analysis.overallHealth === "excellent" ? "bg-emerald-500" :
-                    analysis.overallHealth === "good" ? "bg-cyan-500" :
-                    analysis.overallHealth === "fair" ? "bg-amber-500" : "bg-red-500"
-                  }`} style={{ width: `${analysis.diversificationScore}%` }} />
-                </div>
-                <p className="text-xs text-[var(--shell-text-faint)] mt-2">Diversification Score: {analysis.diversificationScore}/100</p>
-              </div>
-
-              {/* Rebalancing suggestions */}
-              {rebalanceSuggestions.length > 0 && (
-                <div className="bg-[var(--shell-surface)] border border-[var(--shell-border)] rounded-xl p-5">
-                  <div className="flex items-center gap-2 mb-3">
-                    <TrendingUp className="w-4 h-4 text-emerald-600" />
-                    <h3 className="text-sm font-semibold text-[var(--shell-text)]">Rebalancing Actions</h3>
-                  </div>
-                  <div className="space-y-3">
-                    {rebalanceSuggestions.map((s, i) => (
-                      <div key={i} className={`p-3 rounded-lg border text-xs ${
-                        s.action === "exit" ? "bg-rose-500/10 border-rose-500/20" :
-                        s.action === "decrease" || s.action === "reduce" ? "bg-amber-500/10 border-amber-500/20" :
-                        "bg-emerald-500/10 border-emerald-500/20"
-                      }`}>
-                        <div className="flex items-center gap-2 mb-1">
-                          {s.action === "exit" ? (
-                            <AlertTriangle className="w-3.5 h-3.5 text-red-500" />
-                          ) : (
-                            <CheckCircle className="w-3.5 h-3.5 text-emerald-500" />
-                          )}
-                          <span className="font-semibold text-[var(--shell-text)] capitalize">{s.action}: {s.fundName}</span>
-                        </div>
-                        <p className="text-[var(--shell-text-muted)] leading-relaxed">{s.reasoning}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* AI Insights */}
-              <div className="bg-[var(--shell-surface)] border border-[var(--shell-border)] rounded-xl p-5">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-sm font-semibold text-[var(--shell-text)]">AI Insights</h3>
-                  {aiSource && (
-                    <span
-                      className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
-                        aiSource && aiSource !== "deterministic"
-                          ? "bg-violet-500/15 text-violet-500"
-                          : "bg-[var(--shell-surface-2)] text-[var(--shell-text-faint)]"
-                      }`}
-                    >
-                      {aiSource && aiSource !== "deterministic" ? "AI-generated" : "Algorithmic"}
-                    </span>
-                  )}
-                </div>
-                {aiSummary && (
-                  <p className="text-xs text-[var(--shell-text-muted)] leading-relaxed bg-cyan-400/10 border border-cyan-500/20 rounded-lg p-3 mb-3">
-                    {aiSummary}
-                  </p>
-                )}
-                <div className="space-y-2">
-                  {analysis.aiInsights.map((insight, i) => (
-                    <p key={i} className="text-xs text-[var(--shell-text-muted)] leading-relaxed py-2 border-b border-[var(--shell-border)] last:border-0">
-                      {insight}
-                    </p>
-                  ))}
-                </div>
-              </div>
-
-              {/* Next steps — close the loop into the other tools */}
-              <div className="bg-[var(--shell-surface)] border border-[var(--shell-border)] rounded-xl p-4 space-y-2">
-                <p className="text-xs font-semibold uppercase tracking-wide text-[var(--shell-text-faint)] mb-1">Next</p>
-                <Link
-                  href="/simulator"
-                  className="flex items-center justify-between rounded-lg px-3 py-2.5 text-sm text-[var(--shell-text)] hover:bg-[var(--shell-surface-2)] transition-colors"
-                >
-                  <span className="flex items-center gap-2">
-                    <BarChart2 className="h-4 w-4 text-cyan-500" />
-                    Model these changes in the Simulator
-                  </span>
-                  <ArrowRight className="h-3.5 w-3.5 text-[var(--shell-text-faint)]" />
-                </Link>
-                <Link
-                  href="/dashboard"
-                  className="flex items-center justify-between rounded-lg px-3 py-2.5 text-sm text-[var(--shell-text)] hover:bg-[var(--shell-surface-2)] transition-colors"
-                >
-                  <span className="flex items-center gap-2">
-                    <MessageSquare className="h-4 w-4 text-cyan-500" />
-                    Ask Invesutra AI to explain this
-                  </span>
-                  <ArrowRight className="h-3.5 w-3.5 text-[var(--shell-text-faint)]" />
-                </Link>
-              </div>
-            </>
-          ) : (
-            <div className="bg-[var(--shell-surface)] border border-[var(--shell-border)] rounded-xl p-8 text-center">
-              <Brain className="w-8 h-8 text-[var(--shell-text-faint)] mx-auto mb-3" />
-              <p className="text-sm text-[var(--shell-text-faint)]">Add funds and run AI analysis to see portfolio insights</p>
-            </div>
-          )}
-        </div>
-      </div>
+      {showAddFund && (
+        <AddFundModal
+          portfolioId={!isDemo && !isEmpty ? portfolio.id : user ? "needs-portfolio" : null}
+          onClose={() => setShowAddFund(false)}
+          onAdded={() => {
+            setShowAddFund(false);
+            refresh();
+          }}
+        />
+      )}
     </div>
   );
 }
