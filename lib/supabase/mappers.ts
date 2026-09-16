@@ -19,6 +19,7 @@ export function dbFundToFund(row: DbFund): Fund {
     aum: Number(row.aum),
     benchmark: row.benchmark || "",
     manager: row.manager || "",
+    createdAt: row.created_at,
   };
 }
 

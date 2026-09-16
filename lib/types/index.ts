@@ -17,6 +17,13 @@ export interface Fund {
   benchmark: string;
   manager: string;
   aiRecommendation?: AIRecommendation;
+  /** When this holding was added to the portfolio (ISO string). Used to
+   * compute lot age for the QuantRebalance Protocol's Time-Gated
+   * Multi-Trigger rule (younger lots use a higher milestone to absorb exit
+   * load/STCG tax; lots past 365 days use a lower one). Optional because
+   * mock/demo funds and manually-entered Screener funds don't have a real
+   * purchase date. */
+  createdAt?: string;
 }
 
 export type FundCategory =
