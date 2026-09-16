@@ -37,18 +37,16 @@ function generateReport(portfolio: Portfolio) {
     portfolio.currentValue
   );
 
-  // Sum the unrealized gains across funds currently above the +10% QRP
-  // milestone — this represents the Alpha Pool that would be captured if
-  // those positions were rebalanced today. Then run it through the Weighted
-  // Drawback Vector to show exactly where the algorithm would deploy it.
-  const MILESTONE_THRESHOLD = 10; // percent, matches the lowest default QRP milestone
-  const eligibleAlpha = portfolio.funds.reduce((sum, fund) => {
-    const gainPercent =
-      fund.investedAmount > 0 ? ((fund.currentValue - fund.investedAmount) / fund.investedAmount) * 100 : 0;
-    if (gainPercent < MILESTONE_THRESHOLD) return sum;
-    return sum + (fund.currentValue - fund.investedAmount) * (engine.alphaTriggerPercent / 100);
-  }, 0);
-  const alphaDeployment = eligibleAlpha > 0 ? allocationEngine.deployAlphaPool(eligibleAlpha, portfolio.funds) : null;
+  // Run the actual QuantRebalance Protocol against the current portfolio.
+  // This correctly isolates each fund's Principal Layer before computing
+  // Alpha — the pool is the full surplus above the restored principal
+  // (Page 3 of the spec), not a percentage of the gain. The previous
+  // version of this report computed `gain * alphaTriggerPercent%`, which
+  // treated the trigger threshold as a capture rate and understated the
+  // real Alpha Pool by ~88% against the spec's own worked example
+  // (a ₹1,500 gain was reported as ₹180 of alpha).
+  const protocolResult = engine.processPortfolioState(portfolio.funds.map((f) => ({ ...f })));
+  const alphaDeployment = protocolResult.netAlphaPool > 0 ? protocolResult.deploymentPlan : null;
 
   // Dry Powder preview — the QRP spec's other capital pool (Page 3). Unlike
   // the Alpha Pool above (which deploys against *any* fund in drawback),
@@ -56,11 +54,13 @@ function generateReport(portfolio: Portfolio) {
   // crosses a deeper "structural correction point" (the spec's example:
   // an individual fund down 5%+ from cost basis), then sweep out to buy
   // that specific dip. This shows what a hypothetical reserve equal to
-  // the current eligible alpha would do against today's portfolio — an
+  // the current net alpha would do against today's portfolio — an
   // illustrative preview, since a real persisted reserve balance would
   // need to be tracked across actual rebalance events over time.
   const dryPowderPreview =
-    eligibleAlpha > 0 ? allocationEngine.deployDryPowder(eligibleAlpha, portfolio.funds, 5) : null;
+    protocolResult.netAlphaPool > 0
+      ? allocationEngine.deployDryPowder(protocolResult.netAlphaPool, portfolio.funds, 5)
+      : null;
 
   const returns = formatPercent(portfolio.returnsPercent);
   const value = formatCurrency(portfolio.currentValue, true);
@@ -76,6 +76,9 @@ function generateReport(portfolio: Portfolio) {
     rebalanceSuggestions,
     alphaDeployment,
     dryPowderPreview,
+    grossAlphaPool: protocolResult.alphaPool,
+    netAlphaPool: protocolResult.netAlphaPool,
+    frictionCost: protocolResult.totalFrictionCost,
     funds: portfolio.funds,
     riskMetrics: analysis.riskMetrics,
     allocationBreakdown: analysis.allocationBreakdown,
@@ -455,10 +458,19 @@ export default function ReportsPage() {
                 <Droplets className="w-4 h-4 text-cyan-500" />
                 Alpha Pool Deployment Plan
               </h3>
-              <p className="text-xs text-[var(--shell-text-faint)] mb-4">
-                {formatCurrency(report.alphaDeployment.totalAlphaPool, true)} in eligible gains, deployed via
+              <p className="text-xs text-[var(--shell-text-faint)] mb-1">
+                {formatCurrency(report.alphaDeployment.totalAlphaPool, true)} net alpha, deployed via
                 the QuantRebalance Weighted Drawback Vector.
               </p>
+              {report.frictionCost > 0 && (
+                <p className="text-xs text-[var(--shell-text-faint)] mb-4">
+                  Gross gain {formatCurrency(report.grossAlphaPool, true)} minus{" "}
+                  <span className="text-amber-500 font-medium">
+                    {formatCurrency(report.frictionCost, true)} real-world friction
+                  </span>{" "}
+                  (exit load, STCG tax, settlement slippage) = {formatCurrency(report.netAlphaPool, true)} net.
+                </p>
+              )}
 
               {report.alphaDeployment.routedVia === "weighted_drawback_vector" ? (
                 <div className="space-y-2">
