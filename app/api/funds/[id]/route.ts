@@ -29,6 +29,24 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   const body = await request.json();
   const updates: Record<string, unknown> = {};
 
+  // Fields that must be a finite, non-negative number if provided. money/
+  // ratio fields only — returns are handled separately since they can
+  // legitimately be negative.
+  const nonNegativeNumberFields = new Set([
+    "investedAmount",
+    "currentValue",
+    "nav",
+    "units",
+    "expenseRatio",
+    "aum",
+  ]);
+  const returnFields = new Set(["returns1Y", "returns3Y", "returns5Y"]);
+  const validCategories = new Set([
+    "large_cap", "mid_cap", "small_cap", "multi_cap", "flexi_cap",
+    "debt", "hybrid", "index", "sectoral", "elss", "international",
+  ]);
+  const validRiskLevels = new Set(["low", "moderate", "moderately_high", "high", "very_high"]);
+
   const fieldMap: Record<string, string> = {
     name: "name",
     category: "category",
@@ -47,7 +65,46 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   };
 
   for (const [key, dbKey] of Object.entries(fieldMap)) {
-    if (body[key] !== undefined) updates[dbKey] = body[key];
+    if (body[key] === undefined) continue;
+
+    if (nonNegativeNumberFields.has(key)) {
+      const num = Number(body[key]);
+      if (!Number.isFinite(num) || num < 0) {
+        return NextResponse.json({ error: `${key} must be a number of 0 or greater.` }, { status: 400 });
+      }
+      updates[dbKey] = num;
+    } else if (returnFields.has(key)) {
+      const num = Number(body[key]);
+      if (!Number.isFinite(num)) {
+        return NextResponse.json({ error: `${key} must be a valid number.` }, { status: 400 });
+      }
+      updates[dbKey] = num;
+    } else if (key === "name") {
+      const name = String(body.name).trim();
+      if (!name) {
+        return NextResponse.json({ error: "Fund name cannot be empty." }, { status: 400 });
+      }
+      updates[dbKey] = name;
+    } else if (key === "category") {
+      if (!validCategories.has(body.category)) {
+        return NextResponse.json({ error: "Invalid fund category." }, { status: 400 });
+      }
+      updates[dbKey] = body.category;
+    } else if (key === "riskLevel") {
+      if (!validRiskLevels.has(body.riskLevel)) {
+        return NextResponse.json({ error: "Invalid risk level." }, { status: 400 });
+      }
+      updates[dbKey] = body.riskLevel;
+    } else {
+      updates[dbKey] = body[key];
+    }
+  }
+
+  // investedAmount specifically can't be 0 (would zero out the denominator
+  // in every % return / weight calculation downstream) — the create route
+  // already enforces this; the edit route needs the same rule.
+  if (typeof updates.invested_amount === "number" && updates.invested_amount === 0) {
+    return NextResponse.json({ error: "Invested amount must be greater than 0." }, { status: 400 });
   }
 
   if (Object.keys(updates).length === 0) {

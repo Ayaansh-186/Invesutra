@@ -41,6 +41,15 @@ export default function HoldingsTable({
   }
 
   async function saveEdit(fundId: string) {
+    if (!Number.isFinite(editValues.investedAmount) || editValues.investedAmount <= 0) {
+      setRowError({ id: fundId, message: "Invested amount must be greater than 0." });
+      return;
+    }
+    if (!Number.isFinite(editValues.currentValue) || editValues.currentValue < 0) {
+      setRowError({ id: fundId, message: "Current value must be 0 or greater." });
+      return;
+    }
+
     setBusyId(fundId);
     setRowError(null);
     try {
@@ -117,6 +126,7 @@ export default function HoldingsTable({
                   {isEditing ? (
                     <input
                       type="number"
+                      min="0"
                       value={editValues.investedAmount}
                       onChange={(e) => setEditValues((v) => ({ ...v, investedAmount: +e.target.value }))}
                       className="w-28 rounded-lg border border-[var(--shell-border)] bg-[var(--shell-bg)] px-2 py-1 text-right text-sm text-[var(--shell-text)] outline-none focus:border-cyan-500/40"
@@ -129,6 +139,7 @@ export default function HoldingsTable({
                   {isEditing ? (
                     <input
                       type="number"
+                      min="0"
                       value={editValues.currentValue}
                       onChange={(e) => setEditValues((v) => ({ ...v, currentValue: +e.target.value }))}
                       className="w-28 rounded-lg border border-[var(--shell-border)] bg-[var(--shell-bg)] px-2 py-1 text-right text-sm text-[var(--shell-text)] outline-none focus:border-cyan-500/40"
