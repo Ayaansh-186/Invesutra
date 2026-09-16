@@ -11,6 +11,7 @@ import HoldingsTable from "@/components/dashboard/HoldingsTable";
 import MilestoneTracker from "@/components/dashboard/MilestoneTracker";
 import PortfolioContextPanel from "@/components/dashboard/PortfolioContextPanel";
 import PortfolioChart from "@/components/dashboard/PortfolioChart";
+import SinceLastVisit from "@/components/dashboard/SinceLastVisit";
 import {
   Sparkles, Plus, RefreshCw, TrendingUp, TrendingDown, Shield, Zap, MessageSquare,
 } from "lucide-react";
@@ -118,6 +119,17 @@ export default function PortfolioPage() {
             </div>
           ) : (
             <>
+              {!isDemo && user && portfolio.id && (
+                <SinceLastVisit
+                  portfolioId={portfolio.id}
+                  currentHealth={portfolio.healthScore}
+                  currentRisk={portfolio.riskScore}
+                  currentValue={portfolio.currentValue}
+                  currentInvested={portfolio.totalInvested}
+                  diversificationScore={analysis.diversificationScore}
+                />
+              )}
+
               {/* Metric cards */}
               <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
                 <MetricCard
