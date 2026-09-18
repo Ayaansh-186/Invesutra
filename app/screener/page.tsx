@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { riskEngine } from "@/lib/algorithm/riskEngine";
 import { createRebalanceEngine } from "@/lib/algorithm/rebalanceEngine";
@@ -9,7 +9,8 @@ import { useActivePortfolio } from "@/lib/hooks/useActivePortfolio";
 import { useCountUp } from "@/lib/hooks/useCountUp";
 import { formatCurrency, formatPercent, categoryLabel, getRiskBg, getHealthColor } from "@/lib/utils/format";
 import type { Fund, FundCategory, RiskLevel } from "@/lib/types";
-import { Brain, Plus, Trash2, Sparkles, AlertTriangle, CheckCircle, TrendingUp, Loader2, BarChart2, MessageSquare, ArrowRight } from "lucide-react";
+import type { FundSearchResult } from "@/lib/marketData/types";
+import { Brain, Plus, Trash2, Sparkles, AlertTriangle, CheckCircle, TrendingUp, Loader2, BarChart2, MessageSquare, ArrowRight, Search } from "lucide-react";
 
 const CATEGORIES: FundCategory[] = ["large_cap","mid_cap","small_cap","multi_cap","flexi_cap","debt","hybrid","index","sectoral","elss","international"];
 const RISK_LEVELS: RiskLevel[] = ["low","moderate","moderately_high","high","very_high"];
@@ -40,6 +41,55 @@ export default function ScreenerPage() {
   const [analyzing, setAnalyzing] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
   const [newFund, setNewFund] = useState<Omit<Fund, "id">>(emptyFund);
+  const [nameQuery, setNameQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<FundSearchResult[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [showResults, setShowResults] = useState(false);
+  const [addError, setAddError] = useState<string | null>(null);
+  const searchSeq = useRef(0);
+
+  // Debounced live search against the same real-fund lookup used in the
+  // Portfolio "Add Fund" modal, so typing a name here surfaces matching
+  // real schemes instead of a blank text field.
+  useEffect(() => {
+    if (nameQuery.trim().length < 2) {
+      setSearchResults([]);
+      return;
+    }
+    const seq = ++searchSeq.current;
+    setSearching(true);
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/funds/search?q=${encodeURIComponent(nameQuery.trim())}`);
+        const data = await res.json();
+        if (seq !== searchSeq.current) return; // a newer search superseded this one
+        setSearchResults(data.funds || []);
+      } catch {
+        if (seq === searchSeq.current) setSearchResults([]);
+      } finally {
+        if (seq === searchSeq.current) setSearching(false);
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [nameQuery]);
+
+  function selectSearchResult(result: FundSearchResult) {
+    setNewFund((prev) => ({
+      ...prev,
+      name: result.name,
+      category: result.category || prev.category,
+      riskLevel: result.riskLevel || prev.riskLevel,
+      nav: result.nav ?? prev.nav,
+      returns1Y: result.returns1Y ?? prev.returns1Y,
+      returns3Y: result.returns3Y ?? prev.returns3Y,
+      returns5Y: result.returns5Y ?? prev.returns5Y,
+      expenseRatio: result.expenseRatio ?? prev.expenseRatio,
+      aum: result.aum ?? prev.aum,
+      benchmark: result.benchmark ?? prev.benchmark,
+    }));
+    setNameQuery(result.name);
+    setShowResults(false);
+  }
 
   // Seed the local working copy from the user's real portfolio once it's
   // loaded. This only runs once per portfolio load so edits made in the
@@ -113,9 +163,24 @@ export default function ScreenerPage() {
   }
 
   function handleAddFund() {
+    if (!newFund.name.trim()) {
+      setAddError("Fund name is required.");
+      return;
+    }
+    if (!Number.isFinite(newFund.investedAmount) || newFund.investedAmount <= 0) {
+      setAddError("Invested amount must be greater than 0.");
+      return;
+    }
+    if (!Number.isFinite(newFund.currentValue) || newFund.currentValue < 0) {
+      setAddError("Current value must be 0 or greater.");
+      return;
+    }
     const fund: Fund = { ...newFund, id: `f${Date.now()}` };
     setFunds([...funds, fund]);
     setNewFund(emptyFund);
+    setNameQuery("");
+    setSearchResults([]);
+    setAddError(null);
     setShowAddForm(false);
   }
 
@@ -203,15 +268,60 @@ export default function ScreenerPage() {
             <div className="bg-[var(--shell-surface)] border border-cyan-500/30 rounded-xl p-5 space-y-3">
               <h3 className="text-sm font-semibold text-[var(--shell-text)] mb-3">Add Fund</h3>
               <div className="grid grid-cols-2 gap-3">
-                <div className="col-span-2">
+                <div className="col-span-2 relative">
                   <label className="text-xs text-[var(--shell-text-faint)] mb-1 block">Fund Name</label>
-                  <input
-                    type="text"
-                    value={newFund.name}
-                    onChange={e => setNewFund({...newFund, name: e.target.value})}
-                    placeholder="e.g. Mirae Asset Large Cap Fund"
-                    className="w-full px-3 py-2 border border-[var(--shell-border)] bg-[var(--shell-surface)] rounded-lg text-sm text-[var(--shell-text)] focus:outline-none focus:border-cyan-500/40"
-                  />
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[var(--shell-text-faint)]" />
+                    <input
+                      type="text"
+                      value={nameQuery}
+                      onChange={(e) => {
+                        setNameQuery(e.target.value);
+                        setNewFund({ ...newFund, name: e.target.value });
+                        setShowResults(true);
+                      }}
+                      onFocus={() => setShowResults(true)}
+                      onBlur={() => setTimeout(() => setShowResults(false), 150)}
+                      placeholder="e.g. Mirae Asset Large Cap Fund"
+                      className="w-full pl-8 pr-8 py-2 border border-[var(--shell-border)] bg-[var(--shell-surface)] rounded-lg text-sm text-[var(--shell-text)] focus:outline-none focus:border-cyan-500/40"
+                    />
+                    {searching && (
+                      <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[var(--shell-text-faint)] animate-spin" />
+                    )}
+                  </div>
+
+                  {/* Keyword-matched real funds, shown live below the input */}
+                  {showResults && nameQuery.trim().length >= 2 && searchResults.length > 0 && (
+                    <div className="absolute z-20 mt-1 w-full max-h-64 overflow-y-auto rounded-xl border border-[var(--shell-border)] bg-[var(--shell-surface)] shadow-lg">
+                      {searchResults.map((result, i) => (
+                        <button
+                          key={`${result.symbol || result.name}-${i}`}
+                          type="button"
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={() => selectSearchResult(result)}
+                          className="group w-full text-left p-2.5 border-b border-[var(--shell-border)] last:border-0 hover:bg-cyan-400/10 transition-colors"
+                        >
+                          <p className="text-sm font-medium text-[var(--shell-text)] truncate group-hover:text-cyan-600">
+                            {result.name}
+                          </p>
+                          <div className="mt-0.5 flex flex-wrap items-center gap-2 text-xs text-[var(--shell-text-faint)]">
+                            {result.category && (
+                              <span className="px-1.5 py-0.5 bg-[var(--shell-surface-2)] rounded-md">
+                                {categoryLabel(result.category)}
+                              </span>
+                            )}
+                            {result.nav !== undefined && <span>NAV ₹{result.nav}</span>}
+                            {result.returns1Y !== undefined && <span>1Y {formatPercent(result.returns1Y)}</span>}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {showResults && !searching && nameQuery.trim().length >= 2 && searchResults.length === 0 && (
+                    <div className="absolute z-20 mt-1 w-full rounded-xl border border-[var(--shell-border)] bg-[var(--shell-surface)] p-2.5 shadow-lg">
+                      <p className="text-xs text-[var(--shell-text-faint)]">No matching funds found — you can still fill in the details manually below.</p>
+                    </div>
+                  )}
                 </div>
                 <div>
                   <label className="text-xs text-[var(--shell-text-faint)] mb-1 block">Category</label>
@@ -237,6 +347,7 @@ export default function ScreenerPage() {
                   <label className="text-xs text-[var(--shell-text-faint)] mb-1 block">Invested (₹)</label>
                   <input
                     type="number"
+                    min="0"
                     value={newFund.investedAmount}
                     onChange={e => setNewFund({...newFund, investedAmount: +e.target.value})}
                     className="w-full px-3 py-2 border border-[var(--shell-border)] bg-[var(--shell-surface)] rounded-lg text-sm text-[var(--shell-text)] focus:outline-none focus:border-cyan-500/40"
@@ -246,6 +357,7 @@ export default function ScreenerPage() {
                   <label className="text-xs text-[var(--shell-text-faint)] mb-1 block">Current Value (₹)</label>
                   <input
                     type="number"
+                    min="0"
                     value={newFund.currentValue}
                     onChange={e => setNewFund({...newFund, currentValue: +e.target.value})}
                     className="w-full px-3 py-2 border border-[var(--shell-border)] bg-[var(--shell-surface)] rounded-lg text-sm text-[var(--shell-text)] focus:outline-none focus:border-cyan-500/40"
@@ -271,11 +383,20 @@ export default function ScreenerPage() {
                   />
                 </div>
               </div>
+              {addError && (
+                <p className="text-xs text-rose-500 flex items-center gap-1.5">
+                  <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                  {addError}
+                </p>
+              )}
               <div className="flex gap-2 pt-2">
                 <button onClick={handleAddFund} className="px-4 py-2 bg-cyan-400 text-slate-950 text-sm font-medium rounded-lg hover:bg-cyan-300">
                   Add Fund
                 </button>
-                <button onClick={() => setShowAddForm(false)} className="px-4 py-2 text-[var(--shell-text-muted)] text-sm border border-[var(--shell-border)] rounded-lg hover:bg-[var(--shell-surface-2)]">
+                <button
+                  onClick={() => { setShowAddForm(false); setAddError(null); setNameQuery(""); setSearchResults([]); }}
+                  className="px-4 py-2 text-[var(--shell-text-muted)] text-sm border border-[var(--shell-border)] rounded-lg hover:bg-[var(--shell-surface-2)]"
+                >
                   Cancel
                 </button>
               </div>
