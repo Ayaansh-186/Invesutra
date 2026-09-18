@@ -179,7 +179,7 @@ export function runSimulation(input: SimulationInput): SimulationResult {
 
   const finalValue = Math.round(portfolioValue);
   const totalReturns = finalValue - totalInvested;
-  const totalReturnsPercent = (totalReturns / totalInvested) * 100;
+  const totalReturnsPercent = totalInvested > 0 ? (totalReturns / totalInvested) * 100 : 0;
 
   // Sharpe ratio
   const avgReturn = returns.reduce((a, b) => a + b, 0) / returns.length;

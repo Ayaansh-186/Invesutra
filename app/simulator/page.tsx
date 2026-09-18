@@ -7,7 +7,7 @@ import { runScenarioMatrix, type ScenarioResult } from "@/lib/algorithm/scenario
 import type { SimulationInput, SimulationResult } from "@/lib/types";
 import { formatCurrency, formatPercent } from "@/lib/utils/format";
 import SimulatorChart from "@/components/simulator/SimulatorChart";
-import { Play, RefreshCw, TrendingUp, BarChart2, Zap, Shield, PieChart, Flame, Wallet, ArrowRight } from "lucide-react";
+import { Play, RefreshCw, TrendingUp, BarChart2, Zap, Shield, PieChart, Flame, Wallet, ArrowRight, AlertTriangle } from "lucide-react";
 import { categoryLabel } from "@/lib/utils/format";
 import { useActivePortfolio } from "@/lib/hooks/useActivePortfolio";
 
@@ -69,7 +69,22 @@ export default function SimulatorPage() {
     setStressResults(null);
   }
 
+  const [runError, setRunError] = useState<string | null>(null);
+
   function handleRun() {
+    if (!Number.isFinite(input.initialInvestment) || input.initialInvestment < 0) {
+      setRunError("Initial investment must be 0 or greater.");
+      return;
+    }
+    if (!Number.isFinite(input.monthlyAddition) || input.monthlyAddition < 0) {
+      setRunError("Monthly SIP amount must be 0 or greater.");
+      return;
+    }
+    if (input.initialInvestment <= 0 && input.monthlyAddition <= 0) {
+      setRunError("Enter an initial investment or a monthly SIP amount to simulate.");
+      return;
+    }
+    setRunError(null);
     setRunning(true);
     setTimeout(() => {
       const res = runSimulation(input);
@@ -135,6 +150,7 @@ export default function SimulatorPage() {
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--shell-text-faint)] text-sm">₹</span>
                   <input
                     type="number"
+                    min="0"
                     value={input.initialInvestment}
                     onChange={e => setInput({...input, initialInvestment: +e.target.value})}
                     className="w-full pl-7 pr-3 py-2.5 border border-[var(--shell-border)] bg-[var(--shell-surface)] rounded-lg text-sm text-[var(--shell-text)] focus:outline-none focus:border-cyan-500/40"
@@ -148,6 +164,7 @@ export default function SimulatorPage() {
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--shell-text-faint)] text-sm">₹</span>
                   <input
                     type="number"
+                    min="0"
                     value={input.monthlyAddition}
                     onChange={e => setInput({...input, monthlyAddition: +e.target.value})}
                     className="w-full pl-7 pr-3 py-2.5 border border-[var(--shell-border)] bg-[var(--shell-surface)] rounded-lg text-sm text-[var(--shell-text)] focus:outline-none focus:border-cyan-500/40"
@@ -273,10 +290,17 @@ export default function SimulatorPage() {
               </div>
             </div>
 
+            {runError && (
+              <p className="mt-3 flex items-center gap-1.5 text-xs text-rose-500">
+                <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                {runError}
+              </p>
+            )}
+
             <button
               onClick={handleRun}
               disabled={running}
-              className="mt-5 w-full flex items-center justify-center gap-2 py-3 bg-cyan-400 text-slate-950 text-sm font-semibold rounded-xl hover:bg-cyan-300 disabled:opacity-50 transition-colors"
+              className="mt-3 w-full flex items-center justify-center gap-2 py-3 bg-cyan-400 text-slate-950 text-sm font-semibold rounded-xl hover:bg-cyan-300 disabled:opacity-50 transition-colors"
             >
               {running ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
               {running ? "Simulating..." : "Run Simulation"}
