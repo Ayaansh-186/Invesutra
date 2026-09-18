@@ -40,6 +40,16 @@ const emptyForm = {
 };
 
 export default function AddFundModal({ portfolioId, onClose, onAdded }: Props) {
+  // Escape closes the modal, like every other modal a user expects this
+  // from — previously the only way out was the X or Cancel button.
+  useEffect(() => {
+    function handleKey(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+    }
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, [onClose]);
+
   const [mode, setMode] = useState<"search" | "manual" | "selected">("search");
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<FundSearchResult[]>([]);
@@ -146,8 +156,14 @@ export default function AddFundModal({ portfolioId, onClose, onAdded }: Props) {
   // Not signed in at all
   if (portfolioId === null) {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm">
-        <div className="bg-[var(--shell-surface)] rounded-2xl max-w-sm w-full p-8 text-center shadow-2xl">
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm"
+        onClick={onClose}
+      >
+        <div
+          onClick={(e) => e.stopPropagation()}
+          className="bg-[var(--shell-surface)] rounded-2xl max-w-sm w-full p-8 text-center shadow-2xl"
+        >
           <div className="w-12 h-12 bg-cyan-400/10 rounded-2xl flex items-center justify-center mx-auto mb-4">
             <span className="text-2xl">🔐</span>
           </div>
@@ -168,8 +184,14 @@ export default function AddFundModal({ portfolioId, onClose, onAdded }: Props) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm">
-      <div className="bg-[var(--shell-surface)] rounded-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto shadow-2xl">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="bg-[var(--shell-surface)] rounded-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto shadow-2xl"
+      >
         <div className="flex items-center justify-between p-5 border-b border-[var(--shell-border)] sticky top-0 bg-[var(--shell-surface)] rounded-t-2xl z-10">
           <div>
             <h2 className="text-base font-semibold text-[var(--shell-text)]">Add Mutual Fund</h2>
