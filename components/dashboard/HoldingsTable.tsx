@@ -4,6 +4,7 @@ import { useState } from "react";
 import { formatCurrency, formatPercent, categoryLabel } from "@/lib/utils/format";
 import type { Fund } from "@/lib/types";
 import { TrendingUp, TrendingDown, Pencil, Trash2, Check, X, Loader2 } from "lucide-react";
+import { useToast } from "@/components/shared/ToastProvider";
 
 export default function HoldingsTable({
   funds,
@@ -20,6 +21,7 @@ export default function HoldingsTable({
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [rowError, setRowError] = useState<{ id: string; message: string } | null>(null);
+  const { showToast } = useToast();
 
   if (funds.length === 0) {
     return (
@@ -65,6 +67,7 @@ export default function HoldingsTable({
       if (!res.ok) throw new Error(data.error || "Could not update fund.");
       setEditingId(null);
       onChanged?.();
+      showToast("Fund updated", "success");
     } catch (err) {
       setRowError({ id: fundId, message: err instanceof Error ? err.message : "Update failed." });
     } finally {
@@ -73,6 +76,7 @@ export default function HoldingsTable({
   }
 
   async function confirmDelete(fundId: string) {
+    const fundName = funds.find((f) => f.id === fundId)?.name;
     setBusyId(fundId);
     setRowError(null);
     try {
@@ -81,6 +85,7 @@ export default function HoldingsTable({
       if (!res.ok) throw new Error(data.error || "Could not remove fund.");
       setConfirmDeleteId(null);
       onChanged?.();
+      showToast(fundName ? `Removed ${fundName}` : "Fund removed", "info");
     } catch (err) {
       setRowError({ id: fundId, message: err instanceof Error ? err.message : "Delete failed." });
       setBusyId(null);

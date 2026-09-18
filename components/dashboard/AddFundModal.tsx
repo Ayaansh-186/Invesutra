@@ -6,6 +6,7 @@ import { X, Loader2, AlertCircle, Search, ArrowLeft, CheckCircle2 } from "lucide
 import { categoryLabel, formatPercent } from "@/lib/utils/format";
 import type { FundCategory, RiskLevel } from "@/lib/types";
 import type { FundSearchResult } from "@/lib/marketData/types";
+import { useToast } from "@/components/shared/ToastProvider";
 
 const CATEGORIES: FundCategory[] = [
   "large_cap","mid_cap","small_cap","multi_cap","flexi_cap",
@@ -53,11 +54,13 @@ export default function AddFundModal({ portfolioId, onClose, onAdded }: Props) {
   const [mode, setMode] = useState<"search" | "manual" | "selected">("search");
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<FundSearchResult[]>([]);
+  const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const [searching, setSearching] = useState(false);
   const [searchMessage, setSearchMessage] = useState<string | null>(null);
   const [selectedFund, setSelectedFund] = useState<FundSearchResult | null>(null);
 
   const [form, setForm] = useState(emptyForm);
+  const { showToast } = useToast();
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -79,6 +82,7 @@ export default function AddFundModal({ portfolioId, onClose, onAdded }: Props) {
         if (seq !== searchSeq.current) return; // a newer search superseded this one
         setResults(data.funds || []);
         setSearchMessage(data.message || null);
+        setHighlightedIndex(-1);
       } catch {
         if (seq === searchSeq.current) setSearchMessage("Search failed. You can still add this fund manually.");
       } finally {
@@ -147,6 +151,7 @@ export default function AddFundModal({ portfolioId, onClose, onAdded }: Props) {
       const data = await res.json();
       if (!res.ok) { setError(data.error || "Could not add fund."); setSubmitting(false); return; }
       onAdded();
+      showToast(`Added ${form.name} to your portfolio`, "success");
     } catch {
       setError("Network error. Please try again.");
       setSubmitting(false);
@@ -216,6 +221,19 @@ export default function AddFundModal({ portfolioId, onClose, onAdded }: Props) {
                 type="text"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
+                onKeyDown={(e) => {
+                  if (results.length === 0) return;
+                  if (e.key === "ArrowDown") {
+                    e.preventDefault();
+                    setHighlightedIndex((i) => (i + 1) % results.length);
+                  } else if (e.key === "ArrowUp") {
+                    e.preventDefault();
+                    setHighlightedIndex((i) => (i <= 0 ? results.length - 1 : i - 1));
+                  } else if (e.key === "Enter" && highlightedIndex >= 0) {
+                    e.preventDefault();
+                    selectFund(results[highlightedIndex]);
+                  }
+                }}
                 placeholder="e.g. HDFC Flexi Cap, Mirae Asset Large Cap..."
                 className="w-full pl-9 pr-3 py-2.5 border border-[var(--shell-border)] rounded-xl text-sm focus:outline-none focus:border-cyan-500/40 focus:ring-1 focus:ring-cyan-500/10"
               />
@@ -233,7 +251,10 @@ export default function AddFundModal({ portfolioId, onClose, onAdded }: Props) {
                     key={`${fund.symbol || fund.name}-${i}`}
                     type="button"
                     onClick={() => selectFund(fund)}
-                    className="group w-full text-left p-3 border border-[var(--shell-border)] rounded-xl bg-[var(--shell-surface)] hover:border-cyan-400/50 hover:bg-cyan-400/10 focus:outline-none focus:ring-2 focus:ring-cyan-400/20 transition-colors"
+                    onMouseEnter={() => setHighlightedIndex(i)}
+                    className={`group w-full text-left p-3 border border-[var(--shell-border)] rounded-xl bg-[var(--shell-surface)] focus:outline-none focus:ring-2 focus:ring-cyan-400/20 transition-colors ${
+                      i === highlightedIndex ? "border-cyan-400/50 bg-cyan-400/10" : "hover:border-cyan-400/50 hover:bg-cyan-400/10"
+                    }`}
                   >
                     <p className="text-sm font-medium text-[var(--shell-text)] truncate group-hover:text-cyan-600">{fund.name}</p>
                     <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-[var(--shell-text-faint)]">

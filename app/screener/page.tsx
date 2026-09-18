@@ -11,6 +11,7 @@ import { formatCurrency, formatPercent, categoryLabel, getRiskBg, getHealthColor
 import type { Fund, FundCategory, RiskLevel } from "@/lib/types";
 import type { FundSearchResult } from "@/lib/marketData/types";
 import { Brain, Plus, Trash2, Sparkles, AlertTriangle, CheckCircle, TrendingUp, Loader2, BarChart2, MessageSquare, ArrowRight, Search } from "lucide-react";
+import { useToast } from "@/components/shared/ToastProvider";
 
 const CATEGORIES: FundCategory[] = ["large_cap","mid_cap","small_cap","multi_cap","flexi_cap","debt","hybrid","index","sectoral","elss","international"];
 const RISK_LEVELS: RiskLevel[] = ["low","moderate","moderately_high","high","very_high"];
@@ -46,7 +47,9 @@ export default function ScreenerPage() {
   const [searching, setSearching] = useState(false);
   const [showResults, setShowResults] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
+  const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const searchSeq = useRef(0);
+  const { showToast } = useToast();
 
   // Debounced live search against the same real-fund lookup used in the
   // Portfolio "Add Fund" modal, so typing a name here surfaces matching
@@ -64,6 +67,7 @@ export default function ScreenerPage() {
         const data = await res.json();
         if (seq !== searchSeq.current) return; // a newer search superseded this one
         setSearchResults(data.funds || []);
+        setHighlightedIndex(-1);
       } catch {
         if (seq === searchSeq.current) setSearchResults([]);
       } finally {
@@ -182,10 +186,13 @@ export default function ScreenerPage() {
     setSearchResults([]);
     setAddError(null);
     setShowAddForm(false);
+    showToast(`Added ${fund.name} to working copy`, "success");
   }
 
   function handleRemoveFund(id: string) {
+    const fund = funds.find((f) => f.id === id);
     setFunds(funds.filter(f => f.id !== id));
+    showToast(fund ? `Removed ${fund.name}` : "Fund removed", "info");
   }
 
   return (
@@ -282,6 +289,21 @@ export default function ScreenerPage() {
                       }}
                       onFocus={() => setShowResults(true)}
                       onBlur={() => setTimeout(() => setShowResults(false), 150)}
+                      onKeyDown={(e) => {
+                        if (!showResults || searchResults.length === 0) return;
+                        if (e.key === "ArrowDown") {
+                          e.preventDefault();
+                          setHighlightedIndex((i) => (i + 1) % searchResults.length);
+                        } else if (e.key === "ArrowUp") {
+                          e.preventDefault();
+                          setHighlightedIndex((i) => (i <= 0 ? searchResults.length - 1 : i - 1));
+                        } else if (e.key === "Enter" && highlightedIndex >= 0) {
+                          e.preventDefault();
+                          selectSearchResult(searchResults[highlightedIndex]);
+                        } else if (e.key === "Escape") {
+                          setShowResults(false);
+                        }
+                      }}
                       placeholder="e.g. Mirae Asset Large Cap Fund"
                       className="w-full pl-8 pr-8 py-2 border border-[var(--shell-border)] bg-[var(--shell-surface)] rounded-lg text-sm text-[var(--shell-text)] focus:outline-none focus:border-cyan-500/40"
                     />
@@ -298,8 +320,11 @@ export default function ScreenerPage() {
                           key={`${result.symbol || result.name}-${i}`}
                           type="button"
                           onMouseDown={(e) => e.preventDefault()}
+                          onMouseEnter={() => setHighlightedIndex(i)}
                           onClick={() => selectSearchResult(result)}
-                          className="group w-full text-left p-2.5 border-b border-[var(--shell-border)] last:border-0 hover:bg-cyan-400/10 transition-colors"
+                          className={`group w-full text-left p-2.5 border-b border-[var(--shell-border)] last:border-0 transition-colors ${
+                            i === highlightedIndex ? "bg-cyan-400/10" : "hover:bg-cyan-400/10"
+                          }`}
                         >
                           <p className="text-sm font-medium text-[var(--shell-text)] truncate group-hover:text-cyan-600">
                             {result.name}
