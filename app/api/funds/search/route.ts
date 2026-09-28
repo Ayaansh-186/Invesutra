@@ -2,8 +2,17 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { getProviderStatuses, searchFunds } from "@/lib/marketData/providers";
+import { checkRateLimit } from "@/lib/security/rateLimit";
 
 export async function GET(request: NextRequest) {
+  const rate = checkRateLimit(request, "fund-search", 40, 60_000);
+  if (!rate.allowed) {
+    return NextResponse.json(
+      { error: "Too many fund searches. Please wait a moment and try again." },
+      { status: 429, headers: { "Retry-After": String(rate.retryAfterSeconds) } }
+    );
+  }
+
   const query = request.nextUrl.searchParams.get("q")?.trim() || "";
   const providers = getProviderStatuses();
 

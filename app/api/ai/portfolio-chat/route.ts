@@ -5,8 +5,17 @@ import { answerPortfolioQuestion } from "@/lib/ai/portfolioAssistant";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import type { Portfolio } from "@/lib/types";
 import type { ToolExecutionContext } from "@/lib/ai/tools";
+import { checkRateLimit } from "@/lib/security/rateLimit";
 
 export async function POST(request: NextRequest) {
+  const rate = checkRateLimit(request, "portfolio-chat", 20, 60_000);
+  if (!rate.allowed) {
+    return NextResponse.json(
+      { error: "Too many messages. Please wait a moment and try again." },
+      { status: 429, headers: { "Retry-After": String(rate.retryAfterSeconds) } }
+    );
+  }
+
   try {
     const body = await request.json();
     const portfolio = body.portfolio as Portfolio | undefined;

@@ -12,7 +12,7 @@ Next.js fintech app: portfolio tracking, a mutual fund screener, and Invesutra A
 
 ## Stack
 
-- Next.js 15 / React 19 / TypeScript
+- Next.js 16 / React 19 / TypeScript
 - Supabase (auth + Postgres) for portfolios/funds
 - Stripe for billing
 - Invesutra AI: Groq / Google Gemini / OpenAI (auto-fallback chain), with
@@ -45,6 +45,10 @@ GROQ_API_KEY=
 GEMINI_API_KEY=
 OPENAI_API_KEY=
 OPENAI_MODEL=                # optional, defaults to gpt-4o-mini
+
+# Protects /api/health?deep=1, which performs real provider/database checks.
+# The ordinary /api/health response is shallow and does not spend AI quota.
+HEALTH_CHECK_TOKEN=
 
 # Optional — mutual fund data provider (see below). Not required: the
 # default works with zero keys.

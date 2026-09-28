@@ -93,17 +93,17 @@ export default function HoldingsTable({
   }
 
   return (
-    <div className="overflow-x-auto rounded-2xl border border-[var(--shell-border)] bg-[var(--shell-surface)]">
-      <table className="w-full min-w-[640px] text-left text-sm">
+    <div className="overflow-hidden rounded-xl border border-[var(--shell-border)] bg-[var(--shell-surface)]">
+      <table className="w-full text-left text-sm">
         <thead>
           <tr className="border-b border-[var(--shell-border)] text-[10px] font-semibold uppercase tracking-wider text-[var(--shell-text-faint)]">
             <th className="px-4 py-3">Fund</th>
-            <th className="px-4 py-3">Category</th>
-            <th className="px-4 py-3 text-right">Invested</th>
-            <th className="px-4 py-3 text-right">Current</th>
-            <th className="px-4 py-3 text-right">1Y Return</th>
-            <th className="px-4 py-3 text-right">Weight</th>
-            {onChanged && <th className="px-4 py-3 text-right">Actions</th>}
+            <th className="hidden px-4 py-3 md:table-cell">Category</th>
+            <th className="hidden px-4 py-3 text-right md:table-cell">Invested</th>
+            <th className="px-3 py-3 text-right sm:px-4">Current</th>
+            <th className="hidden px-4 py-3 text-right sm:table-cell">1Y Return</th>
+            <th className="hidden px-4 py-3 text-right lg:table-cell">Weight</th>
+            {onChanged && <th className="px-2 py-3 text-right sm:px-4"><span className="sr-only sm:not-sr-only">Actions</span></th>}
           </tr>
         </thead>
         <tbody>
@@ -115,19 +115,37 @@ export default function HoldingsTable({
 
             return (
               <tr key={fund.id} className="border-b border-[var(--shell-border)] last:border-0 hover:bg-[var(--shell-surface-2)]">
-                <td className="px-4 py-3">
+                <td className="min-w-0 px-3 py-3 sm:px-4">
                   <p className="font-medium text-[var(--shell-text)]">{fund.name}</p>
-                  <p className="text-xs text-[var(--shell-text-faint)]">{fund.manager}</p>
+                  <p className="text-xs text-[var(--shell-text-faint)]">
+                    <span className="md:hidden">{categoryLabel(fund.category)} · {formatPercent(fund.returns1Y)} 1Y</span>
+                    <span className="hidden md:inline">{fund.manager}</span>
+                  </p>
+                  <p className="mt-1 text-[11px] text-[var(--shell-text-faint)] md:hidden">
+                    Invested {formatCurrency(fund.investedAmount, true)} · {weight.toFixed(1)}% weight
+                  </p>
+                  {isEditing && (
+                    <input
+                      type="number"
+                      min="0.01"
+                      step="0.01"
+                      inputMode="decimal"
+                      aria-label={`Invested amount for ${fund.name}`}
+                      value={editValues.investedAmount}
+                      onChange={(e) => setEditValues((v) => ({ ...v, investedAmount: +e.target.value }))}
+                      className="mt-2 w-full rounded-lg border border-[var(--shell-border)] bg-[var(--shell-bg)] px-2 py-1 text-sm text-[var(--shell-text)] outline-none focus:border-cyan-500/40 md:hidden"
+                    />
+                  )}
                   {rowError?.id === fund.id && (
                     <p className="mt-1 text-xs text-rose-500">{rowError.message}</p>
                   )}
                 </td>
-                <td className="px-4 py-3">
+                <td className="hidden px-4 py-3 md:table-cell">
                   <span className="rounded-full border border-[var(--shell-border)] bg-[var(--shell-surface-2)] px-2 py-0.5 text-xs text-[var(--shell-text-muted)]">
                     {categoryLabel(fund.category)}
                   </span>
                 </td>
-                <td className="px-4 py-3 text-right text-[var(--shell-text-muted)]">
+                <td className="hidden px-4 py-3 text-right text-[var(--shell-text-muted)] md:table-cell">
                   {isEditing ? (
                     <input
                       type="number"
@@ -143,7 +161,7 @@ export default function HoldingsTable({
                     formatCurrency(fund.investedAmount, true)
                   )}
                 </td>
-                <td className="px-4 py-3 text-right font-medium text-[var(--shell-text)]">
+                <td className="px-3 py-3 text-right font-medium text-[var(--shell-text)] sm:px-4">
                   {isEditing ? (
                     <input
                       type="number"
@@ -153,22 +171,22 @@ export default function HoldingsTable({
                       aria-label={`Current value for ${fund.name}`}
                       value={editValues.currentValue}
                       onChange={(e) => setEditValues((v) => ({ ...v, currentValue: +e.target.value }))}
-                      className="w-28 rounded-lg border border-[var(--shell-border)] bg-[var(--shell-bg)] px-2 py-1 text-right text-sm text-[var(--shell-text)] outline-none focus:border-cyan-500/40"
+                      className="w-24 rounded-lg border border-[var(--shell-border)] bg-[var(--shell-bg)] px-2 py-1 text-right text-sm text-[var(--shell-text)] outline-none focus:border-cyan-500/40 sm:w-28"
                     />
                   ) : (
                     formatCurrency(fund.currentValue, true)
                   )}
                 </td>
-                <td className="px-4 py-3 text-right">
+                <td className="hidden px-4 py-3 text-right sm:table-cell">
                   <span className={`inline-flex items-center gap-1 font-medium ${up ? "text-emerald-500" : "text-rose-500"}`}>
                     {up ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
                     {formatPercent(fund.returns1Y)}
                   </span>
                 </td>
-                <td className="px-4 py-3 text-right text-[var(--shell-text-muted)]">{weight.toFixed(1)}%</td>
+                <td className="hidden px-4 py-3 text-right text-[var(--shell-text-muted)] lg:table-cell">{weight.toFixed(1)}%</td>
 
                 {onChanged && (
-                  <td className="px-4 py-3 text-right">
+                  <td className="px-2 py-3 text-right sm:px-4">
                     {isEditing ? (
                       <div className="flex justify-end gap-1">
                         <button

@@ -2,8 +2,17 @@ import { NextRequest, NextResponse } from "next/server";
 import { analyzePortfolioWithAI } from "@/lib/ai/analyze";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import type { Portfolio } from "@/lib/types";
+import { checkRateLimit } from "@/lib/security/rateLimit";
 
 export async function POST(request: NextRequest) {
+  const rate = checkRateLimit(request, "ai-analyze", 12, 60_000);
+  if (!rate.allowed) {
+    return NextResponse.json(
+      { error: "Too many analysis requests. Please wait a moment and try again." },
+      { status: 429, headers: { "Retry-After": String(rate.retryAfterSeconds) } }
+    );
+  }
+
   try {
     const body = await request.json();
     const portfolio = body.portfolio as Portfolio | undefined;

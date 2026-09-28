@@ -1,13 +1,26 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { checkRateLimit } from "@/lib/security/rateLimit";
 
 /**
  * Diagnostic endpoint. Hit /api/health while developing locally to check,
  * in one place, whether OpenAI and Supabase are actually reachable and
  * correctly configured — instead of guessing from UI symptoms.
  */
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const rate = checkRateLimit(request, "health", 20, 60_000);
+  if (!rate.allowed) {
+    return NextResponse.json({ status: "rate_limited" }, { status: 429, headers: { "Retry-After": String(rate.retryAfterSeconds) } });
+  }
+
   const checks: Record<string, { ok: boolean; detail: string }> = {};
+  const deep = request.nextUrl.searchParams.get("deep") === "1";
+  if (deep) {
+    const suppliedToken = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
+    if (!process.env.HEALTH_CHECK_TOKEN || suppliedToken !== process.env.HEALTH_CHECK_TOKEN) {
+      return NextResponse.json({ error: "Deep health check is not authorized." }, { status: 401 });
+    }
+  }
 
   // --- AI provider (Groq -> Gemini -> OpenAI fallback chain) ---------------
   const configuredProviders = [
@@ -21,7 +34,7 @@ export async function GET() {
       ok: false,
       detail: "No AI provider configured. Set GROQ_API_KEY, GEMINI_API_KEY, or OPENAI_API_KEY.",
     };
-  } else {
+  } else if (deep) {
     try {
       const { getAIChatCompletion } = await import("@/lib/ai/aiClient");
       const { provider } = await getAIChatCompletion([{ role: "user", content: "ping" }]);
@@ -35,12 +48,14 @@ export async function GET() {
         detail: `All configured providers (${configuredProviders.join(", ")}) failed: ${error?.message || "unknown error"}`,
       };
     }
+  } else {
+    checks.ai = { ok: true, detail: `${configuredProviders.length} provider${configuredProviders.length === 1 ? "" : "s"} configured.` };
   }
 
   // --- Supabase --------------------------------------------------------------
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
     checks.supabase = { ok: false, detail: "Supabase URL/anon key not set." };
-  } else {
+  } else if (deep) {
     try {
       const supabase = await createServerSupabaseClient();
       const { error } = await supabase.from("portfolios").select("id", { count: "exact", head: true });
@@ -52,12 +67,14 @@ export async function GET() {
     } catch (error: any) {
       checks.supabase = { ok: false, detail: error?.message || "Supabase request failed." };
     }
+  } else {
+    checks.supabase = { ok: true, detail: "Configuration present." };
   }
 
   const allOk = Object.values(checks).every((c) => c.ok);
 
   return NextResponse.json(
-    { status: allOk ? "ok" : "degraded", app: "Invesutra", checks },
-    { status: allOk ? 200 : 200 }
+    { status: allOk ? "ok" : "degraded", app: "Invesutra", mode: deep ? "deep" : "shallow", checks },
+    { status: 200 }
   );
 }

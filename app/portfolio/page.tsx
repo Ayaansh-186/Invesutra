@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { riskEngine } from "@/lib/algorithm/riskEngine";
@@ -25,14 +25,42 @@ export default function PortfolioPage() {
   const { portfolio, loading, isDemo, isEmpty, error, refresh } = useActivePortfolio();
   const [showAddFund, setShowAddFund] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [refreshNotice, setRefreshNotice] = useState<string | null>(null);
   const analysis = portfolio.analysis ?? riskEngine.analyzePortfolio(portfolio);
   const returnsUp = portfolio.returnsPercent >= 0;
 
   async function handleRefresh() {
     setRefreshing(true);
-    await refresh();
-    setRefreshing(false);
+    setRefreshNotice(null);
+    try {
+      if (user && !isDemo && !isEmpty && portfolio.id) {
+        const response = await fetch(`/api/portfolios/${portfolio.id}/refresh`, { method: "POST" });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || "Live values could not be refreshed.");
+        setRefreshNotice(
+          result.updated > 0
+            ? `Updated ${result.updated} of ${result.total} fund${result.total === 1 ? "" : "s"} from live NAV data.`
+            : "Live NAV data was unavailable. Your saved values were kept unchanged."
+        );
+      }
+      await refresh();
+    } catch (refreshError) {
+      setRefreshNotice(refreshError instanceof Error ? refreshError.message : "Refresh failed.");
+    } finally {
+      setRefreshing(false);
+    }
   }
+
+  useEffect(() => {
+    if (loading || !user || isDemo || isEmpty || !portfolio.id || portfolio.funds.length === 0) return;
+    const key = `invesutra-nav-refresh:${portfolio.id}`;
+    const lastRefresh = Number(window.localStorage.getItem(key) || 0);
+    if (Date.now() - lastRefresh < 24 * 60 * 60 * 1000) return;
+    window.localStorage.setItem(key, String(Date.now()));
+    void handleRefresh();
+    // Refresh once per portfolio per day; handleRefresh intentionally stays outside dependencies.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, user, isDemo, isEmpty, portfolio.id, portfolio.funds.length]);
 
   if (loading) {
     return (
@@ -71,6 +99,7 @@ export default function PortfolioPage() {
               <p className="text-sm text-[var(--shell-text-muted)]">
                 {portfolio.funds.length} fund{portfolio.funds.length === 1 ? "" : "s"} · {formatCurrency(portfolio.currentValue, true)} current value
               </p>
+              {refreshNotice && <p className="mt-1 text-xs text-[var(--shell-text-faint)]">{refreshNotice}</p>}
             </div>
             <div className="flex items-center gap-2">
               <Link
@@ -84,7 +113,8 @@ export default function PortfolioPage() {
                 onClick={handleRefresh}
                 disabled={refreshing}
                 className="rounded-lg border border-[var(--shell-border)] p-2 text-[var(--shell-text-muted)] transition hover:text-[var(--shell-text)] disabled:opacity-50"
-                title="Refresh portfolio"
+                title="Update from live NAV data"
+                aria-label="Update portfolio from live NAV data"
               >
                 <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
               </button>

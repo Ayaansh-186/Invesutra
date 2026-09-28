@@ -78,6 +78,30 @@ function Delta({ label, current, previous, suffix = "", stagger }: {
   );
 }
 
+function TrendStrip({ label, values, tone }: { label: string; values: number[]; tone: string }) {
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const range = Math.max(max - min, 1);
+  return (
+    <div>
+      <div className="mb-1 flex items-center justify-between text-[10px]">
+        <span className="text-[var(--shell-text-faint)]">{label}</span>
+        <span className="font-medium text-[var(--shell-text-muted)]">{values.at(-1)?.toFixed(label === "Value" ? 0 : 1)}</span>
+      </div>
+      <div className="flex h-9 items-end gap-1" aria-label={`${label} history over ${values.length} snapshots`}>
+        {values.map((value, index) => (
+          <span
+            key={`${label}-${index}`}
+            title={String(value)}
+            className={`min-w-1 flex-1 rounded-sm opacity-75 ${tone}`}
+            style={{ height: `${Math.max(12, ((value - min) / range) * 88 + 12)}%` }}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function SinceLastVisit({
   portfolioId,
   currentHealth,
@@ -144,6 +168,7 @@ export default function SinceLastVisit({
   if (!snapshots || snapshots.length === 0 || !previous) return null;
 
   const streak = checkInStreak(snapshots);
+  const history = [...snapshots].reverse().slice(-12);
 
   return (
     <div className="mb-6 animate-sprout rounded-2xl border border-[var(--shell-border)] bg-[var(--shell-surface)] p-5">
@@ -196,6 +221,14 @@ export default function SinceLastVisit({
         <Delta label="Health" current={currentHealth} previous={Number(previous.health_score)} stagger="stagger-2" />
         <Delta label="Risk" current={currentRisk} previous={Number(previous.risk_score)} stagger="stagger-3" />
       </div>
+      {history.length >= 2 && (
+        <div className="mt-4 grid grid-cols-2 gap-4 border-t border-[var(--shell-border)] pt-4 lg:grid-cols-4">
+          <TrendStrip label="Value" values={history.map((s) => Number(s.total_value))} tone="bg-cyan-500" />
+          <TrendStrip label="Health" values={history.map((s) => Number(s.health_score))} tone="bg-emerald-500" />
+          <TrendStrip label="Risk" values={history.map((s) => Number(s.risk_score))} tone="bg-amber-500" />
+          <TrendStrip label="Diversification" values={history.map((s) => Number(s.diversification_score))} tone="bg-violet-500" />
+        </div>
+      )}
     </div>
   );
 }
