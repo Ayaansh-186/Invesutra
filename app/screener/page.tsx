@@ -34,8 +34,8 @@ const emptyFund: Omit<Fund, "id"> = {
 };
 
 export default function ScreenerPage() {
-  const { portfolio: activePortfolio, loading: portfolioLoading, isDemo } = useActivePortfolio();
-  const [funds, setFunds] = useState<Fund[]>(SAMPLE_PORTFOLIO.funds);
+  const { portfolio: activePortfolio, loading: portfolioLoading, isDemo, error: portfolioError } = useActivePortfolio();
+  const [funds, setFunds] = useState<Fund[]>([]);
   const [seeded, setSeeded] = useState(false);
   const [analysis, setAnalysis] = useState<ReturnType<typeof riskEngine.analyzePortfolio> | null>(null);
   const [rebalanceSuggestions, setRebalanceSuggestions] = useState<ReturnType<typeof createRebalanceEngine>["generateRebalancingSuggestions"] extends (...args: any[]) => infer R ? R : never>([]);
@@ -108,10 +108,10 @@ export default function ScreenerPage() {
   // screener sandbox aren't clobbered by a background refresh.
   useEffect(() => {
     if (!portfolioLoading && !seeded) {
-      setFunds(activePortfolio.funds.length > 0 ? activePortfolio.funds : SAMPLE_PORTFOLIO.funds);
+      setFunds(activePortfolio.funds.length > 0 ? activePortfolio.funds : isDemo ? SAMPLE_PORTFOLIO.funds : []);
       setSeeded(true);
     }
-  }, [portfolioLoading, seeded, activePortfolio]);
+  }, [portfolioLoading, seeded, activePortfolio, isDemo]);
 
   const totalInvested = funds.reduce((s, f) => s + f.investedAmount, 0);
   const totalValue = funds.reduce((s, f) => s + f.currentValue, 0);
@@ -211,6 +211,8 @@ export default function ScreenerPage() {
           <p className="text-sm text-[var(--shell-text-faint)]">
             {portfolioLoading
               ? "Loading your portfolio..."
+              : portfolioError
+              ? portfolioError
               : isDemo
               ? "Editing a sample portfolio — sign up to screen your own funds"
               : "Editing a working copy of your portfolio — changes here don't save automatically"}
@@ -552,12 +554,12 @@ export default function ScreenerPage() {
                   <ArrowRight className="h-3.5 w-3.5 text-[var(--shell-text-faint)]" />
                 </Link>
                 <Link
-                  href="/dashboard"
+                  href={`/dashboard?q=${encodeURIComponent(`I screened ${funds.slice(0, 3).map((fund) => fund.name).join(", ")}. Explain the main risk and how these compare with my saved portfolio.`)}`}
                   className="flex items-center justify-between rounded-lg px-3 py-2.5 text-sm text-[var(--shell-text)] hover:bg-[var(--shell-surface-2)] transition-colors"
                 >
                   <span className="flex items-center gap-2">
                     <MessageSquare className="h-4 w-4 text-cyan-500" />
-                    Ask Invesutra AI to explain this
+                    Ask AI about these funds
                   </span>
                   <ArrowRight className="h-3.5 w-3.5 text-[var(--shell-text-faint)]" />
                 </Link>

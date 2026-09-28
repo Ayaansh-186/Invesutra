@@ -55,10 +55,7 @@ export async function GET() {
 
   if (fundsError) {
     console.error("funds fetch error:", fundsError.message);
-    // Return portfolios without fund detail rather than crashing
-    return NextResponse.json({
-      portfolios: (portfolios as DbPortfolio[]).map((p) => buildPortfolio(p, [])),
-    });
+    return NextResponse.json({ error: "Could not load fund holdings. Please try again." }, { status: 500 });
   }
 
   const fundsByPortfolio = new Map<string, DbFund[]>();

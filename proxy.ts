@@ -29,7 +29,7 @@ export async function proxy(request: NextRequest) {
 
   if (isProtected && !user) {
     const redirectUrl = new URL("/auth/login", request.url);
-    redirectUrl.searchParams.set("redirect", request.nextUrl.pathname);
+    redirectUrl.searchParams.set("redirect", request.nextUrl.pathname + request.nextUrl.search);
     return NextResponse.redirect(redirectUrl);
   }
 

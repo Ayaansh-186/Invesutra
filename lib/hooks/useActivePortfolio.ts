@@ -5,6 +5,21 @@ import type { Portfolio } from "@/lib/types";
 import { SAMPLE_PORTFOLIO } from "@/lib/utils/mockData";
 import { useAuth } from "./useAuth";
 
+const EMPTY_PORTFOLIO: Portfolio = {
+  ...SAMPLE_PORTFOLIO,
+  id: "",
+  userId: "",
+  name: "My Portfolio",
+  funds: [],
+  totalInvested: 0,
+  currentValue: 0,
+  returns: 0,
+  returnsPercent: 0,
+  healthScore: 0,
+  riskScore: 0,
+  analysis: undefined,
+};
+
 export interface UsePortfolioResult {
   portfolio: Portfolio;
   loading: boolean;
@@ -44,10 +59,10 @@ export function useActivePortfolio(): UsePortfolioResult {
       const data = await res.json();
 
       if (!res.ok) {
-        // DB error (tables not set up, etc.) — show demo data but DON'T say "create account"
+        // A signed-in user's holdings must never be replaced with demo figures.
         console.warn("Portfolio API error:", data.error);
         setError(data.error || "Could not load your saved portfolio.");
-        setPortfolio(SAMPLE_PORTFOLIO);
+        setPortfolio(EMPTY_PORTFOLIO);
         setIsEmpty(true);
         setLoading(false);
         return;
@@ -57,7 +72,7 @@ export function useActivePortfolio(): UsePortfolioResult {
 
       if (portfolios.length === 0) {
         // Signed in, DB works, but no portfolios created yet
-        setPortfolio(SAMPLE_PORTFOLIO);
+        setPortfolio(EMPTY_PORTFOLIO);
         setIsEmpty(true);
       } else {
         setPortfolio(portfolios[0]);
@@ -65,8 +80,8 @@ export function useActivePortfolio(): UsePortfolioResult {
       }
     } catch (err) {
       console.error("Failed to load portfolio:", err);
-      setError("Could not reach the portfolio service. Showing sample data for now.");
-      setPortfolio(SAMPLE_PORTFOLIO);
+      setError("Could not reach the portfolio service. Please try again.");
+      setPortfolio(EMPTY_PORTFOLIO);
       setIsEmpty(true);
     } finally {
       setLoading(false);

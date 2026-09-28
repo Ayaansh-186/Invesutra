@@ -3,7 +3,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { answerPortfolioQuestion } from "@/lib/ai/portfolioAssistant";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { buildPortfolio } from "@/lib/supabase/mappers";
 import type { Portfolio } from "@/lib/types";
+import type { DbFund, DbPortfolio } from "@/lib/supabase/database.types";
 import type { ToolExecutionContext } from "@/lib/ai/tools";
 import { checkRateLimit } from "@/lib/security/rateLimit";
 
@@ -18,10 +20,10 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const portfolio = body.portfolio as Portfolio | undefined;
+    const clientPortfolio = body.portfolio as Portfolio | undefined;
     const messages = body.messages;
 
-    if (!portfolio || !Array.isArray(portfolio.funds)) {
+    if (!clientPortfolio || !Array.isArray(clientPortfolio.funds)) {
       return NextResponse.json(
         { error: "Request body must include a portfolio with a funds array." },
         { status: 400 }
@@ -47,41 +49,48 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "No valid messages supplied." }, { status: 400 });
     }
 
-    // Only enable fund-mutation tools (add/update/remove) when the caller
-    // is signed in AND actually owns a DB-backed portfolio matching the id
-    // sent from the client. Demo/guest portfolios (not in the DB) and
-    // portfolios the caller doesn't own stay read-only — the AI can still
-    // search funds, it just can't write to anyone's holdings.
     const supabase = await createServerSupabaseClient();
     const {
       data: { user },
     } = await supabase.auth.getUser();
 
-    let canMutate = false;
-    if (user && portfolio.id) {
-      const { data: owned } = await supabase
+    let portfolio = clientPortfolio;
+    let hasOwnedPortfolio = false;
+    if (user) {
+      if (!clientPortfolio.id) {
+        return NextResponse.json({ error: "Select a saved portfolio before asking about your holdings." }, { status: 400 });
+      }
+      const { data: owned, error: portfolioError } = await supabase
         .from("portfolios")
-        .select("id")
-        .eq("id", portfolio.id)
+        .select("*")
+        .eq("id", clientPortfolio.id)
         .eq("user_id", user.id)
         .maybeSingle();
-      canMutate = Boolean(owned);
+      if (portfolioError) throw portfolioError;
+      if (!owned) return NextResponse.json({ error: "Saved portfolio not found." }, { status: 404 });
+
+      const { data: funds, error: fundsError } = await supabase
+        .from("funds")
+        .select("*")
+        .eq("portfolio_id", clientPortfolio.id);
+      if (fundsError) throw fundsError;
+      portfolio = buildPortfolio(owned as DbPortfolio, (funds || []) as DbFund[]);
+      hasOwnedPortfolio = true;
     }
 
     const toolContext: ToolExecutionContext = {
       supabase,
       portfolioId: portfolio.id,
-      canMutate,
+      canMutate: false,
     };
 
     const result = await answerPortfolioQuestion(portfolio, safeMessages, toolContext);
 
-    // Persist chat history so it survives a full page reload / new session —
-    // only for signed-in users on a portfolio they actually own (same
-    // ownership check as canMutate above). Client resends the full running
+    // Persist chat history so it survives a full page reload / new session.
+    // Client resends the full running
     // conversation each request, so we only insert the newest user message
     // plus this turn's assistant answer, not the whole array again.
-    if (canMutate && user) {
+    if (hasOwnedPortfolio && user) {
       const latestUserMessage = safeMessages[safeMessages.length - 1];
       const rows = [
         { portfolio_id: portfolio.id, user_id: user.id, role: "user" as const, content: latestUserMessage.content },

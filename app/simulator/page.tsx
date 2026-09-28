@@ -7,7 +7,7 @@ import { runScenarioMatrix, type ScenarioResult } from "@/lib/algorithm/scenario
 import type { SimulationInput, SimulationResult } from "@/lib/types";
 import { formatCurrency, formatPercent } from "@/lib/utils/format";
 import SimulatorChart from "@/components/simulator/SimulatorChart";
-import { Play, RefreshCw, TrendingUp, BarChart2, Zap, Shield, PieChart, Flame, Wallet, ArrowRight, AlertTriangle } from "lucide-react";
+import { Play, RefreshCw, TrendingUp, BarChart2, Zap, Shield, PieChart, Flame, Wallet, ArrowRight, AlertTriangle, MessageSquare } from "lucide-react";
 import { categoryLabel } from "@/lib/utils/format";
 import { useActivePortfolio } from "@/lib/hooks/useActivePortfolio";
 
@@ -333,6 +333,12 @@ export default function SimulatorPage() {
                   </div>
                 ))}
               </div>
+              <Link
+                href={`/dashboard?q=${encodeURIComponent(`Explain this illustrative simulation, not actual returns: ${formatCurrency(input.initialInvestment)} initial investment, ${formatCurrency(input.monthlyAddition)} monthly SIP, ${input.years} years, and ${input.expectedReturn}% expected annual return. What assumptions matter most?`)}`}
+                className="inline-flex items-center gap-2 text-sm font-medium text-emerald-600 hover:underline"
+              >
+                <MessageSquare className="h-4 w-4" /> Ask AI about this scenario
+              </Link>
 
               {/* Chart */}
               <div className="bg-[var(--shell-surface)] border border-[var(--shell-border)] rounded-xl p-6">

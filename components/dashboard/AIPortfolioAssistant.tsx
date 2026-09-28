@@ -1,17 +1,16 @@
 "use client";
 
 import { useMemo, useRef, useEffect, useState } from "react";
+import Link from "next/link";
 import {
-  Loader2, Send, Plus, List,
-  Shield, TrendingUp, RefreshCw, Search, Sparkle,
+  Loader2, Send, Plus, RefreshCw, Sparkle,
 } from "lucide-react";
 import type { Portfolio, PortfolioAnalysis } from "@/lib/types";
 import { formatCurrency, formatPercent, categoryLabel } from "@/lib/utils/format";
-import AiOrb from "@/components/landing/AiOrb";
 interface ChatMessage {
   role: "user" | "assistant";
   content: string;
-  action?: "show_holdings" | "add_fund" | null;
+  action?: "show_holdings" | "add_fund" | "manage_holdings" | null;
 }
 
 // Defined at module scope (not inside AIPortfolioAssistant) so its component
@@ -62,19 +61,9 @@ function ChatInputBar({
 }
 
 const STARTER_QUESTIONS = [
-  "Why is my portfolio risk high?",
-  "How can I improve diversification?",
-  "Which fund should I review first?",
-  "Show me my holdings breakdown",
-  "What's my health score telling me?",
-];
-
-const QUICK_ACTIONS = [
-  { label: "Analyze risk", icon: Shield, query: "Why is my portfolio risk high?" },
-  { label: "Show holdings", icon: List, query: "Show me my holdings breakdown" },
-  { label: "Add a fund", icon: Plus, action: "add_fund" as const },
-  { label: "Improve allocation", icon: TrendingUp, query: "How can I improve diversification?" },
-  { label: "Find funds", icon: Search, href: "/screener" },
+  "What needs my attention first?",
+  "Explain my biggest risk",
+  "How could I improve my allocation?",
 ];
 
 export default function AIPortfolioAssistant({
@@ -95,17 +84,7 @@ export default function AIPortfolioAssistant({
   /** True when this is a real, signed-in-owned portfolio — enables loading/saving chat history so it survives a page reload. Omit/false for demo sessions. */
   historyEnabled?: boolean;
 }) {
-  const milestoneFunds = portfolio.funds.filter((f) => {
-    if (f.investedAmount <= 0) return false;
-    const gainPercent = ((f.currentValue - f.investedAmount) / f.investedAmount) * 100;
-    return gainPercent >= 12; // matches the QRP engine's default alphaTriggerPercent
-  });
-  const milestoneCallout =
-    milestoneFunds.length > 0
-      ? `\n\n🎉 **${milestoneFunds.length} fund${milestoneFunds.length === 1 ? "" : "s"}** just crossed a profit-booking milestone — say "show milestones" and I'll break it down.`
-      : "";
-
-  const greeting = `Hi! I'm **Invesutra AI**, your portfolio copilot. I've analyzed your ${portfolio.funds.length} fund${portfolio.funds.length === 1 ? "" : "s"} worth ${formatCurrency(portfolio.currentValue, true)}.\n\n• Health: **${portfolio.healthScore}/100** (${analysis.overallHealth})\n• Risk: **${portfolio.riskScore}/100**\n• Returns: **${formatPercent(portfolio.returnsPercent)}**${milestoneCallout}\n\nAsk me anything — risk drivers, fund performance, rebalancing, or say "add a fund" to manage holdings.`;
+  const greeting = `I can help explain your ${portfolio.funds.length} holding${portfolio.funds.length === 1 ? "" : "s"}, risks, and possible next steps. Changes to holdings are confirmed on the Portfolio page.`;
 
   const [messages, setMessages] = useState<ChatMessage[]>([{ role: "assistant", content: greeting }]);
   const [input, setInput] = useState("");
@@ -132,7 +111,7 @@ export default function AIPortfolioAssistant({
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
 
-  const firedInitialQuery = useRef(false);
+  const firedInitialQuery = useRef<string | null>(null);
   // "idle" until we know whether there's saved history to load. When
   // historyEnabled is false (demo sessions), there's nothing to wait for.
   const [historyStatus, setHistoryStatus] = useState<"idle" | "loading" | "ready">(
@@ -171,16 +150,17 @@ export default function AIPortfolioAssistant({
 
   useEffect(() => {
     if (historyStatus !== "ready") return;
-    if (initialQuery && !hasStarted && !firedInitialQuery.current) {
-      firedInitialQuery.current = true;
+    if (initialQuery && firedInitialQuery.current !== initialQuery) {
+      firedInitialQuery.current = initialQuery;
       askAssistant(initialQuery);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialQuery, historyStatus, hasStarted]);
+  }, [initialQuery, historyStatus]);
 
-  function detectLocalIntent(question: string): "add_fund" | "show_holdings" | null {
+  function detectLocalIntent(question: string): "add_fund" | "show_holdings" | "manage_holdings" | null {
     const q = question.toLowerCase();
     if (q.includes("add fund") || q.includes("add a fund") || q.includes("new fund")) return "add_fund";
+    if (/\b(edit|update|remove|delete)\b/.test(q) && /\b(fund|holding)\b/.test(q)) return "manage_holdings";
     if (q.includes("show holding") || q.includes("my holding") || q.includes("list fund") || q.includes("holdings breakdown")) return "show_holdings";
     return null;
   }
@@ -243,9 +223,20 @@ export default function AIPortfolioAssistant({
       return;
     }
 
+    if (localIntent === "manage_holdings") {
+      setMessages((prev) => [
+        ...prev,
+        { role: "user", content: trimmed },
+        { role: "assistant", content: "I can help you understand the change, but I won't edit your saved holdings through chat. Open Portfolio to review the numbers and confirm the edit there.", action: "manage_holdings" },
+      ]);
+      setInput("");
+      return;
+    }
+
     const nextMessages: ChatMessage[] = [...messages, { role: "user", content: trimmed }];
     setMessages(nextMessages);
     setInput("");
+    setSource(null);
     setLoading(true);
 
     try {
@@ -256,16 +247,14 @@ export default function AIPortfolioAssistant({
       });
       const data = await res.json();
 
-      if (!res.ok) throw new Error(data.error || "Assistant failed");
+      if (!res.ok) {
+        setMessages([...nextMessages, { role: "assistant", content: data.error || "I couldn't load your portfolio right now. Please try again." }]);
+        return;
+      }
 
       setSource(data.source || null);
       setMessages([...nextMessages, { role: "assistant", content: data.answer }]);
 
-      // The AI may have added/updated/removed a fund via a tool call —
-      // refresh so the rest of the dashboard reflects it.
-      if (data.portfolioChanged) {
-        onRefresh();
-      }
     } catch {
       setSource("deterministic");
       setMessages([
@@ -277,20 +266,6 @@ export default function AIPortfolioAssistant({
       ]);
     } finally {
       setLoading(false);
-    }
-  }
-
-  function handleQuickAction(action: typeof QUICK_ACTIONS[number]) {
-    if ("href" in action && action.href) {
-      window.location.href = action.href;
-      return;
-    }
-    if ("action" in action && action.action === "add_fund") {
-      askAssistant("Add a fund to my portfolio");
-      return;
-    }
-    if ("query" in action && action.query) {
-      askAssistant(action.query);
     }
   }
 
@@ -419,7 +394,7 @@ export default function AIPortfolioAssistant({
     );
   }
 
-  // ---- Fresh conversation: minimal centered hero with a single input ----
+  // ---- Fresh conversation: one useful summary and a question input ----
   if (!hasStarted) {
     return (
       <div className="flex h-full w-full flex-col overflow-hidden">
@@ -434,15 +409,15 @@ export default function AIPortfolioAssistant({
           </button>
         </div>
 
-        <div className="flex min-h-0 flex-1 flex-col items-center justify-center overflow-y-auto px-6 pb-16 pt-4">
+        <div className="flex min-h-0 flex-1 flex-col items-center justify-center overflow-y-auto px-6 pb-12 pt-4">
           <div className="w-full max-w-2xl">
-            <div className="mb-7 flex flex-col items-center text-center">
-              <div className="mb-2 animate-sprout">
-                <AiOrb size="md" speaking={loading} />
-              </div>
-              <h1 className="animate-sprout stagger-1 text-xl font-medium text-[var(--shell-text)]">Hi, I&apos;m Invesutra AI</h1>
-              <div className="animate-sprout stagger-2 mt-3 max-w-xl text-sm leading-relaxed text-[var(--shell-text-muted)]">
-                {renderMessageContent(greeting)}
+            <div className="mb-7">
+              <h1 className="text-2xl font-semibold text-[var(--shell-text)]">Ask Invesutra</h1>
+              <p className="mt-2 text-sm text-[var(--shell-text-muted)]">Understand your portfolio and decide what to review next.</p>
+              <div className="mt-8 flex flex-wrap gap-x-8 gap-y-3 border-y border-[var(--shell-border)] py-4 text-sm">
+                <span className="text-[var(--shell-text-muted)]">Value <strong className="ml-1 text-[var(--shell-text)]">{formatCurrency(portfolio.currentValue, true)}</strong></span>
+                <span className="text-[var(--shell-text-muted)]">Return <strong className="ml-1 text-[var(--shell-text)]">{formatPercent(portfolio.returnsPercent)}</strong></span>
+                <span className="text-[var(--shell-text-muted)]">Holdings <strong className="ml-1 text-[var(--shell-text)]">{portfolio.funds.length}</strong></span>
               </div>
             </div>
 
@@ -455,30 +430,14 @@ export default function AIPortfolioAssistant({
               loading={loading}
             />
 
-            <div className="mt-4 flex flex-wrap justify-center gap-1.5">
-              {QUICK_ACTIONS.map((action) => (
-                <button
-                  key={action.label}
-                  onClick={() => handleQuickAction(action)}
-                  disabled={loading}
-                  className="flex items-center gap-1.5 rounded-full border border-[var(--shell-border)] px-3 py-1.5 text-xs text-[var(--shell-text-muted)] transition hover:border-[var(--shell-text-faint)] hover:text-[var(--shell-text)] disabled:opacity-50"
-                >
-                  <action.icon className="h-3 w-3" strokeWidth={1.5} />
-                  {action.label}
-                </button>
-              ))}
-            </div>
-
-            <div className="mt-8">
-              <p className="mb-2 text-center text-[10px] font-medium uppercase tracking-wider text-[var(--shell-text-faint)]">
-                Suggested
-              </p>
-              <div className="flex flex-col items-center gap-1">
+            <div className="mt-5">
+              <p className="mb-2 text-xs font-medium text-[var(--shell-text-faint)]">Try asking</p>
+              <div className="flex flex-col items-start gap-2">
                 {STARTER_QUESTIONS.map((q) => (
                   <button
                     key={q}
                     onClick={() => askAssistant(q)}
-                    className="text-sm text-[var(--shell-text-muted)] transition hover:text-[var(--shell-text)] hover:underline underline-offset-4"
+                    className="text-left text-sm text-[var(--shell-text-muted)] transition hover:text-[var(--shell-text)] hover:underline underline-offset-4"
                   >
                     {q}
                   </button>
@@ -591,12 +550,17 @@ export default function AIPortfolioAssistant({
                         <div className="ml-3 text-right">
                           <p className="text-sm font-semibold text-[var(--shell-text)]">{formatCurrency(fund.currentValue, true)}</p>
                           <p className="text-xs text-[var(--shell-text-faint)]">
-                            {((fund.currentValue / portfolio.currentValue) * 100).toFixed(1)}%
+                            {portfolio.currentValue > 0 ? ((fund.currentValue / portfolio.currentValue) * 100).toFixed(1) : "0.0"}%
                           </p>
                         </div>
                       </div>
                     ))}
                 </div>
+              )}
+              {message.action === "manage_holdings" && (
+                <Link href="/portfolio" className="ml-7 mt-3 inline-flex items-center gap-2 text-sm font-medium text-emerald-600 hover:underline">
+                  Open portfolio
+                </Link>
               )}
             </div>
           ))}

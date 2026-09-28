@@ -9,7 +9,7 @@ import { useActivePortfolio } from "@/lib/hooks/useActivePortfolio";
 import { useAuth } from "@/lib/hooks/useAuth";
 import AIPortfolioAssistant from "@/components/dashboard/AIPortfolioAssistant";
 import AiOrb from "@/components/landing/AiOrb";
-import { Sparkles, CheckCircle2, Plus, AlertTriangle } from "lucide-react";
+import { Sparkles, Plus, AlertTriangle } from "lucide-react";
 
 // Only pulled in when the user actually opens "Add Fund".
 const AddFundModal = dynamic(() => import("@/components/dashboard/AddFundModal"), { ssr: false });
@@ -48,16 +48,39 @@ function DashboardPageInner() {
     );
   }
 
+  if (user && (error || isEmpty)) {
+    return (
+      <div className="flex h-full items-center justify-center overflow-y-auto px-6 py-12">
+        <div className="w-full max-w-md text-center">
+          {error ? <AlertTriangle className="mx-auto h-8 w-8 text-amber-500" /> : <Plus className="mx-auto h-8 w-8 text-emerald-500" />}
+          <h1 className="mt-5 text-xl font-semibold text-[var(--shell-text)]">
+            {error ? "Portfolio unavailable" : "Start with your first fund"}
+          </h1>
+          <p className="mt-2 text-sm leading-relaxed text-[var(--shell-text-muted)]">
+            {error || "Add a holding to see a useful overview and ask questions about your own portfolio."}
+          </p>
+          <button
+            onClick={error ? handleRefresh : () => setShowAddFund(true)}
+            disabled={refreshing}
+            className="mt-6 rounded-md bg-emerald-300 px-5 py-2.5 text-sm font-semibold text-slate-950 disabled:opacity-50"
+          >
+            {error ? "Try again" : "Add a fund"}
+          </button>
+        </div>
+        {showAddFund && !error && (
+          <AddFundModal
+            portfolioId="needs-portfolio"
+            onClose={() => setShowAddFund(false)}
+            onAdded={() => { setShowAddFund(false); void refresh(); }}
+          />
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="flex h-full flex-col overflow-hidden">
-      {/* Status banners */}
-      {error && (
-        <div className="shrink-0 flex items-center gap-3 border-b border-amber-400/20 bg-amber-400/10 px-4 py-2.5">
-          <AlertTriangle className="h-4 w-4 shrink-0 text-amber-400" />
-          <p className="flex-1 text-xs text-[var(--shell-text-muted)]">{error}</p>
-          <button onClick={handleRefresh} className="text-xs font-semibold text-amber-300 hover:underline">Retry</button>
-        </div>
-      )}
+      {/* Demo sessions stay clearly separate from a user's saved holdings. */}
       {isDemo && !user && (
         <div className="shrink-0 flex items-center gap-3 border-b border-cyan-400/20 bg-cyan-400/10 px-4 py-2.5">
           <Sparkles className="h-4 w-4 shrink-0 text-cyan-400" />
@@ -68,21 +91,6 @@ function DashboardPageInner() {
             </Link>{" "}
             to add your real holdings.
           </p>
-        </div>
-      )}
-      {isEmpty && user && (
-        <div className="shrink-0 flex items-center gap-3 border-b border-emerald-400/20 bg-emerald-400/10 px-4 py-2.5">
-          <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-400" />
-          <p className="flex-1 text-xs text-[var(--shell-text-muted)]">
-            Welcome! Ask Invesutra to help you add your first fund, or click Add Fund.
-          </p>
-          <button
-            onClick={() => setShowAddFund(true)}
-            className="flex items-center gap-1 rounded-lg bg-emerald-400 px-2.5 py-1 text-xs font-semibold text-slate-950"
-          >
-            <Plus className="h-3 w-3" />
-            Add fund
-          </button>
         </div>
       )}
 

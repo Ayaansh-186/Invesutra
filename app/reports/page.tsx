@@ -121,7 +121,7 @@ function generateReport(portfolio: Portfolio) {
 }
 
 export default function ReportsPage() {
-  const { portfolio, loading: portfolioLoading, isDemo } = useActivePortfolio();
+  const { portfolio, loading: portfolioLoading, isDemo, isEmpty, error: portfolioError, refresh } = useActivePortfolio();
   const [report, setReport] = useState<ReturnType<typeof generateReport> | null>(null);
   const [generating, setGenerating] = useState(false);
   const [plan, setPlan] = useState<"free" | "pro" | "premium">("free");
@@ -142,6 +142,7 @@ export default function ReportsPage() {
   const isPremium = plan === "premium";
 
   function handleGenerate() {
+    if (portfolioError || portfolio.funds.length === 0) return;
     setGenerating(true);
     setTimeout(() => {
       const result = generateReport(portfolio);
@@ -251,6 +252,25 @@ export default function ReportsPage() {
     return (
       <div className="max-w-4xl mx-auto flex items-center justify-center h-96">
         <RefreshCw className="w-6 h-6 text-[var(--shell-text-faint)] animate-spin" />
+      </div>
+    );
+  }
+
+  if (!isDemo && (portfolioError || isEmpty || portfolio.funds.length === 0)) {
+    return (
+      <div className="mx-auto flex min-h-[50vh] max-w-lg flex-col items-center justify-center text-center">
+        <FileText className="h-8 w-8 text-[var(--shell-text-faint)]" />
+        <h1 className="mt-4 text-xl font-semibold text-[var(--shell-text)]">
+          {portfolioError ? "Portfolio unavailable" : "Add holdings before creating a report"}
+        </h1>
+        <p className="mt-2 text-sm text-[var(--shell-text-muted)]">
+          {portfolioError || "A report needs your saved funds to produce meaningful analysis."}
+        </p>
+        {portfolioError ? (
+          <button onClick={() => void refresh()} className="mt-5 text-sm font-medium text-emerald-600 hover:underline">Try again</button>
+        ) : (
+          <Link href="/portfolio" className="mt-5 text-sm font-medium text-emerald-600 hover:underline">Go to portfolio</Link>
+        )}
       </div>
     );
   }
@@ -623,11 +643,11 @@ export default function ReportsPage() {
             <p className="text-xs font-semibold uppercase tracking-wide text-[var(--shell-text-faint)] mb-1 px-2">Act on this</p>
             <div className="grid sm:grid-cols-3 gap-2">
               <Link
-                href="/dashboard"
+                href={`/dashboard?q=${encodeURIComponent(`Explain my latest report for ${report.portfolio}. Its health score is ${report.healthScore}/100. What should I review first?`)}`}
                 className="flex items-center gap-2 rounded-xl px-3 py-3 text-sm text-[var(--shell-text)] hover:bg-[var(--shell-surface-2)] transition-colors"
               >
                 <MessageSquare className="h-4 w-4 text-cyan-500 shrink-0" />
-                Discuss this report with Invesutra AI
+                Ask AI about this report
               </Link>
               <Link
                 href="/screener"

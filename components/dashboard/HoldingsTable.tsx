@@ -1,20 +1,23 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { formatCurrency, formatPercent, categoryLabel } from "@/lib/utils/format";
 import type { Fund } from "@/lib/types";
-import { TrendingUp, TrendingDown, Pencil, Trash2, Check, X, Loader2 } from "lucide-react";
+import { TrendingUp, TrendingDown, Pencil, Trash2, Check, X, Loader2, MessageSquare } from "lucide-react";
 import { useToast } from "@/components/shared/ToastProvider";
 
 export default function HoldingsTable({
   funds,
   totalValue,
   onChanged,
+  canAskAI = false,
 }: {
   funds: Fund[];
   totalValue: number;
   /** Called after a successful edit or delete so the parent can refetch the portfolio. */
   onChanged?: () => void;
+  canAskAI?: boolean;
 }) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValues, setEditValues] = useState({ investedAmount: 0, currentValue: 0 });
@@ -116,7 +119,19 @@ export default function HoldingsTable({
             return (
               <tr key={fund.id} className="border-b border-[var(--shell-border)] last:border-0 hover:bg-[var(--shell-surface-2)]">
                 <td className="min-w-0 px-3 py-3 sm:px-4">
-                  <p className="font-medium text-[var(--shell-text)]">{fund.name}</p>
+                  <div className="flex items-start gap-2">
+                    <p className="min-w-0 font-medium text-[var(--shell-text)]">{fund.name}</p>
+                    {canAskAI && (
+                      <Link
+                        href={`/dashboard?q=${encodeURIComponent(`Explain ${fund.name} in my saved portfolio. What should I review about this holding?`)}`}
+                        className="mt-0.5 shrink-0 text-[var(--shell-text-faint)] hover:text-emerald-600"
+                        aria-label={`Ask AI about ${fund.name}`}
+                        title={`Ask AI about ${fund.name}`}
+                      >
+                        <MessageSquare className="h-3.5 w-3.5" />
+                      </Link>
+                    )}
+                  </div>
                   <p className="text-xs text-[var(--shell-text-faint)]">
                     <span className="md:hidden">{categoryLabel(fund.category)} · {formatPercent(fund.returns1Y)} 1Y</span>
                     <span className="hidden md:inline">{fund.manager}</span>

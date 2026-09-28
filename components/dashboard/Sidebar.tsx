@@ -5,14 +5,14 @@ import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import {
   Search, BarChart2,
-  FileText, Bell, LogOut, ChevronRight, User, MessageSquare, Wallet, X,
+  FileText, LogOut, ChevronRight, User, MessageSquare, Wallet, X,
 } from "lucide-react";
 import { useAuth } from "@/lib/hooks/useAuth";
 import ThemeToggle from "@/components/shared/ThemeToggle";
 
 const navItems = [
-  { icon: MessageSquare, label: "Invesutra AI", href: "/dashboard", badge: "AI" },
   { icon: Wallet, label: "Portfolio", href: "/portfolio" },
+  { icon: MessageSquare, label: "Ask AI", href: "/dashboard" },
   { icon: Search, label: "Screener", href: "/screener" },
   { icon: BarChart2, label: "Simulator", href: "/simulator" },
   { icon: FileText, label: "Reports", href: "/reports" },
@@ -80,19 +80,14 @@ export default function DashboardSidebar({
                 key={item.href}
                 href={item.href}
                 onClick={onClose}
-                className={`group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all ${
+                className={`group flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition-colors ${
                   active
-                    ? "bg-gradient-to-r from-cyan-400/20 to-emerald-400/10 text-[var(--shell-text)] border border-cyan-400/20"
+                    ? "bg-[var(--shell-surface-2)] text-[var(--shell-text)]"
                     : "text-[var(--shell-text-muted)] hover:bg-[var(--shell-surface-2)] hover:text-[var(--shell-text)]"
                 }`}
               >
                 <item.icon className="h-4 w-4" strokeWidth={active ? 2 : 1.5} />
                 {item.label}
-                {"badge" in item && item.badge && (
-                  <span className="rounded-full bg-cyan-400/20 px-1.5 py-0.5 text-[9px] font-bold text-cyan-300">
-                    {item.badge}
-                  </span>
-                )}
                 {active && <ChevronRight className="ml-auto h-3 w-3 opacity-60" />}
               </Link>
             );
@@ -116,9 +111,6 @@ export default function DashboardSidebar({
               <p className="truncate text-xs text-[var(--shell-text-faint)]">{loading ? "" : email}</p>
             </div>
             <div className="flex shrink-0 gap-0.5">
-              <button className="rounded-lg p-1.5 text-[var(--shell-text-faint)] transition-colors hover:bg-[var(--shell-surface-2)] hover:text-[var(--shell-text-muted)]" title="Notifications">
-                <Bell className="h-3.5 w-3.5" />
-              </button>
               {user ? (
                 <button onClick={handleSignOut} className="rounded-lg p-1.5 text-[var(--shell-text-faint)] transition-colors hover:bg-[var(--shell-surface-2)] hover:text-[var(--shell-text-muted)]" title="Sign out">
                   <LogOut className="h-3.5 w-3.5" />
