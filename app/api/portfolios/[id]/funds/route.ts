@@ -76,6 +76,24 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     return NextResponse.json({ error: "Current value must be 0 or greater." }, { status: 400 });
   }
 
+  const metricMinimums = {
+    nav: 0,
+    units: 0,
+    expenseRatio: 0,
+    aum: 0,
+    returns1Y: -Infinity,
+    returns3Y: -Infinity,
+    returns5Y: -Infinity,
+  };
+  const metrics: Record<string, number> = {};
+  for (const [field, minimum] of Object.entries(metricMinimums)) {
+    const value = body[field] == null ? 0 : Number(body[field]);
+    if (!Number.isFinite(value) || value < minimum) {
+      return NextResponse.json({ error: `${field} must be a valid ${minimum === 0 ? "non-negative " : ""}number.` }, { status: 400 });
+    }
+    metrics[field] = value;
+  }
+
   const { data: existingFunds } = await supabase
     .from("funds")
     .select("id, name")
@@ -87,7 +105,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     return NextResponse.json({ error: `A fund named "${duplicate.name}" already exists in this portfolio.` }, { status: 409 });
   }
 
-  const insertPayload = fundToDbInsert({ ...body, name, investedAmount, currentValue }, id);
+  const insertPayload = fundToDbInsert({ ...body, ...metrics, name, investedAmount, currentValue }, id);
 
   const { data, error } = await supabase.from("funds").insert(insertPayload).select().single();
 

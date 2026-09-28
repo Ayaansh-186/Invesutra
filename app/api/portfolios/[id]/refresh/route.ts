@@ -1,13 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { searchFunds } from "@/lib/marketData/providers";
+import { findExactLiveFund } from "@/lib/marketData/matchFund";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
-}
-
-function normalizeName(name: string) {
-  return name.toLowerCase().replace(/\b(direct|regular|growth|idcw|plan|option)\b/g, " ").replace(/[^a-z0-9]+/g, " ").trim();
 }
 
 export async function POST(request: NextRequest, { params }: RouteParams) {
@@ -37,11 +34,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   await Promise.all((funds || []).map(async (fund) => {
     try {
       const matches = await searchFunds(fund.name);
-      const targetName = normalizeName(fund.name);
-      const match = matches.find((candidate) => normalizeName(candidate.name) === targetName)
-        || matches.find((candidate) => normalizeName(candidate.name).includes(targetName))
-        || matches[0];
-      if (!match?.nav || match.dataQuality !== "live") {
+      const match = findExactLiveFund(fund.name, matches);
+      if (!match?.nav) {
         unavailable.push(fund.name);
         return;
       }

@@ -26,16 +26,16 @@ interface Props {
 const emptyForm = {
   name: "",
   category: "large_cap" as FundCategory,
-  investedAmount: 50000,
-  currentValue: 55000,
-  returns1Y: 10,
+  investedAmount: 0,
+  currentValue: 0,
+  returns1Y: 0,
   riskLevel: "moderately_high" as RiskLevel,
-  expenseRatio: 0.5,
-  nav: 100,
-  units: 550,
-  returns3Y: 12,
-  returns5Y: 14,
-  aum: 10000,
+  expenseRatio: 0,
+  nav: 0,
+  units: 0,
+  returns3Y: 0,
+  returns5Y: 0,
+  aum: 0,
   benchmark: "",
   manager: "",
 };
@@ -112,24 +112,20 @@ export default function AddFundModal({ portfolioId, onClose, onAdded }: Props) {
 
   function selectFund(fund: FundSearchResult) {
     setSelectedFund(fund);
-    setForm((prev) => ({
-      ...prev,
+    setForm({
+      ...emptyForm,
       name: fund.name,
-      category: fund.category || prev.category,
-      riskLevel: fund.riskLevel || prev.riskLevel,
-      nav: fund.nav ?? prev.nav,
-      returns1Y: fund.returns1Y ?? prev.returns1Y,
-      returns3Y: fund.returns3Y ?? prev.returns3Y,
-      returns5Y: fund.returns5Y ?? prev.returns5Y,
-      expenseRatio: fund.expenseRatio ?? prev.expenseRatio,
-      aum: fund.aum ?? prev.aum,
-      benchmark: fund.benchmark ?? prev.benchmark,
-      // Keep whatever invested amount the user already typed; if this is
-      // the first pick, seed currentValue = investedAmount as a starting
-      // point (still fully editable below).
-      currentValue: prev.currentValue || prev.investedAmount,
-      units: fund.nav ? Number((prev.investedAmount / fund.nav).toFixed(4)) : prev.units,
-    }));
+      category: fund.category || emptyForm.category,
+      riskLevel: fund.riskLevel || emptyForm.riskLevel,
+      nav: fund.nav ?? 0,
+      returns1Y: fund.returns1Y ?? 0,
+      returns3Y: fund.returns3Y ?? 0,
+      returns5Y: fund.returns5Y ?? 0,
+      expenseRatio: fund.expenseRatio ?? 0,
+      aum: fund.aum ?? 0,
+      benchmark: fund.benchmark ?? "",
+    });
+    setError(null);
     setMode("selected");
   }
 
@@ -147,6 +143,10 @@ export default function AddFundModal({ portfolioId, onClose, onAdded }: Props) {
     }
     if (!Number.isFinite(form.currentValue) || form.currentValue < 0) {
       setError("Current value must be 0 or greater.");
+      return;
+    }
+    if (!Number.isFinite(form.units) || form.units < 0) {
+      setError("Units must be 0 or greater.");
       return;
     }
     setSubmitting(true);
@@ -342,7 +342,7 @@ export default function AddFundModal({ portfolioId, onClose, onAdded }: Props) {
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-medium text-[var(--shell-text)] truncate">{form.name}</p>
                 <p className="text-xs text-[var(--shell-text-faint)] mt-0.5">
-                  {categoryLabel(form.category)} · {form.riskLevel.replace(/_/g, " ")} risk
+                  {categoryLabel(form.category)} · {form.riskLevel.replace(/_/g, " ")} estimated risk
                   {form.nav ? ` · NAV ₹${form.nav}` : ""}
                   {form.returns1Y ? ` · 1Y ${formatPercent(form.returns1Y)}` : ""}
                 </p>
@@ -363,20 +363,21 @@ export default function AddFundModal({ portfolioId, onClose, onAdded }: Props) {
               </button>
             </div>
 
+            <p className="text-xs leading-relaxed text-[var(--shell-text-muted)]">
+              {selectedFund?.dataQuality === "live" && form.nav > 0
+                ? "Enter units from your statement to calculate current value and enable future NAV refreshes. Otherwise enter your current value manually."
+                : "Live NAV is unavailable for this listing. Enter your current value from your statement; automatic NAV refresh will remain off."}
+            </p>
+
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="text-xs font-medium text-[var(--shell-text-muted)] mb-1.5 block">Amount Invested (₹)</label>
                 <input
-                  type="number" required value={form.investedAmount}
+                  type="number" required value={form.investedAmount || ""}
                   min="0.01" step="0.01" inputMode="decimal"
                   onChange={(e) => {
                     const investedAmount = +e.target.value;
-                    setForm((prev) => ({
-                      ...prev,
-                      investedAmount,
-                      currentValue: prev.currentValue === prev.investedAmount ? investedAmount : prev.currentValue,
-                      units: prev.nav ? Number((investedAmount / prev.nav).toFixed(4)) : prev.units,
-                    }));
+                    setForm((prev) => ({ ...prev, investedAmount }));
                   }}
                   className="w-full px-3 py-2.5 border border-[var(--shell-border)] rounded-xl text-sm focus:outline-none focus:border-cyan-500/40"
                 />
@@ -384,13 +385,61 @@ export default function AddFundModal({ portfolioId, onClose, onAdded }: Props) {
               <div>
                 <label className="text-xs font-medium text-[var(--shell-text-muted)] mb-1.5 block">Current Value (₹)</label>
                 <input
-                  type="number" value={form.currentValue}
+                  type="number" required value={form.currentValue || ""}
                   min="0" step="0.01" inputMode="decimal"
-                  onChange={(e) => setForm({ ...form, currentValue: +e.target.value })}
+                  onChange={(e) => setForm({ ...form, currentValue: +e.target.value, units: 0 })}
                   className="w-full px-3 py-2.5 border border-[var(--shell-border)] rounded-xl text-sm focus:outline-none focus:border-cyan-500/40"
                 />
               </div>
             </div>
+
+            {selectedFund?.dataQuality === "live" && form.nav > 0 && (
+              <div>
+                <label className="text-xs font-medium text-[var(--shell-text-muted)] mb-1.5 block">Units held (optional)</label>
+                <input
+                  type="number" value={form.units || ""} min="0" step="0.0001" inputMode="decimal"
+                  onChange={(e) => {
+                    const units = +e.target.value;
+                    setForm((prev) => ({
+                      ...prev,
+                      units,
+                      currentValue: units > 0 ? Number((units * prev.nav).toFixed(2)) : 0,
+                    }));
+                  }}
+                  className="w-full px-3 py-2.5 border border-[var(--shell-border)] rounded-xl text-sm focus:outline-none focus:border-cyan-500/40"
+                />
+              </div>
+            )}
+
+            {(selectedFund?.returns1Y === undefined || selectedFund?.expenseRatio === undefined) && (
+              <div className="space-y-3 border-t border-[var(--shell-border)] pt-4">
+                <p className="text-xs leading-relaxed text-[var(--shell-text-muted)]">
+                  Some metrics are unavailable from this source. Enter verified figures if you have them; blanks are stored as 0 and can affect analysis.
+                </p>
+                <div className="grid grid-cols-2 gap-3">
+                  {selectedFund?.returns1Y === undefined && (
+                    <div>
+                      <label className="mb-1.5 block text-xs font-medium text-[var(--shell-text-muted)]">1-year return (%)</label>
+                      <input
+                        type="number" step="0.01" value={form.returns1Y || ""} placeholder="Unavailable"
+                        onChange={(e) => setForm({ ...form, returns1Y: +e.target.value })}
+                        className="w-full rounded-xl border border-[var(--shell-border)] px-3 py-2.5 text-sm focus:outline-none focus:border-cyan-500/40"
+                      />
+                    </div>
+                  )}
+                  {selectedFund?.expenseRatio === undefined && (
+                    <div>
+                      <label className="mb-1.5 block text-xs font-medium text-[var(--shell-text-muted)]">Expense ratio (%)</label>
+                      <input
+                        type="number" min="0" step="0.01" value={form.expenseRatio || ""} placeholder="Unavailable"
+                        onChange={(e) => setForm({ ...form, expenseRatio: +e.target.value })}
+                        className="w-full rounded-xl border border-[var(--shell-border)] px-3 py-2.5 text-sm focus:outline-none focus:border-cyan-500/40"
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
 
             <div className="flex gap-3 pt-2">
               <button type="submit" disabled={submitting}
@@ -452,14 +501,14 @@ export default function AddFundModal({ portfolioId, onClose, onAdded }: Props) {
               </div>
               <div>
                 <label className="text-xs font-medium text-[var(--shell-text-muted)] mb-1.5 block">Amount Invested (₹)</label>
-                <input type="number" value={form.investedAmount}
+                <input type="number" required value={form.investedAmount || ""}
                   min="0.01" step="0.01" inputMode="decimal"
                   onChange={(e) => setForm({ ...form, investedAmount: +e.target.value })}
                   className="w-full px-3 py-2.5 border border-[var(--shell-border)] rounded-xl text-sm focus:outline-none focus:border-cyan-500/40" />
               </div>
               <div>
                 <label className="text-xs font-medium text-[var(--shell-text-muted)] mb-1.5 block">Current Value (₹)</label>
-                <input type="number" value={form.currentValue}
+                <input type="number" required value={form.currentValue || ""}
                   min="0" step="0.01" inputMode="decimal"
                   onChange={(e) => setForm({ ...form, currentValue: +e.target.value })}
                   className="w-full px-3 py-2.5 border border-[var(--shell-border)] rounded-xl text-sm focus:outline-none focus:border-cyan-500/40" />
