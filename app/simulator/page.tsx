@@ -105,14 +105,14 @@ export default function SimulatorPage() {
 
   return (
     <div className="max-w-6xl mx-auto">
-      <div className="mb-8 flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-[var(--shell-text)] mb-1">Portfolio Simulator</h1>
-          <p className="text-sm text-[var(--shell-text-faint)]">
+      <div className="mb-6 flex flex-wrap items-start justify-between gap-4 sm:mb-8">
+        <div className="min-w-0">
+          <h1 className="text-2xl font-semibold text-[var(--shell-text)]">Portfolio simulator</h1>
+          <p className="mt-1 text-sm text-[var(--shell-text-muted)]">
             Simulate portfolio growth with the QuantRebalance Protocol and compare strategies
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {!isDemo && !portfolioLoading && activePortfolio.funds.length > 0 && (
             <button
               onClick={handleLoadRealPortfolio}

@@ -103,10 +103,10 @@ export default function PortfolioPage() {
       <div className="flex-1 overflow-y-auto">
         <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6 sm:py-8">
           {/* Header */}
-          <div className="mb-8 flex flex-wrap items-start justify-between gap-4">
-            <div>
+          <div className="mb-6 flex flex-wrap items-start justify-between gap-4 sm:mb-8">
+            <div className="min-w-0">
               <h1 className="text-2xl font-semibold text-[var(--shell-text)]">{error && user ? "Portfolio" : portfolio.name}</h1>
-              <p className="text-sm text-[var(--shell-text-muted)]">
+              <p className="mt-1 text-sm text-[var(--shell-text-muted)]">
                 {error && user ? "Your holdings could not be loaded" : isEmpty && user ? "No holdings yet" : `${portfolio.funds.length} fund${portfolio.funds.length === 1 ? "" : "s"}`}
               </p>
               {refreshNotice && <p className="mt-1 text-xs text-[var(--shell-text-faint)]">{refreshNotice}</p>}

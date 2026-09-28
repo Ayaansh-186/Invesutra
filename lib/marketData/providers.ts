@@ -4,6 +4,7 @@ import type { FundCategory, RiskLevel } from "@/lib/types";
 import type { FundDataProvider, FundDetails, FundSearchResult, ProviderStatus } from "./types";
 import { callMutualFundTool } from "@/lib/mcp/mcpClient";
 import { inferRiskLevel, isMutualFundSourceConfigured, mapAmfiCategory } from "@/lib/mcp/mutualFundSource";
+import { isRecentNav } from "./navFreshness";
 
 interface McpSearchHit {
   schemeCode: number;
@@ -118,25 +119,28 @@ class MutualFundMcpProvider implements FundDataProvider {
 
     const detailedResults = detailed
       .filter((f): f is FundDetails => Boolean(f))
-      .map((f) => ({
+      .map((f) => {
+        const hasRecentNav = isRecentNav(f.navAsOf) && f.nav !== undefined && Number.isFinite(f.nav) && f.nav > 0;
+        return {
         provider: this.id,
         symbol: String(f.schemeCode),
         isin: f.isin,
         name: f.name,
         category: f.category,
         riskLevel: f.riskLevel,
-        nav: f.nav,
-        returns1Y: f.returns1Y,
-        returns3Y: f.returns3Y,
-        returns5Y: f.returns5Y,
+        nav: hasRecentNav ? f.nav : undefined,
+        returns1Y: hasRecentNav ? f.returns1Y : undefined,
+        returns3Y: hasRecentNav ? f.returns3Y : undefined,
+        returns5Y: hasRecentNav ? f.returns5Y : undefined,
         expenseRatio: undefined,
         aum: undefined,
         benchmark: undefined,
         sourceUrl: `https://www.mfapi.in/mf/${f.schemeCode}`,
         asOf: f.navAsOf,
         ...schemeMetadata(f.name),
-        dataQuality: "live" as const,
-      }));
+        dataQuality: hasRecentNav ? "live" as const : "partial" as const,
+      };
+      });
 
     if (detailedResults.length > 0) return detailedResults;
 
@@ -202,7 +206,7 @@ export function getProviderStatuses(): ProviderStatus[] {
     configured: provider.isConfigured(),
     notes: provider.isConfigured()
       ? provider.id === "mutual-fund-mcp"
-        ? "Live — AMFI-sourced NAV, returns, and category via MCP. No API key required."
+        ? "AMFI-sourced fund data via MCP. NAV availability and freshness vary by scheme."
         : "Credentials present."
       : "Not configured.",
   }));

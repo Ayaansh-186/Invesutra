@@ -290,17 +290,17 @@ export default function ReportsPage() {
         </div>
       )}
 
-      <div className="flex items-start justify-between mb-8">
-        <div>
-          <h1 className="text-2xl font-bold text-[var(--shell-text)] mb-1">AI Investment Reports</h1>
-          <p className="text-sm text-[var(--shell-text-faint)]">
+      <div className="mb-6 flex flex-wrap items-start justify-between gap-4 sm:mb-8">
+        <div className="min-w-0">
+          <h1 className="text-2xl font-semibold text-[var(--shell-text)]">Investment reports</h1>
+          <p className="mt-1 text-sm text-[var(--shell-text-muted)]">
             Generate comprehensive portfolio analysis reports powered by AI
           </p>
         </div>
         <button
           onClick={handleGenerate}
           disabled={generating}
-          className="flex items-center gap-2 px-5 py-2.5 bg-cyan-400 text-slate-950 text-sm font-semibold rounded-xl hover:bg-cyan-300 disabled:opacity-60 transition-colors"
+          className="inline-flex shrink-0 items-center gap-2 rounded-md bg-cyan-400 px-4 py-2.5 text-sm font-semibold text-slate-950 transition-colors hover:bg-cyan-300 disabled:opacity-60"
         >
           {generating ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
           {generating ? "Generating..." : "Generate Report"}

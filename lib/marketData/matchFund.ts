@@ -1,4 +1,5 @@
 import type { FundSearchResult } from "./types";
+import { isRecentNav } from "./navFreshness";
 
 function normalizeFundName(name: string): string {
   return name
@@ -9,7 +10,7 @@ function normalizeFundName(name: string): string {
     .replace(/\s+/g, " ");
 }
 
-export function findExactLiveFund(name: string, matches: FundSearchResult[]): FundSearchResult | undefined {
+export function findExactLiveFund(name: string, matches: FundSearchResult[], now = new Date()): FundSearchResult | undefined {
   const target = normalizeFundName(name);
   if (!target) return undefined;
   return matches.find((candidate) =>
@@ -17,6 +18,7 @@ export function findExactLiveFund(name: string, matches: FundSearchResult[]): Fu
     candidate.nav !== undefined &&
     Number.isFinite(candidate.nav) &&
     candidate.nav > 0 &&
+    isRecentNav(candidate.asOf, now) &&
     normalizeFundName(candidate.name) === target
   );
 }

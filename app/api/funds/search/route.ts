@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
   }
 
   const funds = await searchFunds(query);
-  const hasLiveNav = funds.some((fund) => fund.nav !== undefined || fund.asOf);
+  const hasLiveNav = funds.some((fund) => fund.dataQuality === "live");
   const hasFallback = funds.some((fund) => fund.symbol?.startsWith("fallback-"));
   return NextResponse.json({
     funds,
@@ -37,6 +37,6 @@ export async function GET(request: NextRequest) {
           ? "Live results from the Mutual Fund MCP provider (AMFI data)."
           : hasFallback
             ? "Showing local fallback matches because live AMFI fund data is temporarily unavailable. Values are editable before saving."
-            : "Showing AMFI search matches; detailed NAV data is temporarily unavailable. Values are editable before saving.",
+            : "Showing AMFI fund matches. Current NAV is unavailable or outdated; use your statement for current value.",
   });
 }
