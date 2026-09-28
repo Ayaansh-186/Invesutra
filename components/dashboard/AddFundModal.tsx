@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import Link from "next/link";
-import { X, Loader2, AlertCircle, Search, ArrowLeft, CheckCircle2 } from "lucide-react";
+import { X, Loader2, AlertCircle, Search, ArrowLeft, CheckCircle2, LockKeyhole } from "lucide-react";
 import { categoryLabel, formatPercent } from "@/lib/utils/format";
 import type { FundCategory, RiskLevel } from "@/lib/types";
 import type { FundSearchResult } from "@/lib/marketData/types";
@@ -41,6 +41,8 @@ const emptyForm = {
 };
 
 export default function AddFundModal({ portfolioId, onClose, onAdded }: Props) {
+  const titleId = useId();
+  const searchResultsId = useId();
   // Escape closes the modal, like every other modal a user expects this
   // from — previously the only way out was the X or Cancel button.
   useEffect(() => {
@@ -50,6 +52,14 @@ export default function AddFundModal({ portfolioId, onClose, onAdded }: Props) {
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
   }, [onClose]);
+
+  useEffect(() => {
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, []);
 
   const [mode, setMode] = useState<"search" | "manual" | "selected">("search");
   const [query, setQuery] = useState("");
@@ -74,22 +84,30 @@ export default function AddFundModal({ portfolioId, onClose, onAdded }: Props) {
       return;
     }
     const seq = ++searchSeq.current;
+    const controller = new AbortController();
     setSearching(true);
     const timer = setTimeout(async () => {
       try {
-        const res = await fetch(`/api/funds/search?q=${encodeURIComponent(query.trim())}`);
+        const res = await fetch(`/api/funds/search?q=${encodeURIComponent(query.trim())}`, {
+          signal: controller.signal,
+        });
         const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Fund search is unavailable.");
         if (seq !== searchSeq.current) return; // a newer search superseded this one
         setResults(data.funds || []);
         setSearchMessage(data.message || null);
         setHighlightedIndex(-1);
-      } catch {
-        if (seq === searchSeq.current) setSearchMessage("Search failed. You can still add this fund manually.");
+      } catch (searchError) {
+        if (searchError instanceof DOMException && searchError.name === "AbortError") return;
+        if (seq === searchSeq.current) setSearchMessage("Search is unavailable. You can still add this fund manually.");
       } finally {
         if (seq === searchSeq.current) setSearching(false);
       }
     }, 300);
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
   }, [query, mode]);
 
   function selectFund(fund: FundSearchResult) {
@@ -123,6 +141,14 @@ export default function AddFundModal({ portfolioId, onClose, onAdded }: Props) {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!form.name.trim()) { setError("Fund name is required."); return; }
+    if (!Number.isFinite(form.investedAmount) || form.investedAmount <= 0) {
+      setError("Invested amount must be greater than 0.");
+      return;
+    }
+    if (!Number.isFinite(form.currentValue) || form.currentValue < 0) {
+      setError("Current value must be 0 or greater.");
+      return;
+    }
     setSubmitting(true);
     setError(null);
 
@@ -167,12 +193,15 @@ export default function AddFundModal({ portfolioId, onClose, onAdded }: Props) {
       >
         <div
           onClick={(e) => e.stopPropagation()}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby={titleId}
           className="bg-[var(--shell-surface)] rounded-2xl max-w-sm w-full p-8 text-center shadow-2xl"
         >
           <div className="w-12 h-12 bg-cyan-400/10 rounded-2xl flex items-center justify-center mx-auto mb-4">
-            <span className="text-2xl">🔐</span>
+            <LockKeyhole className="h-5 w-5 text-cyan-500" />
           </div>
-          <h2 className="text-lg font-bold text-[var(--shell-text)] mb-2">Sign in to add funds</h2>
+          <h2 id={titleId} className="text-lg font-bold text-[var(--shell-text)] mb-2">Sign in to add funds</h2>
           <p className="text-sm text-[var(--shell-text-faint)] mb-6 leading-relaxed">
             Create a free Invesutra account to build and save your own portfolio.
           </p>
@@ -195,18 +224,21 @@ export default function AddFundModal({ portfolioId, onClose, onAdded }: Props) {
     >
       <div
         onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
         className="bg-[var(--shell-surface)] rounded-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto shadow-2xl"
       >
         <div className="flex items-center justify-between p-5 border-b border-[var(--shell-border)] sticky top-0 bg-[var(--shell-surface)] rounded-t-2xl z-10">
           <div>
-            <h2 className="text-base font-semibold text-[var(--shell-text)]">Add Mutual Fund</h2>
+            <h2 id={titleId} className="text-base font-semibold text-[var(--shell-text)]">Add Mutual Fund</h2>
             <p className="text-xs text-[var(--shell-text-faint)] mt-0.5">
               {mode === "search" && "Search real Indian mutual fund schemes (AMFI data)"}
               {mode === "selected" && "Confirm your invested amount"}
               {mode === "manual" && "Enter your fund details manually"}
             </p>
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-[var(--shell-surface-2)] text-[var(--shell-text-faint)] transition-colors">
+          <button aria-label="Close add fund dialog" onClick={onClose} className="p-1.5 rounded-lg hover:bg-[var(--shell-surface-2)] text-[var(--shell-text-faint)] transition-colors">
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -235,6 +267,11 @@ export default function AddFundModal({ portfolioId, onClose, onAdded }: Props) {
                   }
                 }}
                 placeholder="e.g. HDFC Flexi Cap, Mirae Asset Large Cap..."
+                role="combobox"
+                aria-autocomplete="list"
+                aria-expanded={results.length > 0}
+                aria-controls={searchResultsId}
+                aria-activedescendant={highlightedIndex >= 0 ? `${searchResultsId}-${highlightedIndex}` : undefined}
                 className="w-full pl-9 pr-3 py-2.5 border border-[var(--shell-border)] rounded-xl text-sm focus:outline-none focus:border-cyan-500/40 focus:ring-1 focus:ring-cyan-500/10"
               />
               {searching && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--shell-text-faint)] animate-spin" />}
@@ -245,11 +282,14 @@ export default function AddFundModal({ portfolioId, onClose, onAdded }: Props) {
             )}
 
             {results.length > 0 && (
-              <div className="space-y-1.5 max-h-72 overflow-y-auto">
+              <div id={searchResultsId} role="listbox" className="space-y-1.5 max-h-72 overflow-y-auto">
                 {results.map((fund, i) => (
                   <button
                     key={`${fund.symbol || fund.name}-${i}`}
                     type="button"
+                    id={`${searchResultsId}-${i}`}
+                    role="option"
+                    aria-selected={i === highlightedIndex}
                     onClick={() => selectFund(fund)}
                     onMouseEnter={() => setHighlightedIndex(i)}
                     className={`group w-full text-left p-3 border border-[var(--shell-border)] rounded-xl bg-[var(--shell-surface)] focus:outline-none focus:ring-2 focus:ring-cyan-400/20 transition-colors ${
@@ -314,6 +354,7 @@ export default function AddFundModal({ portfolioId, onClose, onAdded }: Props) {
                 <label className="text-xs font-medium text-[var(--shell-text-muted)] mb-1.5 block">Amount Invested (₹)</label>
                 <input
                   type="number" required value={form.investedAmount}
+                  min="0.01" step="0.01" inputMode="decimal"
                   onChange={(e) => {
                     const investedAmount = +e.target.value;
                     setForm((prev) => ({
@@ -330,6 +371,7 @@ export default function AddFundModal({ portfolioId, onClose, onAdded }: Props) {
                 <label className="text-xs font-medium text-[var(--shell-text-muted)] mb-1.5 block">Current Value (₹)</label>
                 <input
                   type="number" value={form.currentValue}
+                  min="0" step="0.01" inputMode="decimal"
                   onChange={(e) => setForm({ ...form, currentValue: +e.target.value })}
                   className="w-full px-3 py-2.5 border border-[var(--shell-border)] rounded-xl text-sm focus:outline-none focus:border-cyan-500/40"
                 />
@@ -397,12 +439,14 @@ export default function AddFundModal({ portfolioId, onClose, onAdded }: Props) {
               <div>
                 <label className="text-xs font-medium text-[var(--shell-text-muted)] mb-1.5 block">Amount Invested (₹)</label>
                 <input type="number" value={form.investedAmount}
+                  min="0.01" step="0.01" inputMode="decimal"
                   onChange={(e) => setForm({ ...form, investedAmount: +e.target.value })}
                   className="w-full px-3 py-2.5 border border-[var(--shell-border)] rounded-xl text-sm focus:outline-none focus:border-cyan-500/40" />
               </div>
               <div>
                 <label className="text-xs font-medium text-[var(--shell-text-muted)] mb-1.5 block">Current Value (₹)</label>
                 <input type="number" value={form.currentValue}
+                  min="0" step="0.01" inputMode="decimal"
                   onChange={(e) => setForm({ ...form, currentValue: +e.target.value })}
                   className="w-full px-3 py-2.5 border border-[var(--shell-border)] rounded-xl text-sm focus:outline-none focus:border-cyan-500/40" />
               </div>

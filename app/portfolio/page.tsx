@@ -13,7 +13,7 @@ import PortfolioContextPanel from "@/components/dashboard/PortfolioContextPanel"
 import PortfolioChart from "@/components/dashboard/PortfolioChart";
 import SinceLastVisit from "@/components/dashboard/SinceLastVisit";
 import {
-  Sparkles, Plus, RefreshCw, TrendingUp, TrendingDown, Shield, Zap, MessageSquare,
+  Sparkles, Plus, RefreshCw, TrendingUp, TrendingDown, Shield, Zap, MessageSquare, AlertTriangle,
 } from "lucide-react";
 
 // Only loaded when the user actually opens "Add Fund" — keeps this ~19KB
@@ -22,7 +22,7 @@ const AddFundModal = dynamic(() => import("@/components/dashboard/AddFundModal")
 
 export default function PortfolioPage() {
   const { user } = useAuth();
-  const { portfolio, loading, isDemo, isEmpty, refresh } = useActivePortfolio();
+  const { portfolio, loading, isDemo, isEmpty, error, refresh } = useActivePortfolio();
   const [showAddFund, setShowAddFund] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const analysis = portfolio.analysis ?? riskEngine.analyzePortfolio(portfolio);
@@ -98,7 +98,25 @@ export default function PortfolioPage() {
             </div>
           </div>
 
-          {isEmpty && user ? (
+          {error && user ? (
+            <div className="flex flex-col items-center justify-center gap-4 rounded-xl border border-amber-400/25 bg-amber-400/10 px-6 py-16 text-center">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-amber-400/15">
+                <AlertTriangle className="h-5 w-5 text-amber-500" />
+              </div>
+              <div>
+                <h2 className="text-base font-semibold text-[var(--shell-text)]">Your portfolio could not be loaded</h2>
+                <p className="mx-auto mt-1.5 max-w-md text-sm text-[var(--shell-text-muted)]">{error}</p>
+              </div>
+              <button
+                onClick={handleRefresh}
+                disabled={refreshing}
+                className="inline-flex items-center gap-2 rounded-lg bg-amber-400 px-4 py-2.5 text-sm font-semibold text-slate-950 transition hover:bg-amber-300 disabled:opacity-60"
+              >
+                <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
+                {refreshing ? "Trying again..." : "Try again"}
+              </button>
+            </div>
+          ) : isEmpty && user ? (
             <div className="flex flex-col items-center justify-center gap-4 rounded-2xl border border-dashed border-[var(--shell-border)] bg-[var(--shell-surface)] px-6 py-16 text-center">
               <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-400 to-emerald-400">
                 <Plus className="h-6 w-6 text-slate-950" strokeWidth={2.5} />

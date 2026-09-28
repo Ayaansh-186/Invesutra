@@ -629,13 +629,9 @@ export default function AIPortfolioAssistant({
           />
           {source && (
             <p className="mt-2 text-[10px] text-[var(--shell-text-faint)]">
-              {source === "groq"
-                ? "Groq · grounded on portfolio data"
-                : source === "gemini"
-                ? "Gemini · grounded on portfolio data"
-                : source === "openai"
-                ? "OpenAI · grounded on portfolio data"
-                : "Local deterministic engine"}
+              {source === "deterministic"
+                ? "Built-in portfolio analysis"
+                : "Live AI response based on your portfolio"}
             </p>
           )}
         </div>

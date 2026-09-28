@@ -131,7 +131,10 @@ export default function HoldingsTable({
                   {isEditing ? (
                     <input
                       type="number"
-                      min="0"
+                      min="0.01"
+                      step="0.01"
+                      inputMode="decimal"
+                      aria-label={`Invested amount for ${fund.name}`}
                       value={editValues.investedAmount}
                       onChange={(e) => setEditValues((v) => ({ ...v, investedAmount: +e.target.value }))}
                       className="w-28 rounded-lg border border-[var(--shell-border)] bg-[var(--shell-bg)] px-2 py-1 text-right text-sm text-[var(--shell-text)] outline-none focus:border-cyan-500/40"
@@ -145,6 +148,9 @@ export default function HoldingsTable({
                     <input
                       type="number"
                       min="0"
+                      step="0.01"
+                      inputMode="decimal"
+                      aria-label={`Current value for ${fund.name}`}
                       value={editValues.currentValue}
                       onChange={(e) => setEditValues((v) => ({ ...v, currentValue: +e.target.value }))}
                       className="w-28 rounded-lg border border-[var(--shell-border)] bg-[var(--shell-bg)] px-2 py-1 text-right text-sm text-[var(--shell-text)] outline-none focus:border-cyan-500/40"
@@ -170,6 +176,7 @@ export default function HoldingsTable({
                           disabled={isBusy}
                           className="rounded-lg p-1.5 text-emerald-500 transition hover:bg-[var(--shell-surface-2)] disabled:opacity-50"
                           title="Save"
+                          aria-label={`Save changes to ${fund.name}`}
                         >
                           {isBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
                         </button>
@@ -178,6 +185,7 @@ export default function HoldingsTable({
                           disabled={isBusy}
                           className="rounded-lg p-1.5 text-[var(--shell-text-faint)] transition hover:bg-[var(--shell-surface-2)]"
                           title="Cancel"
+                          aria-label={`Cancel editing ${fund.name}`}
                         >
                           <X className="h-3.5 w-3.5" />
                         </button>
@@ -190,6 +198,7 @@ export default function HoldingsTable({
                           disabled={isBusy}
                           className="rounded-lg p-1.5 text-rose-500 transition hover:bg-[var(--shell-surface-2)] disabled:opacity-50"
                           title="Confirm remove"
+                          aria-label={`Confirm removing ${fund.name}`}
                         >
                           {isBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
                         </button>
@@ -197,6 +206,7 @@ export default function HoldingsTable({
                           onClick={() => setConfirmDeleteId(null)}
                           className="rounded-lg p-1.5 text-[var(--shell-text-faint)] transition hover:bg-[var(--shell-surface-2)]"
                           title="Cancel"
+                          aria-label={`Cancel removing ${fund.name}`}
                         >
                           <X className="h-3.5 w-3.5" />
                         </button>
@@ -207,6 +217,7 @@ export default function HoldingsTable({
                           onClick={() => startEdit(fund)}
                           className="rounded-lg p-1.5 text-[var(--shell-text-faint)] transition hover:bg-[var(--shell-surface-2)] hover:text-[var(--shell-text)]"
                           title="Edit"
+                          aria-label={`Edit ${fund.name}`}
                         >
                           <Pencil className="h-3.5 w-3.5" />
                         </button>
@@ -214,6 +225,7 @@ export default function HoldingsTable({
                           onClick={() => { setConfirmDeleteId(fund.id); setRowError(null); }}
                           className="rounded-lg p-1.5 text-[var(--shell-text-faint)] transition hover:bg-[var(--shell-surface-2)] hover:text-rose-500"
                           title="Remove"
+                          aria-label={`Remove ${fund.name}`}
                         >
                           <Trash2 className="h-3.5 w-3.5" />
                         </button>
