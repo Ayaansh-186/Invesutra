@@ -80,11 +80,19 @@ export default function AddFundModal({ portfolioId, onClose, onAdded }: Props) {
 
   // Debounced search against the MCP-backed fund data (real AMFI schemes).
   const searchSeq = useRef(0);
+  function updateQuery(nextQuery: string) {
+    searchSeq.current += 1;
+    setQuery(nextQuery);
+    setResults([]);
+    setHighlightedIndex(-1);
+    setSearchMessage(null);
+    setSearching(nextQuery.trim().length >= 2);
+  }
+
   useEffect(() => {
     if (mode !== "search") return;
     if (query.trim().length < 2) {
-      setResults([]);
-      setSearchMessage(null);
+      setSearching(false);
       return;
     }
     const seq = ++searchSeq.current;
@@ -262,7 +270,7 @@ export default function AddFundModal({ portfolioId, onClose, onAdded }: Props) {
                 autoFocus
                 type="text"
                 value={query}
-                onChange={(e) => setQuery(e.target.value)}
+                onChange={(e) => updateQuery(e.target.value)}
                 onKeyDown={(e) => {
                   if (results.length === 0) return;
                   if (e.key === "ArrowDown") {
@@ -281,6 +289,7 @@ export default function AddFundModal({ portfolioId, onClose, onAdded }: Props) {
                 aria-autocomplete="list"
                 aria-expanded={results.length > 0}
                 aria-controls={searchResultsId}
+                aria-busy={searching}
                 aria-activedescendant={highlightedIndex >= 0 ? `${searchResultsId}-${highlightedIndex}` : undefined}
                 className="w-full pl-9 pr-3 py-2.5 border border-[var(--shell-border)] rounded-xl text-sm focus:outline-none focus:border-cyan-500/40 focus:ring-1 focus:ring-cyan-500/10"
               />
@@ -306,7 +315,7 @@ export default function AddFundModal({ portfolioId, onClose, onAdded }: Props) {
                       i === highlightedIndex ? "border-cyan-400/50 bg-cyan-400/10" : "hover:border-cyan-400/50 hover:bg-cyan-400/10"
                     }`}
                   >
-                    <p className="text-sm font-medium text-[var(--shell-text)] truncate group-hover:text-cyan-600">{fund.name}</p>
+                    <p className="break-words text-sm font-medium leading-snug text-[var(--shell-text)] group-hover:text-cyan-600">{fund.name}</p>
                     <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-[var(--shell-text-faint)]">
                       {fund.category && (
                         <span className="px-1.5 py-0.5 bg-[var(--shell-surface-2)] rounded-md">{categoryLabel(fund.category)}</span>
@@ -324,7 +333,7 @@ export default function AddFundModal({ portfolioId, onClose, onAdded }: Props) {
             )}
 
             {!searching && query.trim().length >= 2 && results.length === 0 && (
-              <p className="text-xs text-[var(--shell-text-faint)]">{searchMessage || "No matching funds found."}</p>
+              <p role="status" className="text-xs text-[var(--shell-text-faint)]">{searchMessage || "No matching funds found."}</p>
             )}
 
             <button
