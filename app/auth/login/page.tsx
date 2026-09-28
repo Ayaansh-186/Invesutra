@@ -2,9 +2,10 @@
 
 import { useState, Suspense } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
-import { TrendingUp, Mail, Lock, ArrowRight, AlertCircle, Loader2 } from "lucide-react";
+import { Mail, Lock, ArrowRight, AlertCircle, Loader2 } from "lucide-react";
 
 function LoginForm() {
   const router = useRouter();
@@ -53,9 +54,7 @@ function LoginForm() {
     <main className="min-h-screen flex items-center justify-center p-6 bg-slate-50">
       <div className="max-w-md w-full">
         <Link href="/" className="flex items-center justify-center gap-2.5 mb-8">
-          <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-cyan-400 to-emerald-400 flex items-center justify-center">
-            <TrendingUp className="w-4.5 h-4.5 text-slate-950" strokeWidth={2.5} />
-          </div>
+          <Image src="/invesutra-mark.png" alt="" width={36} height={36} className="h-9 w-9 object-contain" />
           <span className="font-semibold text-slate-900">Invesutra</span>
         </Link>
 

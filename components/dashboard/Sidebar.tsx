@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import {
-  TrendingUp, Search, BarChart2,
+  Search, BarChart2,
   FileText, Bell, LogOut, ChevronRight, User, MessageSquare, Wallet, X,
 } from "lucide-react";
 import { useAuth } from "@/lib/hooks/useAuth";
@@ -58,9 +59,7 @@ export default function DashboardSidebar({
         {/* Logo */}
         <div className="flex items-center justify-between border-b border-[var(--shell-border)] p-5">
           <Link href="/" className="group flex items-center gap-2.5" onClick={onClose}>
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-400 to-emerald-400 shadow-lg shadow-cyan-500/20 transition-shadow group-hover:shadow-cyan-500/30">
-              <TrendingUp className="h-4 w-4 text-slate-950" strokeWidth={2.5} />
-            </div>
+            <Image src="/invesutra-mark.png" alt="" width={36} height={36} className="h-9 w-9 object-contain" />
             <span className="text-sm font-bold text-[var(--shell-text)]">Invesutra</span>
           </Link>
           <button

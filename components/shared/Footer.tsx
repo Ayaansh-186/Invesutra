@@ -1,16 +1,14 @@
 import Link from "next/link";
-import { TrendingUp } from "lucide-react";
+import Image from "next/image";
 
 export default function Footer() {
   return (
-    <footer className="bg-[#07111f] border-t border-white/10 py-12">
+    <footer className="bg-[#102820] border-t border-white/10 py-10">
       <div className="max-w-7xl mx-auto px-6">
         <div className="flex flex-col md:flex-row items-start justify-between gap-8">
           <div>
             <Link href="/" className="flex items-center gap-2 mb-3">
-              <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-cyan-400 to-emerald-400 flex items-center justify-center">
-                <TrendingUp className="w-3.5 h-3.5 text-slate-950" strokeWidth={2.5} />
-              </div>
+              <Image src="/invesutra-mark.png" alt="" width={28} height={28} className="h-7 w-7 object-contain" />
               <span className="font-semibold text-white text-sm">Invesutra</span>
             </Link>
             <p className="text-xs text-slate-500 max-w-xs leading-relaxed">
@@ -18,24 +16,7 @@ export default function Footer() {
             </p>
           </div>
 
-          <div className="flex gap-12">
-            <div>
-              <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3">Product</p>
-              <div className="space-y-2">
-                {["Dashboard", "Screener", "Simulator"].map(l => (
-                  <Link key={l} href={`/${l.toLowerCase()}`} className="block text-sm text-slate-500 hover:text-slate-300 transition-colors">{l}</Link>
-                ))}
-              </div>
-            </div>
-            <div>
-              <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3">Legal</p>
-              <div className="space-y-2">
-                {["Privacy Policy", "Terms of Service", "Disclaimer"].map(l => (
-                  <Link key={l} href="#" className="block text-sm text-slate-500 hover:text-slate-300 transition-colors">{l}</Link>
-                ))}
-              </div>
-            </div>
-          </div>
+          <Link href="/dashboard" className="text-sm font-medium text-emerald-100 hover:text-white">Open dashboard</Link>
         </div>
 
         <div className="mt-10 pt-6 border-t border-white/10 flex flex-col md:flex-row items-center justify-between gap-3">

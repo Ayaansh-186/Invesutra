@@ -1,14 +1,12 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useState, useEffect } from "react";
-import { TrendingUp, Menu, X, Sparkles, ArrowRight } from "lucide-react";
-import ThemeToggle from "@/components/shared/ThemeToggle";
+import { Menu, X, ArrowRight } from "lucide-react";
 
 const navLinks = [
   { label: "How it works", href: "#how-it-works" },
-  { label: "Features", href: "#features" },
-  { label: "FAQ", href: "#faq" },
 ];
 
 export default function Navbar({ alwaysLight = false }: { alwaysLight?: boolean }) {
@@ -33,9 +31,7 @@ export default function Navbar({ alwaysLight = false }: { alwaysLight?: boolean 
     >
       <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
         <Link href="/" className="flex items-center gap-2.5 group">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-400 to-emerald-500 flex items-center justify-center shadow-lg shadow-cyan-500/20 group-hover:shadow-cyan-500/30 transition-shadow">
-            <TrendingUp className="w-4 h-4 text-slate-950" strokeWidth={2.5} />
-          </div>
+          <Image src="/invesutra-mark.png" alt="" width={36} height={36} className="h-9 w-9 object-contain" />
           <span className={`font-semibold tracking-tight ${isDark ? "text-white" : "text-slate-900"}`}>
             Invesutra
           </span>
@@ -56,7 +52,6 @@ export default function Navbar({ alwaysLight = false }: { alwaysLight?: boolean 
         </nav>
 
         <div className="hidden md:flex items-center gap-3">
-          <ThemeToggle className="bg-white/5! border-white/10! text-slate-300! hover:text-white!" />
           <Link
             href="/auth/login"
             className={`text-sm font-medium transition-colors ${
@@ -67,10 +62,9 @@ export default function Navbar({ alwaysLight = false }: { alwaysLight?: boolean 
           </Link>
           <Link
             href="/dashboard"
-            className="group flex items-center gap-1.5 px-4 py-2 bg-cyan-300 text-slate-950 text-sm font-semibold rounded-lg hover:bg-cyan-200 transition-colors"
+            className="group flex items-center gap-1.5 px-4 py-2 bg-[#b9e9cb] text-[#102820] text-sm font-semibold rounded-md hover:bg-emerald-100 transition-colors"
           >
-            <Sparkles className="w-3.5 h-3.5" />
-            Talk to AI
+            Open dashboard
             <ArrowRight className="w-3.5 h-3.5 opacity-60 group-hover:translate-x-0.5 transition-transform" />
           </Link>
         </div>
@@ -78,13 +72,15 @@ export default function Navbar({ alwaysLight = false }: { alwaysLight?: boolean 
         <button
           onClick={() => setOpen(!open)}
           className={`md:hidden p-2 rounded-md ${isDark ? "text-white" : "text-slate-600"}`}
+          aria-label={open ? "Close menu" : "Open menu"}
+          aria-expanded={open}
         >
           {open ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
         </button>
       </div>
 
       {open && (
-        <div className="md:hidden bg-[#07111f] border-t border-white/10 px-6 py-4 space-y-3">
+        <div className="md:hidden bg-[#102820] border-t border-white/10 px-6 py-4 space-y-3">
           {navLinks.map((l) => (
             <a
               key={l.href}
@@ -96,12 +92,18 @@ export default function Navbar({ alwaysLight = false }: { alwaysLight?: boolean 
             </a>
           ))}
           <Link
-            href="/dashboard"
-            className="flex items-center justify-center gap-2 mt-3 px-4 py-2.5 bg-cyan-300 text-slate-950 text-sm font-semibold rounded-lg"
+            href="/auth/login"
+            className="block py-1 text-sm font-medium text-slate-300"
             onClick={() => setOpen(false)}
           >
-            <Sparkles className="w-3.5 h-3.5" />
-            Talk to AI
+            Sign in
+          </Link>
+          <Link
+            href="/dashboard"
+            className="flex items-center justify-center gap-2 mt-3 px-4 py-2.5 bg-[#b9e9cb] text-[#102820] text-sm font-semibold rounded-md"
+            onClick={() => setOpen(false)}
+          >
+            Open dashboard <ArrowRight className="h-4 w-4" />
           </Link>
         </div>
       )}
