@@ -44,6 +44,8 @@ const emptyForm = {
 export default function AddFundModal({ portfolioId, onClose, onAdded }: Props) {
   const titleId = useId();
   const searchResultsId = useId();
+  const investedAmountId = useId();
+  const currentValueId = useId();
   // Escape closes the modal, like every other modal a user expects this
   // from — previously the only way out was the X or Cancel button.
   useEffect(() => {
@@ -71,6 +73,7 @@ export default function AddFundModal({ portfolioId, onClose, onAdded }: Props) {
   const [selectedFund, setSelectedFund] = useState<FundSearchResult | null>(null);
 
   const [form, setForm] = useState(emptyForm);
+  const [currentValueEntered, setCurrentValueEntered] = useState(false);
   const { showToast } = useToast();
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -114,6 +117,7 @@ export default function AddFundModal({ portfolioId, onClose, onAdded }: Props) {
   function selectFund(fund: FundSearchResult) {
     const hasFreshNav = fund.dataQuality === "live" && isRecentNav(fund.asOf) && Number.isFinite(fund.nav) && (fund.nav ?? 0) > 0;
     setSelectedFund(fund);
+    setCurrentValueEntered(false);
     setForm({
       ...emptyForm,
       name: fund.name,
@@ -141,6 +145,10 @@ export default function AddFundModal({ portfolioId, onClose, onAdded }: Props) {
     if (!form.name.trim()) { setError("Fund name is required."); return; }
     if (!Number.isFinite(form.investedAmount) || form.investedAmount <= 0) {
       setError("Invested amount must be greater than 0.");
+      return;
+    }
+    if (!currentValueEntered) {
+      setError("Enter the current value from your statement, even if it is 0.");
       return;
     }
     if (!Number.isFinite(form.currentValue) || form.currentValue < 0) {
@@ -321,7 +329,7 @@ export default function AddFundModal({ portfolioId, onClose, onAdded }: Props) {
 
             <button
               type="button"
-              onClick={() => { setForm(emptyForm); setMode("manual"); }}
+              onClick={() => { setForm(emptyForm); setCurrentValueEntered(false); setMode("manual"); }}
               className="inline-flex rounded-lg px-1 py-0.5 text-xs font-medium text-[var(--shell-text-faint)] hover:text-[var(--shell-text)] focus:outline-none focus:ring-2 focus:ring-cyan-400/20 underline underline-offset-2"
             >
               Can't find your fund? Add it manually instead
@@ -359,8 +367,9 @@ export default function AddFundModal({ portfolioId, onClose, onAdded }: Props) {
 
             <div className="grid gap-3 sm:grid-cols-2">
               <div>
-                <label className="text-xs font-medium text-[var(--shell-text-muted)] mb-1.5 block">Amount Invested (₹)</label>
+                <label htmlFor={investedAmountId} className="text-xs font-medium text-[var(--shell-text-muted)] mb-1.5 block">Amount Invested (₹)</label>
                 <input
+                  id={investedAmountId}
                   type="number" required value={form.investedAmount || ""}
                   min="0.01" step="0.01" inputMode="decimal"
                   onChange={(e) => {
@@ -371,11 +380,12 @@ export default function AddFundModal({ portfolioId, onClose, onAdded }: Props) {
                 />
               </div>
               <div>
-                <label className="text-xs font-medium text-[var(--shell-text-muted)] mb-1.5 block">Current Value (₹)</label>
+                <label htmlFor={currentValueId} className="text-xs font-medium text-[var(--shell-text-muted)] mb-1.5 block">Current Value (₹)</label>
                 <input
-                  type="number" required value={form.currentValue || ""}
+                  id={currentValueId}
+                  type="number" required value={currentValueEntered ? form.currentValue : ""}
                   min="0" step="0.01" inputMode="decimal"
-                  onChange={(e) => setForm({ ...form, currentValue: +e.target.value, units: 0 })}
+                  onChange={(e) => { setCurrentValueEntered(e.target.value !== ""); setForm({ ...form, currentValue: +e.target.value, units: 0 }); }}
                   className="w-full px-3 py-2.5 border border-[var(--shell-border)] rounded-xl text-sm focus:outline-none focus:border-cyan-500/40"
                 />
               </div>
@@ -392,6 +402,7 @@ export default function AddFundModal({ portfolioId, onClose, onAdded }: Props) {
                     <input type="number" value={form.units || ""} min="0" step="0.0001" inputMode="decimal"
                       onChange={(e) => {
                         const units = +e.target.value;
+                        if (units > 0) setCurrentValueEntered(true);
                         setForm((prev) => ({ ...prev, units, currentValue: units > 0 ? Number((units * prev.nav).toFixed(2)) : prev.currentValue }));
                       }}
                       className="w-full rounded-md border border-[var(--shell-border)] bg-[var(--shell-surface)] px-3 py-2.5 text-sm text-[var(--shell-text)]" />
@@ -469,17 +480,17 @@ export default function AddFundModal({ portfolioId, onClose, onAdded }: Props) {
 
             <div className="grid gap-3 sm:grid-cols-2">
               <div>
-                <label className="text-xs font-medium text-[var(--shell-text-muted)] mb-1.5 block">Amount Invested (₹)</label>
-                <input type="number" required value={form.investedAmount || ""}
+                <label htmlFor={investedAmountId} className="text-xs font-medium text-[var(--shell-text-muted)] mb-1.5 block">Amount Invested (₹)</label>
+                <input id={investedAmountId} type="number" required value={form.investedAmount || ""}
                   min="0.01" step="0.01" inputMode="decimal"
                   onChange={(e) => setForm({ ...form, investedAmount: +e.target.value })}
                   className="w-full px-3 py-2.5 border border-[var(--shell-border)] rounded-xl text-sm focus:outline-none focus:border-cyan-500/40" />
               </div>
               <div>
-                <label className="text-xs font-medium text-[var(--shell-text-muted)] mb-1.5 block">Current Value (₹)</label>
-                <input type="number" required value={form.currentValue || ""}
+                <label htmlFor={currentValueId} className="text-xs font-medium text-[var(--shell-text-muted)] mb-1.5 block">Current Value (₹)</label>
+                <input id={currentValueId} type="number" required value={currentValueEntered ? form.currentValue : ""}
                   min="0" step="0.01" inputMode="decimal"
-                  onChange={(e) => setForm({ ...form, currentValue: +e.target.value })}
+                  onChange={(e) => { setCurrentValueEntered(e.target.value !== ""); setForm({ ...form, currentValue: +e.target.value }); }}
                   className="w-full px-3 py-2.5 border border-[var(--shell-border)] rounded-xl text-sm focus:outline-none focus:border-cyan-500/40" />
               </div>
             </div>
