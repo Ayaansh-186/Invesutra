@@ -64,6 +64,16 @@ export class AllocationEngine {
    * instead — matching the "Dry Powder Storage Layer" rule in the spec.
    */
   deployAlphaPool(alphaPool: number, funds: Fund[]): AllocationResult {
+    if (!Number.isFinite(alphaPool) || alphaPool <= 0) {
+      return {
+        totalAlphaPool: 0,
+        totalSystemicDrawback: 0,
+        deployments: [],
+        sweptToDryPowder: 0,
+        routedVia: "dry_powder_sweep",
+      };
+    }
+
     const drawbacks = this.computeDrawbacks(funds);
     const totalSystemicDrawback = drawbacks.reduce((sum, d) => sum + d.drawbackPercent, 0);
 
@@ -103,6 +113,7 @@ export class AllocationEngine {
    * deployment amounts. Useful for tests / documentation parity checks.
    */
   static fromWorkedExample(alphaPool: number, drawbacks: DrawbackEntry[]): AllocationDeployment[] {
+    if (!Number.isFinite(alphaPool) || alphaPool <= 0) return [];
     const total = drawbacks.reduce((sum, d) => sum + d.drawbackPercent, 0);
     if (total === 0) return [];
     return drawbacks.map((d) => ({

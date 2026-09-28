@@ -303,6 +303,10 @@ export default function AddFundModal({ portfolioId, onClose, onAdded }: Props) {
                       )}
                       {fund.nav !== undefined && <span>NAV ₹{fund.nav}</span>}
                       {fund.returns1Y !== undefined && <span>1Y {formatPercent(fund.returns1Y)}</span>}
+                      {fund.planType && fund.planType !== "unknown" && <span className="capitalize">{fund.planType}</span>}
+                      {fund.optionType && fund.optionType !== "unknown" && <span className="capitalize">{fund.optionType}</span>}
+                      {fund.asOf && <span>NAV date {fund.asOf}</span>}
+                      {fund.dataQuality === "fallback" && <span className="text-amber-500">Fallback listing</span>}
                     </div>
                   </button>
                 ))}
@@ -342,6 +346,16 @@ export default function AddFundModal({ portfolioId, onClose, onAdded }: Props) {
                   {form.nav ? ` · NAV ₹${form.nav}` : ""}
                   {form.returns1Y ? ` · 1Y ${formatPercent(form.returns1Y)}` : ""}
                 </p>
+                {selectedFund && (
+                  <p className="mt-1 text-[11px] text-[var(--shell-text-faint)]">
+                    {[selectedFund.planType !== "unknown" ? selectedFund.planType : null,
+                      selectedFund.optionType !== "unknown" ? selectedFund.optionType : null]
+                      .filter(Boolean)
+                      .join(" · ")}
+                    {selectedFund.asOf ? ` · NAV dated ${selectedFund.asOf}` : " · NAV date unavailable"}
+                    {selectedFund.dataQuality === "fallback" ? " · fallback listing" : ""}
+                  </p>
+                )}
               </div>
               <button type="button" onClick={backToSearch} className="shrink-0 flex items-center gap-1 text-xs text-[var(--shell-text-faint)] hover:text-[var(--shell-text)]">
                 <ArrowLeft className="w-3 h-3" />

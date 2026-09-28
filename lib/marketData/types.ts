@@ -32,6 +32,9 @@ export interface FundSearchResult {
   benchmark?: string;
   sourceUrl?: string;
   asOf?: string;
+  planType?: "direct" | "regular" | "unknown";
+  optionType?: "growth" | "idcw" | "unknown";
+  dataQuality?: "live" | "partial" | "fallback";
 }
 
 export interface FundDataProvider {

@@ -122,6 +122,11 @@ export async function analyzePortfolioWithAI(portfolio: Portfolio): Promise<AIAn
       rebalancingSuggestions: rebalancingSuggestions.map((suggestion) => ({
         fund: suggestion.fundName,
         action: suggestion.action,
+        trigger: suggestion.trigger,
+        currentAllocation: suggestion.currentAllocation,
+        targetAllocation: suggestion.targetAllocation,
+        suggestedAmount: suggestion.suggestedAmount,
+        calculation: suggestion.calculation,
         reasoning: suggestion.reasoning,
       })),
     };

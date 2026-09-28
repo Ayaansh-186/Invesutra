@@ -326,12 +326,13 @@ export class QuantRebalanceEngine {
    * Generate rebalancing suggestions based on current fund allocation
    */
   generateRebalancingSuggestions(funds: Fund[], totalValue: number): RebalancingSuggestion[] {
+    if (!Number.isFinite(totalValue) || totalValue <= 0 || funds.length === 0) return [];
     const suggestions: RebalancingSuggestion[] = [];
     const categoryExposure = this.calculateCategoryExposure(funds, totalValue);
 
     for (const fund of funds) {
       const currentAllocation = (fund.currentValue / totalValue) * 100;
-      const suggestion = this.evaluateFund(fund, currentAllocation, categoryExposure, funds);
+      const suggestion = this.evaluateFund(fund, currentAllocation, categoryExposure, funds, totalValue);
       if (suggestion) suggestions.push(suggestion);
     }
 
@@ -351,82 +352,53 @@ export class QuantRebalanceEngine {
     fund: Fund,
     currentAllocation: number,
     categoryExposure: Record<string, number>,
-    allFunds: Fund[]
+    allFunds: Fund[],
+    totalValue: number
   ): RebalancingSuggestion | null {
     // Mid-cap overexposure
     if (fund.category === "mid_cap" && categoryExposure["mid_cap"] > 35) {
-      return {
-        fundId: fund.id,
-        fundName: fund.name,
-        action: "decrease",
-        currentAllocation,
-        targetAllocation: currentAllocation * 0.8,
-        reasoning: "Mid-cap exposure exceeds 35% — consider trimming to reduce volatility risk.",
-      };
+      return this.createSuggestion(fund, "decrease", currentAllocation, currentAllocation * 0.8, totalValue,
+        "Mid-cap allocation is above the 35% guide",
+        "Mid-cap exposure exceeds 35% — consider trimming to reduce volatility risk.");
     }
 
     // Small-cap overexposure
     if (fund.category === "small_cap" && categoryExposure["small_cap"] > 25) {
-      return {
-        fundId: fund.id,
-        fundName: fund.name,
-        action: "decrease",
-        currentAllocation,
-        targetAllocation: currentAllocation * 0.7,
-        reasoning: "Small-cap exposure exceeds recommended 25% limit for balanced portfolios.",
-      };
+      return this.createSuggestion(fund, "decrease", currentAllocation, currentAllocation * 0.7, totalValue,
+        "Small-cap allocation is above the 25% guide",
+        "Small-cap exposure exceeds recommended 25% limit for balanced portfolios.");
     }
 
     // Underperforming fund detection
     if (fund.returns1Y < -10 && fund.riskLevel !== "low") {
-      return {
-        fundId: fund.id,
-        fundName: fund.name,
-        action: "exit",
-        currentAllocation,
-        targetAllocation: 0,
-        reasoning: `${fund.name} has delivered ${fund.returns1Y.toFixed(1)}% in 1Y, significantly underperforming. Consider exiting.`,
-      };
+      return this.createSuggestion(fund, "exit", currentAllocation, 0, totalValue,
+        `One-year return is below -10% (${fund.returns1Y.toFixed(1)}%)`,
+        `${fund.name} has delivered ${fund.returns1Y.toFixed(1)}% in 1Y, significantly underperforming. Consider exiting.`);
     }
 
     // High expense ratio with average returns
     if (fund.expenseRatio > 1.5 && fund.returns1Y < 12) {
-      return {
-        fundId: fund.id,
-        fundName: fund.name,
-        action: "reduce",
-        currentAllocation,
-        targetAllocation: currentAllocation * 0.5,
-        reasoning: `Expense ratio of ${fund.expenseRatio}% is high relative to ${fund.returns1Y}% returns. Consider switching to a lower-cost alternative.`,
-      };
+      return this.createSuggestion(fund, "reduce", currentAllocation, currentAllocation * 0.5, totalValue,
+        `Expense ratio is above 1.5% while one-year return is below 12%`,
+        `Expense ratio of ${fund.expenseRatio}% is high relative to ${fund.returns1Y}% returns. Consider switching to a lower-cost alternative.`);
     }
 
     // Sectoral/thematic overexposure — a single-industry fund is a
     // concentrated bet on one theme's cycle, so it deserves a tighter cap
     // than a diversified category even at the same headline percentage.
     if (fund.category === "sectoral" && categoryExposure["sectoral"] > 15) {
-      return {
-        fundId: fund.id,
-        fundName: fund.name,
-        action: "decrease",
-        currentAllocation,
-        targetAllocation: currentAllocation * 0.6,
-        reasoning: "Sectoral/thematic exposure exceeds 15% — these funds bet on one industry's cycle, so keep them as a smaller satellite position.",
-      };
+      return this.createSuggestion(fund, "decrease", currentAllocation, currentAllocation * 0.6, totalValue,
+        "Sectoral allocation is above the 15% guide",
+        "Sectoral/thematic exposure exceeds 15% — these funds bet on one industry's cycle, so keep them as a smaller satellite position.");
     }
 
     // International fund overexposure — adds currency and geopolitical
     // risk on top of market risk, so it's usually sized as a satellite
     // allocation rather than a core holding.
     if (fund.category === "international" && categoryExposure["international"] > 20) {
-      return {
-        fundId: fund.id,
-        fundName: fund.name,
-        action: "decrease",
-        currentAllocation,
-        targetAllocation: currentAllocation * 0.75,
-        reasoning: "International exposure exceeds 20% — currency risk stacks on top of market risk here, so consider capping it as a satellite allocation.",
-      };
+      return this.createSuggestion(fund, "decrease", currentAllocation, currentAllocation * 0.75, totalValue,
+        "International allocation is above the 20% guide",
+        "International exposure exceeds 20% — currency risk stacks on top of market risk here, so consider capping it as a satellite allocation.");
     }
 
     // Redundant same-category holding — two funds in the same category
@@ -437,18 +409,40 @@ export class QuantRebalanceEngine {
     if (sameCategoryPeers.length > 0) {
       const bestPeer = sameCategoryPeers.reduce((best, f) => (f.returns1Y > best.returns1Y ? f : best));
       if (bestPeer.returns1Y - fund.returns1Y > 3 && fund.returns1Y < 15) {
-        return {
-          fundId: fund.id,
-          fundName: fund.name,
-          action: "reduce",
-          currentAllocation,
-          targetAllocation: currentAllocation * 0.5,
-          reasoning: `${bestPeer.name} covers the same category and has outperformed by ${(bestPeer.returns1Y - fund.returns1Y).toFixed(1)} points over 1Y — holding both mostly duplicates exposure at extra cost.`,
-        };
+        return this.createSuggestion(fund, "reduce", currentAllocation, currentAllocation * 0.5, totalValue,
+          `A same-category peer leads by ${(bestPeer.returns1Y - fund.returns1Y).toFixed(1)} percentage points`,
+          `${bestPeer.name} covers the same category and has outperformed by ${(bestPeer.returns1Y - fund.returns1Y).toFixed(1)} points over 1Y — holding both mostly duplicates exposure at extra cost.`);
       }
     }
 
     return null;
+  }
+
+  private createSuggestion(
+    fund: Fund,
+    action: RebalancingSuggestion["action"],
+    currentAllocation: number,
+    targetAllocation: number,
+    totalValue: number,
+    trigger: string,
+    reasoning: string
+  ): RebalancingSuggestion {
+    const roundedCurrent = Number(currentAllocation.toFixed(2));
+    const roundedTarget = Number(Math.max(0, targetAllocation).toFixed(2));
+    const allocationChange = Math.abs(roundedCurrent - roundedTarget);
+    const suggestedAmount = Number(((allocationChange / 100) * totalValue).toFixed(2));
+
+    return {
+      fundId: fund.id,
+      fundName: fund.name,
+      action,
+      currentAllocation: roundedCurrent,
+      targetAllocation: roundedTarget,
+      reasoning,
+      trigger,
+      suggestedAmount,
+      calculation: `${allocationChange.toFixed(2)}% of the ₹${Math.round(totalValue).toLocaleString("en-IN")} portfolio`,
+    };
   }
 
   /**

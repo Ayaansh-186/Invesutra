@@ -60,21 +60,29 @@ export default function ScreenerPage() {
       return;
     }
     const seq = ++searchSeq.current;
+    const controller = new AbortController();
     setSearching(true);
     const timer = setTimeout(async () => {
       try {
-        const res = await fetch(`/api/funds/search?q=${encodeURIComponent(nameQuery.trim())}`);
+        const res = await fetch(`/api/funds/search?q=${encodeURIComponent(nameQuery.trim())}`, {
+          signal: controller.signal,
+        });
         const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Fund search is unavailable.");
         if (seq !== searchSeq.current) return; // a newer search superseded this one
         setSearchResults(data.funds || []);
         setHighlightedIndex(-1);
-      } catch {
+      } catch (searchError) {
+        if (searchError instanceof DOMException && searchError.name === "AbortError") return;
         if (seq === searchSeq.current) setSearchResults([]);
       } finally {
         if (seq === searchSeq.current) setSearching(false);
       }
     }, 300);
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
   }, [nameQuery]);
 
   function selectSearchResult(result: FundSearchResult) {
@@ -337,6 +345,10 @@ export default function ScreenerPage() {
                             )}
                             {result.nav !== undefined && <span>NAV ₹{result.nav}</span>}
                             {result.returns1Y !== undefined && <span>1Y {formatPercent(result.returns1Y)}</span>}
+                            {result.planType && result.planType !== "unknown" && <span className="capitalize">{result.planType}</span>}
+                            {result.optionType && result.optionType !== "unknown" && <span className="capitalize">{result.optionType}</span>}
+                            {result.asOf && <span>NAV date {result.asOf}</span>}
+                            {result.dataQuality === "fallback" && <span className="text-amber-500">Fallback listing</span>}
                           </div>
                         </button>
                       ))}
@@ -480,6 +492,15 @@ export default function ScreenerPage() {
                           )}
                           <span className="font-semibold text-[var(--shell-text)] capitalize">{s.action}: {s.fundName}</span>
                         </div>
+                        <div className="mb-2 flex flex-wrap gap-1.5">
+                          <span className="rounded-md bg-[var(--shell-surface-2)] px-2 py-1 font-medium text-[var(--shell-text-muted)]">
+                            Move about {formatCurrency(s.suggestedAmount, true)}
+                          </span>
+                          <span className="rounded-md bg-[var(--shell-surface-2)] px-2 py-1 text-[var(--shell-text-faint)]">
+                            {s.currentAllocation.toFixed(1)}% → {s.targetAllocation.toFixed(1)}%
+                          </span>
+                        </div>
+                        <p className="mb-1 font-medium text-[var(--shell-text-muted)]">Trigger: {s.trigger}</p>
                         <p className="text-[var(--shell-text-muted)] leading-relaxed">{s.reasoning}</p>
                       </div>
                     ))}

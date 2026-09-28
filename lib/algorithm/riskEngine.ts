@@ -1,4 +1,5 @@
 import type { Fund, Portfolio, PortfolioAnalysis, ConcentrationRisk, RiskMetrics, AllocationBreakdown } from "../types";
+import { createRebalanceEngine } from "./rebalanceEngine";
 
 export class RiskEngine {
   analyzePortfolio(portfolio: Portfolio): PortfolioAnalysis {
@@ -12,13 +13,14 @@ export class RiskEngine {
     const underperformers = this.detectUnderperformers(funds);
     const healthScore = this.calculateHealthScore(diversificationScore, concentrationRisks, riskMetrics, underperformers.length);
     const aiInsights = this.generateInsights(concentrationRisks, underperformers, riskMetrics, allocationBreakdown);
+    const rebalancingSuggestions = createRebalanceEngine().generateRebalancingSuggestions(funds, totalValue);
 
     return {
       overallHealth: this.scoreToHealth(healthScore),
       diversificationScore,
       concentrationRisk: concentrationRisks,
       underperformers,
-      rebalancingSuggestions: [],
+      rebalancingSuggestions,
       aiInsights,
       allocationBreakdown,
       riskMetrics,

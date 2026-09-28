@@ -90,6 +90,12 @@ export interface RebalancingSuggestion {
   currentAllocation: number;
   targetAllocation: number;
   reasoning: string;
+  /** Plain-language rule that caused this recommendation. */
+  trigger: string;
+  /** Approximate rupee value to move at the current portfolio value. */
+  suggestedAmount: number;
+  /** Human-readable arithmetic behind suggestedAmount. */
+  calculation: string;
 }
 
 export interface AllocationBreakdown {

@@ -24,6 +24,14 @@ const FALLBACK_FUNDS: Array<{ schemeCode: string; name: string; categoryText: st
   { schemeCode: "fallback-hdfc-liquid", name: "HDFC Liquid Fund Direct Growth", categoryText: "Debt Scheme - Liquid Fund" },
 ];
 
+function schemeMetadata(name: string) {
+  const normalized = name.toLowerCase();
+  return {
+    planType: (normalized.includes("direct") ? "direct" : normalized.includes("regular") ? "regular" : "unknown") as FundSearchResult["planType"],
+    optionType: (normalized.includes("growth") ? "growth" : /\bidcw\b|dividend/.test(normalized) ? "idcw" : "unknown") as FundSearchResult["optionType"],
+  };
+}
+
 function fallbackSearchResults(query: string): FundSearchResult[] {
   const terms = query.toLowerCase().split(/\s+/).filter(Boolean);
   if (terms.length === 0) return [];
@@ -43,6 +51,8 @@ function fallbackSearchResults(query: string): FundSearchResult[] {
       benchmark: undefined,
       expenseRatio: undefined,
       aum: undefined,
+      ...schemeMetadata(fund.name),
+      dataQuality: "fallback",
     };
   });
 }
@@ -124,6 +134,8 @@ class MutualFundMcpProvider implements FundDataProvider {
         benchmark: undefined,
         sourceUrl: `https://www.mfapi.in/mf/${f.schemeCode}`,
         asOf: f.navAsOf,
+        ...schemeMetadata(f.name),
+        dataQuality: "live" as const,
       }));
 
     if (detailedResults.length > 0) return detailedResults;
@@ -140,6 +152,8 @@ class MutualFundMcpProvider implements FundDataProvider {
         aum: undefined,
         benchmark: undefined,
         sourceUrl: `https://www.mfapi.in/mf/${hit.schemeCode}`,
+        ...schemeMetadata(hit.name),
+        dataQuality: "partial" as const,
       };
     });
   }

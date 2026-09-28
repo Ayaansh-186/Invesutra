@@ -212,6 +212,15 @@ export default function PortfolioPage() {
                         <p className="text-sm font-medium text-[var(--shell-text)]">
                           {s.action} {s.fundName}: {s.currentAllocation.toFixed(1)}% → {s.targetAllocation.toFixed(1)}%
                         </p>
+                        <div className="mt-2 flex flex-wrap gap-2 text-[11px]">
+                          <span className="rounded-md bg-cyan-400/10 px-2 py-1 font-medium text-cyan-500">
+                            Estimated move {formatCurrency(s.suggestedAmount, true)}
+                          </span>
+                          <span className="rounded-md bg-[var(--shell-surface-2)] px-2 py-1 text-[var(--shell-text-faint)]">
+                            {s.calculation}
+                          </span>
+                        </div>
+                        <p className="mt-2 text-xs font-medium text-[var(--shell-text-muted)]">Trigger: {s.trigger}</p>
                         <p className="mt-1 text-xs text-[var(--shell-text-muted)]">{s.reasoning}</p>
                       </div>
                     ))}
