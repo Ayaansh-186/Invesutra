@@ -22,7 +22,7 @@ export default function Footer() {
             <div>
               <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3">Product</p>
               <div className="space-y-2">
-                {["Dashboard", "Screener", "Simulator", "Pricing"].map(l => (
+                {["Dashboard", "Screener", "Simulator"].map(l => (
                   <Link key={l} href={`/${l.toLowerCase()}`} className="block text-sm text-slate-500 hover:text-slate-300 transition-colors">{l}</Link>
                 ))}
               </div>

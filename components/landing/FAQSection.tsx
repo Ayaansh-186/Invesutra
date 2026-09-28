@@ -26,7 +26,7 @@ const faqs = [
   },
   {
     q: "Can I use Invesutra for free?",
-    a: "Yes. The Free plan allows you to analyze 1 portfolio with basic AI screening and up to 3 reports per month — no credit card required. Upgrade to Pro or Premium for unlimited portfolios, advanced analysis, and the full QuantRebalance engine.",
+    a: "Yes. You can create an account, analyze your portfolio, explore risk and allocation insights, and generate reports without entering a credit card.",
   },
 ];
 

@@ -5,7 +5,6 @@ const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://invesutra.ai";
 export default function sitemap(): MetadataRoute.Sitemap {
   const routes = [
     { path: "", priority: 1, changeFrequency: "weekly" as const },
-    { path: "/pricing", priority: 0.9, changeFrequency: "weekly" as const },
     { path: "/dashboard", priority: 0.5, changeFrequency: "daily" as const },
     { path: "/screener", priority: 0.7, changeFrequency: "weekly" as const },
     { path: "/simulator", priority: 0.7, changeFrequency: "weekly" as const },

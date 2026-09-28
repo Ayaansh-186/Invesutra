@@ -23,7 +23,6 @@ import {
   BarChart2,
   Info,
   Droplets,
-  Lock,
   Loader2,
   MessageSquare,
   Search,
@@ -353,7 +352,7 @@ export default function ReportsPage() {
                   <Download className="w-3.5 h-3.5" />
                   Export .txt
                 </button>
-                {isPremium ? (
+                {isPremium && (
                   <button
                     onClick={handleDownloadPdf}
                     disabled={exportingPdf}
@@ -366,15 +365,6 @@ export default function ReportsPage() {
                     )}
                     {exportingPdf ? "Preparing PDF..." : "Export PDF"}
                   </button>
-                ) : (
-                  <a
-                    href="/pricing"
-                    title="PDF export for advisors is a Premium feature"
-                    className="flex items-center gap-1.5 px-3 py-1.5 border border-dashed border-[var(--shell-border)] text-[var(--shell-text-faint)] text-xs font-medium rounded-lg hover:bg-[var(--shell-surface-2)] hover:text-[var(--shell-text-muted)] transition-colors"
-                  >
-                    <Lock className="w-3.5 h-3.5" />
-                    Export PDF
-                  </a>
                 )}
               </div>
             </div>

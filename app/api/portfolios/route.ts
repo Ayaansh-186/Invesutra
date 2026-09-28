@@ -109,7 +109,7 @@ export async function POST(request: NextRequest) {
 
     if ((count || 0) >= 1) {
       return NextResponse.json(
-        { error: "Free plan is limited to 1 portfolio. Upgrade to Pro for unlimited portfolios." },
+        { error: "Portfolio creation is currently limited to 1 portfolio per account." },
         { status: 403 }
       );
     }

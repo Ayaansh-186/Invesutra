@@ -71,7 +71,7 @@ export async function POST(request: NextRequest) {
 
     if ((count || 0) >= 3) {
       return NextResponse.json(
-        { error: "Free plan is limited to 3 AI reports per month. Upgrade to Pro for unlimited reports." },
+        { error: "Report generation is currently limited to 3 reports per month." },
         { status: 403 }
       );
     }
