@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { dbFundToFund, fundToDbInsert } from "@/lib/supabase/mappers";
+import type { DbPurchase } from "@/lib/supabase/mappers";
 import type { DbFund } from "@/lib/supabase/database.types";
 import { getFundDetails } from "@/lib/marketData/providers";
 import { isRecentNav } from "@/lib/marketData/navFreshness";
@@ -40,7 +41,15 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  const funds = ((data || []) as DbFund[]).map(dbFundToFund);
+  const { data: purchases, error: purchasesError } = await supabase.from("transactions")
+    .select("fund_id, created_at, nav").eq("portfolio_id", id).eq("type", "buy");
+  if (purchasesError) return NextResponse.json({ error: "Could not load purchase details." }, { status: 500 });
+  const firstPurchaseByFund = new Map<string, DbPurchase>();
+  for (const purchase of (purchases || []) as DbPurchase[]) {
+    const earlier = firstPurchaseByFund.get(purchase.fund_id);
+    if (!earlier || purchase.created_at < earlier.created_at) firstPurchaseByFund.set(purchase.fund_id, purchase);
+  }
+  const funds = ((data || []) as DbFund[]).map((fund) => dbFundToFund(fund, firstPurchaseByFund.get(fund.id)));
   return NextResponse.json({ funds });
 }
 
@@ -137,5 +146,9 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     return NextResponse.json({ error: "Could not save purchase details. Please try again." }, { status: 500 });
   }
 
-  return NextResponse.json({ fund: dbFundToFund(data as DbFund), purchaseDate });
+  return NextResponse.json({ fund: dbFundToFund(data as DbFund, {
+    fund_id: data.id,
+    created_at: `${purchaseDate}T12:00:00.000Z`,
+    nav: purchaseNav,
+  }) });
 }

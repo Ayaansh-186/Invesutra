@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { formatCurrency, formatPercent, categoryLabel } from "@/lib/utils/format";
+import { formatCurrency, formatCurrencyExact, formatPercent, categoryLabel } from "@/lib/utils/format";
 import type { Fund } from "@/lib/types";
 import { TrendingUp, TrendingDown, Pencil, Trash2, Check, X, Loader2, MessageSquare } from "lucide-react";
 import { useToast } from "@/components/shared/ToastProvider";
@@ -136,6 +136,12 @@ export default function HoldingsTable({
                     <span className="md:hidden">{categoryLabel(fund.category)} · {formatPercent(fund.returns1Y)} 1Y</span>
                     <span className="hidden md:inline">{fund.manager}</span>
                   </p>
+                  {fund.purchaseDate && (
+                    <p className="mt-1 text-xs text-[var(--shell-text-faint)]">
+                      Bought {new Date(`${fund.purchaseDate}T12:00:00Z`).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric", timeZone: "Asia/Kolkata" })}
+                      {fund.purchaseNav !== undefined && ` · ${formatCurrencyExact(fund.purchaseNav, 4)} per unit`}
+                    </p>
+                  )}
                   <p className="mt-1 text-[11px] text-[var(--shell-text-faint)] md:hidden">
                     Invested {formatCurrency(fund.investedAmount, true)} · {weight.toFixed(1)}% weight
                   </p>

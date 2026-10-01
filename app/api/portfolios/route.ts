@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { buildPortfolio } from "@/lib/supabase/mappers";
 import type { DbFund, DbPortfolio } from "@/lib/supabase/database.types";
+import type { DbPurchase } from "@/lib/supabase/mappers";
 
 export async function GET() {
   const supabase = await createServerSupabaseClient();
@@ -58,6 +59,15 @@ export async function GET() {
     return NextResponse.json({ error: "Could not load fund holdings. Please try again." }, { status: 500 });
   }
 
+  const fundIds = ((funds || []) as DbFund[]).map((fund) => fund.id);
+  const { data: purchases, error: purchasesError } = fundIds.length > 0
+    ? await supabase.from("transactions").select("fund_id, created_at, nav").in("portfolio_id", portfolioIds).eq("type", "buy")
+    : { data: [], error: null };
+  if (purchasesError) {
+    console.error("purchase history fetch error:", purchasesError.message);
+    return NextResponse.json({ error: "Could not load purchase details. Please try again." }, { status: 500 });
+  }
+
   const fundsByPortfolio = new Map<string, DbFund[]>();
   for (const fund of (funds || []) as DbFund[]) {
     const list = fundsByPortfolio.get(fund.portfolio_id) || [];
@@ -66,7 +76,7 @@ export async function GET() {
   }
 
   const result = (portfolios as DbPortfolio[]).map((p) =>
-    buildPortfolio(p, fundsByPortfolio.get(p.id) || [])
+    buildPortfolio(p, fundsByPortfolio.get(p.id) || [], (purchases || []) as DbPurchase[])
   );
 
   return NextResponse.json({ portfolios: result });

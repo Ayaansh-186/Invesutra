@@ -2,18 +2,12 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 import Link from "next/link";
-import { X, Loader2, AlertCircle, Search, ArrowLeft, ChevronDown, LockKeyhole } from "lucide-react";
-import { categoryLabel, formatPercent } from "@/lib/utils/format";
-import type { FundCategory, RiskLevel } from "@/lib/types";
+import { X, Loader2, AlertCircle, Search, ArrowLeft, LockKeyhole } from "lucide-react";
+import { categoryLabel, formatCurrencyExact, formatPercent } from "@/lib/utils/format";
 import type { FundSearchResult } from "@/lib/marketData/types";
 import { isRecentNav } from "@/lib/marketData/navFreshness";
+import { calculatePurchaseValues, isValidPurchaseDate, todayInIndia } from "@/lib/utils/purchase";
 import { useToast } from "@/components/shared/ToastProvider";
-
-const CATEGORIES: FundCategory[] = [
-  "large_cap","mid_cap","small_cap","multi_cap","flexi_cap",
-  "debt","hybrid","index","sectoral","elss","international",
-];
-const RISK_LEVELS: RiskLevel[] = ["low","moderate","moderately_high","high","very_high"];
 
 interface Props {
   // null  = not signed in (show sign-up CTA)
@@ -24,28 +18,17 @@ interface Props {
   onAdded: () => void;
 }
 
-const emptyForm = {
-  name: "",
-  category: "large_cap" as FundCategory,
-  investedAmount: 0,
-  currentValue: 0,
-  returns1Y: 0,
-  riskLevel: "moderately_high" as RiskLevel,
-  expenseRatio: 0,
-  nav: 0,
-  units: 0,
-  returns3Y: 0,
-  returns5Y: 0,
-  aum: 0,
-  benchmark: "",
-  manager: "",
-};
+function hasRecentPrice(fund: FundSearchResult): boolean {
+  return fund.dataQuality === "live" && isRecentNav(fund.asOf) &&
+    Number.isFinite(fund.nav) && (fund.nav || 0) > 0 && /^\d+$/.test(fund.symbol || "");
+}
 
 export default function AddFundModal({ portfolioId, onClose, onAdded }: Props) {
   const titleId = useId();
   const searchResultsId = useId();
-  const investedAmountId = useId();
-  const currentValueId = useId();
+  const purchaseNavId = useId();
+  const unitsId = useId();
+  const purchaseDateId = useId();
   // Escape closes the modal, like every other modal a user expects this
   // from — previously the only way out was the X or Cancel button.
   useEffect(() => {
@@ -64,7 +47,7 @@ export default function AddFundModal({ portfolioId, onClose, onAdded }: Props) {
     };
   }, []);
 
-  const [mode, setMode] = useState<"search" | "manual" | "selected">("search");
+  const [mode, setMode] = useState<"search" | "selected">("search");
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<FundSearchResult[]>([]);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
@@ -72,11 +55,15 @@ export default function AddFundModal({ portfolioId, onClose, onAdded }: Props) {
   const [searchMessage, setSearchMessage] = useState<string | null>(null);
   const [selectedFund, setSelectedFund] = useState<FundSearchResult | null>(null);
 
-  const [form, setForm] = useState(emptyForm);
-  const [currentValueEntered, setCurrentValueEntered] = useState(false);
+  const [purchaseNav, setPurchaseNav] = useState("");
+  const [units, setUnits] = useState("");
+  const [purchaseDate, setPurchaseDate] = useState("");
   const { showToast } = useToast();
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const latestNav = selectedFund?.dataQuality === "live" && isRecentNav(selectedFund.asOf) ? selectedFund.nav || 0 : 0;
+  const values = calculatePurchaseValues(Number(purchaseNav), Number(units), latestNav);
+  const purchaseDateValid = isValidPurchaseDate(purchaseDate);
 
   // Debounced search against the MCP-backed fund data (real AMFI schemes).
   const searchSeq = useRef(0);
@@ -111,7 +98,7 @@ export default function AddFundModal({ portfolioId, onClose, onAdded }: Props) {
         setHighlightedIndex(-1);
       } catch (searchError) {
         if (searchError instanceof DOMException && searchError.name === "AbortError") return;
-        if (seq === searchSeq.current) setSearchMessage("Search is unavailable. You can still add this fund manually.");
+        if (seq === searchSeq.current) setSearchMessage("Search is unavailable. Please try again later.");
       } finally {
         if (seq === searchSeq.current) setSearching(false);
       }
@@ -123,22 +110,11 @@ export default function AddFundModal({ portfolioId, onClose, onAdded }: Props) {
   }, [query, mode]);
 
   function selectFund(fund: FundSearchResult) {
-    const hasFreshNav = fund.dataQuality === "live" && isRecentNav(fund.asOf) && Number.isFinite(fund.nav) && (fund.nav ?? 0) > 0;
+    if (!hasRecentPrice(fund)) return;
     setSelectedFund(fund);
-    setCurrentValueEntered(false);
-    setForm({
-      ...emptyForm,
-      name: fund.name,
-      category: fund.category || emptyForm.category,
-      riskLevel: fund.riskLevel || emptyForm.riskLevel,
-      nav: hasFreshNav ? fund.nav! : 0,
-      returns1Y: hasFreshNav ? fund.returns1Y ?? 0 : 0,
-      returns3Y: hasFreshNav ? fund.returns3Y ?? 0 : 0,
-      returns5Y: hasFreshNav ? fund.returns5Y ?? 0 : 0,
-      expenseRatio: fund.expenseRatio ?? 0,
-      aum: fund.aum ?? 0,
-      benchmark: fund.benchmark ?? "",
-    });
+    setPurchaseNav("");
+    setUnits("");
+    setPurchaseDate("");
     setError(null);
     setMode("selected");
   }
@@ -150,21 +126,8 @@ export default function AddFundModal({ portfolioId, onClose, onAdded }: Props) {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!form.name.trim()) { setError("Fund name is required."); return; }
-    if (!Number.isFinite(form.investedAmount) || form.investedAmount <= 0) {
-      setError("Invested amount must be greater than 0.");
-      return;
-    }
-    if (!currentValueEntered) {
-      setError("Enter the current value from your statement, even if it is 0.");
-      return;
-    }
-    if (!Number.isFinite(form.currentValue) || form.currentValue < 0) {
-      setError("Current value must be 0 or greater.");
-      return;
-    }
-    if (!Number.isFinite(form.units) || form.units < 0) {
-      setError("Units must be 0 or greater.");
+    if (!selectedFund?.symbol || !latestNav || !values || !purchaseDateValid) {
+      setError("Enter a valid purchase NAV, units, and purchase date for a fund with a recent NAV.");
       return;
     }
     setSubmitting(true);
@@ -190,12 +153,17 @@ export default function AddFundModal({ portfolioId, onClose, onAdded }: Props) {
       const res = await fetch(`/api/portfolios/${pid}/funds`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify({
+          schemeCode: selectedFund.symbol,
+          purchaseNav: Number(purchaseNav),
+          units: Number(units),
+          purchaseDate,
+        }),
       });
       const data = await res.json();
       if (!res.ok) { setError(data.error || "Could not add fund."); setSubmitting(false); return; }
       onAdded();
-      showToast(`Added ${form.name} to your portfolio`, "success");
+      showToast(`Added ${selectedFund.name} to your portfolio`, "success");
     } catch {
       setError("Network error. Please try again.");
       setSubmitting(false);
@@ -252,8 +220,7 @@ export default function AddFundModal({ portfolioId, onClose, onAdded }: Props) {
             <h2 id={titleId} className="text-lg font-semibold text-[var(--shell-text)]">Add mutual fund</h2>
             <p className="text-xs text-[var(--shell-text-faint)] mt-0.5">
               {mode === "search" && "Find your fund"}
-              {mode === "selected" && "Add your holding"}
-              {mode === "manual" && "Enter a fund manually"}
+              {mode === "selected" && "Enter your purchase"}
             </p>
           </div>
           <button aria-label="Close add fund dialog" onClick={onClose} className="p-1.5 rounded-lg hover:bg-[var(--shell-surface-2)] text-[var(--shell-text-faint)] transition-colors">
@@ -272,13 +239,16 @@ export default function AddFundModal({ portfolioId, onClose, onAdded }: Props) {
                 value={query}
                 onChange={(e) => updateQuery(e.target.value)}
                 onKeyDown={(e) => {
-                  if (results.length === 0) return;
+                  const selectable = results.flatMap((fund, index) => hasRecentPrice(fund) ? [index] : []);
+                  if (selectable.length === 0) return;
                   if (e.key === "ArrowDown") {
                     e.preventDefault();
-                    setHighlightedIndex((i) => (i + 1) % results.length);
+                    setHighlightedIndex((i) => selectable[(selectable.indexOf(i) + 1) % selectable.length]);
                   } else if (e.key === "ArrowUp") {
                     e.preventDefault();
-                    setHighlightedIndex((i) => (i <= 0 ? results.length - 1 : i - 1));
+                    setHighlightedIndex((i) => i < 0
+                      ? selectable[selectable.length - 1]
+                      : selectable[(selectable.indexOf(i) - 1 + selectable.length) % selectable.length]);
                   } else if (e.key === "Enter" && highlightedIndex >= 0) {
                     e.preventDefault();
                     selectFund(results[highlightedIndex]);
@@ -302,33 +272,35 @@ export default function AddFundModal({ portfolioId, onClose, onAdded }: Props) {
 
             {results.length > 0 && (
               <div id={searchResultsId} role="listbox" className="space-y-1.5 max-h-72 overflow-y-auto">
-                {results.map((fund, i) => (
-                  <button
-                    key={`${fund.symbol || fund.name}-${i}`}
-                    type="button"
-                    id={`${searchResultsId}-${i}`}
-                    role="option"
-                    aria-selected={i === highlightedIndex}
-                    onClick={() => selectFund(fund)}
-                    onMouseEnter={() => setHighlightedIndex(i)}
-                    className={`group w-full text-left p-3 border border-[var(--shell-border)] rounded-xl bg-[var(--shell-surface)] focus:outline-none focus:ring-2 focus:ring-cyan-400/20 transition-colors ${
-                      i === highlightedIndex ? "border-cyan-400/50 bg-cyan-400/10" : "hover:border-cyan-400/50 hover:bg-cyan-400/10"
-                    }`}
-                  >
-                    <p className="break-words text-sm font-medium leading-snug text-[var(--shell-text)] group-hover:text-cyan-600">{fund.name}</p>
-                    <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-[var(--shell-text-faint)]">
-                      {fund.category && (
-                        <span className="px-1.5 py-0.5 bg-[var(--shell-surface-2)] rounded-md">{categoryLabel(fund.category)}</span>
-                      )}
-                      {fund.dataQuality === "live" && fund.nav !== undefined && <span>NAV ₹{fund.nav}</span>}
-                      {fund.dataQuality === "live" && fund.returns1Y !== undefined && <span>1Y {formatPercent(fund.returns1Y)}</span>}
-                      {fund.planType && fund.planType !== "unknown" && <span className="capitalize">{fund.planType}</span>}
-                      {fund.optionType && fund.optionType !== "unknown" && <span className="capitalize">{fund.optionType}</span>}
-                      {fund.asOf && <span>{fund.dataQuality === "live" ? "NAV date" : "Last NAV"} {fund.asOf}</span>}
-                      {fund.dataQuality === "fallback" && <span className="text-amber-500">Fallback listing</span>}
-                    </div>
-                  </button>
-                ))}
+                {results.map((fund, i) => {
+                  const canPrice = hasRecentPrice(fund);
+                  return (
+                    <button
+                      key={`${fund.symbol || fund.name}-${i}`}
+                      type="button"
+                      id={`${searchResultsId}-${i}`}
+                      role="option"
+                      aria-selected={i === highlightedIndex}
+                      disabled={!canPrice}
+                      onClick={() => selectFund(fund)}
+                      onMouseEnter={() => { if (canPrice) setHighlightedIndex(i); }}
+                      className={`group w-full rounded-xl border border-[var(--shell-border)] bg-[var(--shell-surface)] p-3 text-left transition-colors focus:outline-none focus:ring-2 focus:ring-cyan-400/20 ${
+                        !canPrice ? "cursor-not-allowed opacity-60" : i === highlightedIndex ? "border-cyan-400/50 bg-cyan-400/10" : "hover:border-cyan-400/50 hover:bg-cyan-400/10"
+                      }`}
+                    >
+                      <p className="break-words text-sm font-medium leading-snug text-[var(--shell-text)] group-hover:text-cyan-600">{fund.name}</p>
+                      <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-[var(--shell-text-faint)]">
+                        {fund.category && <span className="rounded-md bg-[var(--shell-surface-2)] px-1.5 py-0.5">{categoryLabel(fund.category)}</span>}
+                        {canPrice && fund.nav !== undefined && <span>NAV ₹{fund.nav}</span>}
+                        {canPrice && fund.returns1Y !== undefined && <span>1Y {formatPercent(fund.returns1Y)}</span>}
+                        {fund.planType && fund.planType !== "unknown" && <span className="capitalize">{fund.planType}</span>}
+                        {fund.optionType && fund.optionType !== "unknown" && <span className="capitalize">{fund.optionType}</span>}
+                        {fund.asOf && <span>{canPrice ? "NAV date" : "Last NAV"} {fund.asOf}</span>}
+                        {!canPrice && <span className="text-amber-600">Recent NAV unavailable</span>}
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
             )}
 
@@ -336,13 +308,7 @@ export default function AddFundModal({ portfolioId, onClose, onAdded }: Props) {
               <p role="status" className="text-xs text-[var(--shell-text-faint)]">{searchMessage || "No matching funds found."}</p>
             )}
 
-            <button
-              type="button"
-              onClick={() => { setForm(emptyForm); setCurrentValueEntered(false); setMode("manual"); }}
-              className="inline-flex rounded-lg px-1 py-0.5 text-xs font-medium text-[var(--shell-text-faint)] hover:text-[var(--shell-text)] focus:outline-none focus:ring-2 focus:ring-cyan-400/20 underline underline-offset-2"
-            >
-              Can't find your fund? Add it manually instead
-            </button>
+            <p className="text-xs text-[var(--shell-text-faint)]">Only schemes with a recent NAV can be added.</p>
           </div>
         )}
 
@@ -358,8 +324,11 @@ export default function AddFundModal({ portfolioId, onClose, onAdded }: Props) {
 
             <div className="flex items-start justify-between gap-3 border-b border-[var(--shell-border)] pb-4">
               <div className="min-w-0 flex-1">
-                <p className="break-words text-sm font-semibold text-[var(--shell-text)]">{form.name}</p>
-                <p className="mt-1 text-xs text-[var(--shell-text-faint)]">{categoryLabel(form.category)}</p>
+                <p className="break-words text-sm font-semibold text-[var(--shell-text)]">{selectedFund?.name}</p>
+                <p className="mt-1 text-xs text-[var(--shell-text-faint)]">
+                  {selectedFund?.category && categoryLabel(selectedFund.category)}
+                  {selectedFund?.asOf && ` · Latest NAV ${formatCurrencyExact(latestNav, 5)} as of ${selectedFund.asOf}`}
+                </p>
               </div>
               <button type="button" onClick={backToSearch} className="shrink-0 flex items-center gap-1 text-xs text-[var(--shell-text-faint)] hover:text-[var(--shell-text)]">
                 <ArrowLeft className="w-3 h-3" />
@@ -367,85 +336,51 @@ export default function AddFundModal({ portfolioId, onClose, onAdded }: Props) {
               </button>
             </div>
 
-            {selectedFund && form.nav === 0 && (
-              <p className="rounded-md border border-amber-300/60 bg-amber-50 p-3 text-xs leading-relaxed text-amber-900">
-                {selectedFund.asOf ? `Last NAV: ${selectedFund.asOf}. This NAV cannot be used for a current valuation. ` : "Current NAV is unavailable. "}
-                Enter the current value shown in your statement. Automatic NAV updates will stay off.
-              </p>
-            )}
-
             <div className="grid gap-3 sm:grid-cols-2">
               <div>
-                <label htmlFor={investedAmountId} className="text-xs font-medium text-[var(--shell-text-muted)] mb-1.5 block">Amount Invested (₹)</label>
+                <label htmlFor={purchaseNavId} className="mb-1.5 block text-xs font-medium text-[var(--shell-text-muted)]">Purchase NAV (₹ per unit)</label>
                 <input
-                  id={investedAmountId}
-                  type="number" required value={form.investedAmount || ""}
-                  min="0.01" step="0.01" inputMode="decimal"
-                  onChange={(e) => {
-                    const investedAmount = +e.target.value;
-                    setForm((prev) => ({ ...prev, investedAmount }));
-                  }}
-                  className="w-full px-3 py-2.5 border border-[var(--shell-border)] rounded-xl text-sm focus:outline-none focus:border-cyan-500/40"
+                  id={purchaseNavId}
+                  type="number" required value={purchaseNav}
+                  min="0.0001" step="0.0001" inputMode="decimal"
+                  onChange={(e) => setPurchaseNav(e.target.value)}
+                  className="w-full rounded-md border border-[var(--shell-border)] bg-[var(--shell-surface)] px-3 py-2.5 text-sm text-[var(--shell-text)] focus:outline-none focus:border-cyan-500/40"
                 />
               </div>
               <div>
-                <label htmlFor={currentValueId} className="text-xs font-medium text-[var(--shell-text-muted)] mb-1.5 block">Current Value (₹)</label>
+                <label htmlFor={unitsId} className="mb-1.5 block text-xs font-medium text-[var(--shell-text-muted)]">Units purchased</label>
                 <input
-                  id={currentValueId}
-                  type="number" required value={currentValueEntered ? form.currentValue : ""}
-                  min="0" step="0.01" inputMode="decimal"
-                  onChange={(e) => { setCurrentValueEntered(e.target.value !== ""); setForm({ ...form, currentValue: +e.target.value, units: 0 }); }}
-                  className="w-full px-3 py-2.5 border border-[var(--shell-border)] rounded-xl text-sm focus:outline-none focus:border-cyan-500/40"
+                  id={unitsId}
+                  type="number" required value={units}
+                  min="0.0001" step="0.0001" inputMode="decimal"
+                  onChange={(e) => setUnits(e.target.value)}
+                  className="w-full rounded-md border border-[var(--shell-border)] bg-[var(--shell-surface)] px-3 py-2.5 text-sm text-[var(--shell-text)] focus:outline-none focus:border-cyan-500/40"
+                />
+              </div>
+              <div>
+                <label htmlFor={purchaseDateId} className="mb-1.5 block text-xs font-medium text-[var(--shell-text-muted)]">Purchase date</label>
+                <input
+                  id={purchaseDateId}
+                  type="date" required value={purchaseDate} max={todayInIndia()}
+                  onChange={(e) => setPurchaseDate(e.target.value)}
+                  className="w-full rounded-md border border-[var(--shell-border)] bg-[var(--shell-surface)] px-3 py-2.5 text-sm text-[var(--shell-text)] focus:outline-none focus:border-cyan-500/40"
                 />
               </div>
             </div>
 
-            <details className="group border-t border-[var(--shell-border)] pt-3">
-              <summary className="flex cursor-pointer list-none items-center justify-between text-sm font-medium text-[var(--shell-text-muted)] marker:hidden">
-                Advanced details <ChevronDown className="h-4 w-4 transition-transform group-open:rotate-180" />
-              </summary>
-              <div className="mt-4 space-y-3">
-                {form.nav > 0 && (
-                  <div>
-                    <label className="mb-1.5 block text-xs font-medium text-[var(--shell-text-muted)]">Units held (optional)</label>
-                    <input type="number" value={form.units || ""} min="0" step="0.0001" inputMode="decimal"
-                      onChange={(e) => {
-                        const units = +e.target.value;
-                        if (units > 0) setCurrentValueEntered(true);
-                        setForm((prev) => ({ ...prev, units, currentValue: units > 0 ? Number((units * prev.nav).toFixed(2)) : prev.currentValue }));
-                      }}
-                      className="w-full rounded-md border border-[var(--shell-border)] bg-[var(--shell-surface)] px-3 py-2.5 text-sm text-[var(--shell-text)]" />
-                    <p className="mt-1 text-xs text-[var(--shell-text-faint)]">Uses the recent NAV of ₹{form.nav} to calculate current value and enable refreshes.</p>
-                  </div>
-                )}
-                <div className="grid gap-3 sm:grid-cols-2">
-                  {(selectedFund?.returns1Y === undefined || form.nav === 0) && (
-                    <div>
-                      <label className="mb-1.5 block text-xs font-medium text-[var(--shell-text-muted)]">1-year return (%)</label>
-                      <input
-                        type="number" step="0.01" value={form.returns1Y || ""} placeholder="Unavailable"
-                        onChange={(e) => setForm({ ...form, returns1Y: +e.target.value })}
-                        className="w-full rounded-md border border-[var(--shell-border)] bg-[var(--shell-surface)] px-3 py-2.5 text-sm text-[var(--shell-text)] focus:outline-none focus:border-cyan-500/40"
-                      />
-                    </div>
-                  )}
-                  {selectedFund?.expenseRatio === undefined && (
-                    <div>
-                      <label className="mb-1.5 block text-xs font-medium text-[var(--shell-text-muted)]">Expense ratio (%)</label>
-                      <input
-                        type="number" min="0" step="0.01" value={form.expenseRatio || ""} placeholder="Unavailable"
-                        onChange={(e) => setForm({ ...form, expenseRatio: +e.target.value })}
-                        className="w-full rounded-md border border-[var(--shell-border)] bg-[var(--shell-surface)] px-3 py-2.5 text-sm text-[var(--shell-text)] focus:outline-none focus:border-cyan-500/40"
-                      />
-                    </div>
-                  )}
-                </div>
-                <p className="text-xs leading-relaxed text-[var(--shell-text-faint)]">Only enter verified figures. Missing metrics are saved as zero and may affect analysis.</p>
+            <div aria-live="polite" className="border-t border-[var(--shell-border)] pt-4">
+              <div className="flex items-baseline justify-between gap-3 text-sm">
+                <span className="text-[var(--shell-text-muted)]">Amount invested</span>
+                <strong className="tabular-nums text-[var(--shell-text)]">{values ? formatCurrencyExact(values.investedAmount) : "—"}</strong>
               </div>
-            </details>
+              <div className="mt-2 flex items-baseline justify-between gap-3 text-sm">
+                <span className="text-[var(--shell-text-muted)]">Estimated current value</span>
+                <strong className="tabular-nums text-[var(--shell-text)]">{values ? formatCurrencyExact(values.currentValue) : "—"}</strong>
+              </div>
+            </div>
 
             <div className="flex gap-3 pt-2">
-              <button type="submit" disabled={submitting}
+              <button type="submit" disabled={submitting || !values || !purchaseDateValid || !latestNav}
                 className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-cyan-400 text-slate-950 text-sm font-semibold rounded-xl hover:bg-cyan-300 disabled:opacity-60 transition-colors">
                 {submitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                 {submitting ? "Adding..." : "Add Fund"}
@@ -458,100 +393,6 @@ export default function AddFundModal({ portfolioId, onClose, onAdded }: Props) {
           </form>
         )}
 
-        {/* --- Manual entry --- */}
-        {mode === "manual" && (
-          <form onSubmit={handleSubmit} className="p-5 space-y-4">
-            {error && (
-              <div className="flex items-start gap-2 p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700">
-                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-                <span>{error}</span>
-              </div>
-            )}
-
-            <button
-              type="button"
-              onClick={() => setMode("search")}
-              className="flex items-center gap-1 text-xs text-[var(--shell-text-faint)] hover:text-[var(--shell-text)]"
-            >
-              <ArrowLeft className="w-3 h-3" />
-              Back to search
-            </button>
-
-            <div>
-              <label className="text-xs font-medium text-[var(--shell-text-muted)] mb-1.5 block">Fund Name *</label>
-              <input
-                type="text" required value={form.name}
-                onChange={(e) => setForm({ ...form, name: e.target.value })}
-                placeholder="e.g. Mirae Asset Large Cap Fund"
-                className="w-full px-3 py-2.5 border border-[var(--shell-border)] rounded-xl text-sm focus:outline-none focus:border-cyan-500/40 focus:ring-1 focus:ring-cyan-500/10"
-              />
-            </div>
-
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div>
-                <label htmlFor={investedAmountId} className="text-xs font-medium text-[var(--shell-text-muted)] mb-1.5 block">Amount Invested (₹)</label>
-                <input id={investedAmountId} type="number" required value={form.investedAmount || ""}
-                  min="0.01" step="0.01" inputMode="decimal"
-                  onChange={(e) => setForm({ ...form, investedAmount: +e.target.value })}
-                  className="w-full px-3 py-2.5 border border-[var(--shell-border)] rounded-xl text-sm focus:outline-none focus:border-cyan-500/40" />
-              </div>
-              <div>
-                <label htmlFor={currentValueId} className="text-xs font-medium text-[var(--shell-text-muted)] mb-1.5 block">Current Value (₹)</label>
-                <input id={currentValueId} type="number" required value={currentValueEntered ? form.currentValue : ""}
-                  min="0" step="0.01" inputMode="decimal"
-                  onChange={(e) => { setCurrentValueEntered(e.target.value !== ""); setForm({ ...form, currentValue: +e.target.value }); }}
-                  className="w-full px-3 py-2.5 border border-[var(--shell-border)] rounded-xl text-sm focus:outline-none focus:border-cyan-500/40" />
-              </div>
-            </div>
-
-            <details className="group border-t border-[var(--shell-border)] pt-3">
-              <summary className="flex cursor-pointer list-none items-center justify-between text-sm font-medium text-[var(--shell-text-muted)] marker:hidden">
-                Advanced details <ChevronDown className="h-4 w-4 transition-transform group-open:rotate-180" />
-              </summary>
-              <p className="mt-3 text-xs leading-relaxed text-[var(--shell-text-faint)]">Review category and risk for more accurate analysis. Only enter returns and expenses when verified.</p>
-              <div className="mt-3 grid gap-3 sm:grid-cols-2">
-              <div>
-                <label className="text-xs font-medium text-[var(--shell-text-muted)] mb-1.5 block">Category</label>
-                <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value as FundCategory })}
-                  className="w-full px-3 py-2.5 border border-[var(--shell-border)] rounded-md text-sm focus:outline-none focus:border-cyan-500/40 bg-[var(--shell-surface)]">
-                  {CATEGORIES.map((c) => <option key={c} value={c}>{categoryLabel(c)}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="text-xs font-medium text-[var(--shell-text-muted)] mb-1.5 block">Risk level</label>
-                <select value={form.riskLevel} onChange={(e) => setForm({ ...form, riskLevel: e.target.value as RiskLevel })}
-                  className="w-full px-3 py-2.5 border border-[var(--shell-border)] rounded-md text-sm focus:outline-none focus:border-cyan-500/40 bg-[var(--shell-surface)]">
-                  {RISK_LEVELS.map((r) => <option key={r} value={r}>{r.replace(/_/g, " ")}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="text-xs font-medium text-[var(--shell-text-muted)] mb-1.5 block">1-Year Returns (%)</label>
-                <input type="number" step="0.1" value={form.returns1Y || ""} placeholder="Unavailable"
-                  onChange={(e) => setForm({ ...form, returns1Y: +e.target.value })}
-                  className="w-full px-3 py-2.5 border border-[var(--shell-border)] rounded-xl text-sm focus:outline-none focus:border-cyan-500/40" />
-              </div>
-              <div>
-                <label className="text-xs font-medium text-[var(--shell-text-muted)] mb-1.5 block">Expense Ratio (%)</label>
-                <input type="number" step="0.01" value={form.expenseRatio || ""} placeholder="Unavailable"
-                  onChange={(e) => setForm({ ...form, expenseRatio: +e.target.value })}
-                  className="w-full px-3 py-2.5 border border-[var(--shell-border)] rounded-xl text-sm focus:outline-none focus:border-cyan-500/40" />
-              </div>
-              </div>
-            </details>
-
-            <div className="flex gap-3 pt-2">
-              <button type="submit" disabled={submitting}
-                className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-cyan-400 text-slate-950 text-sm font-semibold rounded-xl hover:bg-cyan-300 disabled:opacity-60 transition-colors">
-                {submitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-                {submitting ? "Adding..." : "Add Fund"}
-              </button>
-              <button type="button" onClick={onClose}
-                className="px-5 py-2.5 text-[var(--shell-text-muted)] text-sm border border-[var(--shell-border)] rounded-xl hover:bg-[var(--shell-surface-2)] transition-colors">
-                Cancel
-              </button>
-            </div>
-          </form>
-        )}
       </div>
     </div>
   );

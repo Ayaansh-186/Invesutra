@@ -1,8 +1,10 @@
-import type { DbFund, DbPortfolio } from "@/lib/supabase/database.types";
+import type { DbFund, DbPortfolio, DbTransaction } from "@/lib/supabase/database.types";
 import type { Fund, FundCategory, Portfolio, RiskLevel } from "@/lib/types";
 import { riskEngine } from "@/lib/algorithm/riskEngine";
 
-export function dbFundToFund(row: DbFund): Fund {
+export type DbPurchase = Pick<DbTransaction, "fund_id" | "created_at" | "nav">;
+
+export function dbFundToFund(row: DbFund, purchase?: DbPurchase): Fund {
   return {
     id: row.id,
     name: row.name,
@@ -19,6 +21,8 @@ export function dbFundToFund(row: DbFund): Fund {
     aum: Number(row.aum),
     benchmark: row.benchmark || "",
     manager: row.manager || "",
+    purchaseDate: purchase?.created_at.slice(0, 10),
+    purchaseNav: purchase?.nav == null ? undefined : Number(purchase.nav),
     createdAt: row.created_at,
   };
 }
@@ -49,8 +53,13 @@ export function fundToDbInsert(fund: Partial<Fund>, portfolioId: string) {
  * logic used everywhere else so dashboard/screener/reports stay consistent
  * regardless of where the portfolio data originated.
  */
-export function buildPortfolio(portfolioRow: DbPortfolio, fundRows: DbFund[]): Portfolio {
-  const funds = fundRows.map(dbFundToFund);
+export function buildPortfolio(portfolioRow: DbPortfolio, fundRows: DbFund[], purchases: DbPurchase[] = []): Portfolio {
+  const firstPurchaseByFund = new Map<string, DbPurchase>();
+  for (const purchase of purchases) {
+    const earlier = firstPurchaseByFund.get(purchase.fund_id);
+    if (!earlier || purchase.created_at < earlier.created_at) firstPurchaseByFund.set(purchase.fund_id, purchase);
+  }
+  const funds = fundRows.map((row) => dbFundToFund(row, firstPurchaseByFund.get(row.id)));
   const totalInvested = funds.reduce((sum, f) => sum + f.investedAmount, 0);
   const currentValue = funds.reduce((sum, f) => sum + f.currentValue, 0);
   const returns = currentValue - totalInvested;

@@ -11,6 +11,15 @@ export function formatCurrency(value: number, compact = false): string {
   }).format(value);
 }
 
+export function formatCurrencyExact(value: number, fractionDigits = 2): string {
+  return new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
+    minimumFractionDigits: fractionDigits,
+    maximumFractionDigits: fractionDigits,
+  }).format(value);
+}
+
 export function formatPercent(value: number, showSign = true): string {
   const sign = showSign && value > 0 ? "+" : "";
   return `${sign}${value.toFixed(2)}%`;

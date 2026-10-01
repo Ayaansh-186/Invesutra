@@ -45,17 +45,14 @@ function generateReport(portfolio: Portfolio) {
   // real Alpha Pool by ~88% against the spec's own worked example
   // (a ₹1,500 gain was reported as ₹180 of alpha).
   //
-  // lotAgeDays is derived from each fund's createdAt so the spec's
-  // Time-Gated Multi-Trigger rule (Page 6) actually applies: lots under
+  // Prefer the recorded purchase date; legacy holdings use their date added.
+  // The Time-Gated Multi-Trigger rule (Page 6) applies: lots under
   // 365 days use a 15% milestone (survives exit load + STCG tax on early
   // exit), lots past 365 days drop to 10% (zero exit load, LTCG-eligible).
-  // Funds with no createdAt (older rows from before this field existed,
-  // or manually-entered Screener funds) fall back to the engine's flat
-  // default trigger, same as before this change.
   const fundsWithAge = portfolio.funds.map((f) => ({
     ...f,
-    lotAgeDays: f.createdAt
-      ? Math.floor((Date.now() - new Date(f.createdAt).getTime()) / 86_400_000)
+    lotAgeDays: f.purchaseDate || f.createdAt
+      ? Math.floor((Date.now() - new Date(f.purchaseDate || f.createdAt!).getTime()) / 86_400_000)
       : undefined,
   }));
   const protocolResult = engine.processPortfolioState(fundsWithAge);

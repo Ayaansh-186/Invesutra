@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { buildPortfolio } from "@/lib/supabase/mappers";
 import type { DbFund, DbPortfolio } from "@/lib/supabase/database.types";
+import type { DbPurchase } from "@/lib/supabase/mappers";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -41,7 +42,11 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     return NextResponse.json({ error: fundsError.message }, { status: 500 });
   }
 
-  const result = buildPortfolio(portfolio as DbPortfolio, (funds || []) as DbFund[]);
+  const { data: purchases, error: purchasesError } = await supabase.from("transactions")
+    .select("fund_id, created_at, nav").eq("portfolio_id", id).eq("type", "buy");
+  if (purchasesError) return NextResponse.json({ error: "Could not load purchase details." }, { status: 500 });
+
+  const result = buildPortfolio(portfolio as DbPortfolio, (funds || []) as DbFund[], (purchases || []) as DbPurchase[]);
   return NextResponse.json({ portfolio: result });
 }
 

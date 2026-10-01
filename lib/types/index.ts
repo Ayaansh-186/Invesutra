@@ -16,13 +16,11 @@ export interface Fund {
   aum: number; // Assets under management in crores
   benchmark: string;
   manager: string;
+  purchaseDate?: string;
+  purchaseNav?: number;
   aiRecommendation?: AIRecommendation;
-  /** When this holding was added to the portfolio (ISO string). Used to
-   * compute lot age for the QuantRebalance Protocol's Time-Gated
-   * Multi-Trigger rule (younger lots use a higher milestone to absorb exit
-   * load/STCG tax; lots past 365 days use a lower one). Optional because
-   * mock/demo funds and manually-entered Screener funds don't have a real
-   * purchase date. */
+  /** Date added to the app. Used as a lot-age fallback for legacy holdings
+   * that have no recorded purchase date. */
   createdAt?: string;
 }
 
