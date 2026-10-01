@@ -6,6 +6,8 @@ import { formatCurrency, formatCurrencyExact, formatPercent, categoryLabel } fro
 import type { Fund } from "@/lib/types";
 import { TrendingUp, TrendingDown, Pencil, Trash2, Check, X, Loader2, MessageSquare } from "lucide-react";
 import { useToast } from "@/components/shared/ToastProvider";
+import { hasVerifiedValue } from "@/lib/marketData/quality";
+import { isExchangeTradedFund } from "@/lib/marketData/amfi";
 
 export default function HoldingsTable({
   funds,
@@ -97,7 +99,7 @@ export default function HoldingsTable({
             <th className="px-4 py-3">Fund</th>
             <th className="hidden px-4 py-3 md:table-cell">Category</th>
             <th className="hidden px-4 py-3 text-right md:table-cell">Invested</th>
-            <th className="px-3 py-3 text-right sm:px-4">Last saved value</th>
+            <th className="px-3 py-3 text-right sm:px-4">NAV value</th>
             <th className="hidden px-4 py-3 text-right sm:table-cell">Your gain/loss</th>
             <th className="hidden px-4 py-3 text-right lg:table-cell">Weight</th>
             {onChanged && <th className="px-2 py-3 text-right sm:px-4"><span className="sr-only sm:not-sr-only">Actions</span></th>}
@@ -108,9 +110,10 @@ export default function HoldingsTable({
             const personalReturn = fund.investedAmount > 0
               ? ((fund.currentValue - fund.investedAmount) / fund.investedAmount) * 100 : null;
             const up = personalReturn !== null && personalReturn >= 0;
-            const needsReview = fund.purchaseNav !== undefined && fund.nav > 0 &&
-              fund.purchaseNav > fund.nav * 5;
-            const isEtf = /\bETF\b/i.test(fund.name);
+            const needsReview = fund.purchaseStatus === "unverified";
+            const valueVerified = hasVerifiedValue(fund);
+            const costVerified = fund.purchaseStatus === undefined || fund.purchaseStatus === "verified";
+            const isEtf = isExchangeTradedFund(fund.name);
             const weight = totalValue > 0 ? (fund.currentValue / totalValue) * 100 : 0;
             const isEditing = editingId === fund.id;
             const isBusy = busyId === fund.id;
@@ -132,7 +135,7 @@ export default function HoldingsTable({
                     )}
                   </div>
                   <p className="text-xs text-[var(--shell-text-faint)]">
-                    <span className="md:hidden">{categoryLabel(fund.category)} · Your gain/loss {personalReturn === null || isEtf || needsReview ? "Unverified" : formatPercent(personalReturn)}</span>
+                    <span className="md:hidden">{categoryLabel(fund.category)} · Your gain/loss {personalReturn === null || !valueVerified || !costVerified || isEtf ? "Unverified" : formatPercent(personalReturn)}</span>
                     <span className="hidden md:inline">{fund.manager}</span>
                   </p>
                   {fund.purchaseDate && (
@@ -141,10 +144,13 @@ export default function HoldingsTable({
                       {fund.purchaseNav !== undefined && ` · ${formatCurrencyExact(fund.purchaseNav, 4)} per unit`}
                     </p>
                   )}
+                  <p className="mt-1 text-xs text-[var(--shell-text-faint)]">{fund.units.toLocaleString("en-IN", { maximumFractionDigits: 4 })} units{fund.schemeCode && ` · Scheme ${fund.schemeCode}`}</p>
+                  {fund.navAsOf && <p className="mt-1 text-xs text-[var(--shell-text-faint)]">NAV {formatCurrencyExact(fund.nav, 5)} · {fund.navAsOf}{fund.navSourceUrl && <> · <a href={fund.navSourceUrl} target="_blank" rel="noopener noreferrer" className="underline">Source</a></>}</p>}
                   {isEtf && <p className="mt-1 text-xs font-medium text-amber-600">ETF market price is not verified. Saved value is not a live exchange quote.</p>}
-                  {needsReview && <p className="mt-1 text-xs font-medium text-amber-600">Purchase price looks inconsistent with the saved NAV. Check your statement before relying on this holding; correct or remove it.</p>}
+                  {needsReview && <p className="mt-1 text-xs font-medium text-amber-600">Purchase details do not match the published allotment-date NAV. Check your statement before relying on returns.</p>}
+                  {!valueVerified && !isEtf && <p className="mt-1 text-xs text-amber-600">{fund.valuationStatus === "missing_units" ? "Units are missing. Add the holding again with statement units." : fund.valuationStatus === "missing_scheme" ? "Exact scheme could not be identified. Add the holding again from verified search." : "Recent NAV could not be verified. The last saved value is shown below."}</p>}
                   <p className="mt-1 text-[11px] text-[var(--shell-text-faint)] md:hidden">
-                    Invested {formatCurrency(fund.investedAmount, true)} · {weight.toFixed(1)}% weight
+                    Invested {formatCurrency(fund.investedAmount, true)}
                   </p>
                   {isEditing && (
                     <input
@@ -184,16 +190,16 @@ export default function HoldingsTable({
                   )}
                 </td>
                 <td className="px-3 py-3 text-right font-medium text-[var(--shell-text)] sm:px-4">
-                  {formatCurrency(fund.currentValue, true)}
+                  {valueVerified ? formatCurrency(fund.currentValue, true) : <><span className="text-[var(--shell-text-faint)]">Unavailable</span><span className="mt-1 block text-[10px] font-normal text-[var(--shell-text-faint)]">Last saved {formatCurrency(fund.currentValue, true)}</span></>}
                 </td>
                 <td className="hidden px-4 py-3 text-right sm:table-cell">
-                  {personalReturn === null || isEtf || needsReview ? <span className="text-[var(--shell-text-faint)]">Unverified</span> :
+                  {personalReturn === null || !valueVerified || !costVerified || isEtf ? <span className="text-[var(--shell-text-faint)]">Unverified</span> :
                     <span className={`inline-flex items-center gap-1 font-medium ${up ? "text-emerald-500" : "text-rose-500"}`}>
                       {up ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
                       {formatPercent(personalReturn)}
                     </span>}
                 </td>
-                <td className="hidden px-4 py-3 text-right text-[var(--shell-text-muted)] lg:table-cell">{weight.toFixed(1)}%</td>
+                <td className="hidden px-4 py-3 text-right text-[var(--shell-text-muted)] lg:table-cell">{valueVerified && funds.every(hasVerifiedValue) ? `${weight.toFixed(1)}%` : "Unavailable"}</td>
 
                 {onChanged && (
                   <td className="px-2 py-3 text-right sm:px-4">

@@ -3,10 +3,13 @@
 import { useMemo, useRef, useEffect, useState } from "react";
 import Link from "next/link";
 import {
-  Loader2, Send, Plus, RefreshCw, Sparkle,
+  Loader2, Send, Plus, RefreshCw, Sparkle, ShieldCheck,
 } from "lucide-react";
 import type { Portfolio, PortfolioAnalysis } from "@/lib/types";
 import { formatCurrency, formatPercent, categoryLabel } from "@/lib/utils/format";
+import ValuationStatus from "./ValuationStatus";
+import { hasVerifiedValue, isPortfolioDataReady } from "@/lib/marketData/quality";
+import AIConsentDialog from "@/components/shared/AIConsentDialog";
 interface ChatMessage {
   role: "user" | "assistant";
   content: string;
@@ -89,6 +92,9 @@ export default function AIPortfolioAssistant({
   const [messages, setMessages] = useState<ChatMessage[]>([{ role: "assistant", content: greeting }]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [onlineConsent, setOnlineConsent] = useState<boolean | null>(null);
+  const [pendingQuestion, setPendingQuestion] = useState<string | null>(null);
+  useEffect(() => { setOnlineConsent(null); setPendingQuestion(null); }, [portfolio.id]);
   const [source, setSource] = useState<"groq" | "gemini" | "openai" | "deterministic" | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -97,6 +103,7 @@ export default function AIPortfolioAssistant({
   const hasStarted = messages.some((m) => m.role === "user");
 
   const assistantBrief = useMemo(() => {
+    if (!isPortfolioDataReady(portfolio)) return "Review unverified holdings on the Portfolio page";
     const firstRisk = analysis.concentrationRisk[0];
     if (firstRisk) {
       return `${firstRisk.label}: ${firstRisk.currentPercent.toFixed(1)}% vs ${firstRisk.recommendedMax}% guide`;
@@ -105,7 +112,7 @@ export default function AIPortfolioAssistant({
       return `${analysis.underperformers.length} fund${analysis.underperformers.length === 1 ? "" : "s"} need review`;
     }
     return `Diversification ${analysis.diversificationScore}/100`;
-  }, [analysis]);
+  }, [analysis, portfolio]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -166,6 +173,7 @@ export default function AIPortfolioAssistant({
   }
 
   function localFallbackReply(question: string): string {
+    if (!isPortfolioDataReady(portfolio)) return "Some NAVs or purchase costs are unverified. Review the flagged holdings on Portfolio before using gain, allocation, or investment suggestions.";
     const lower = question.toLowerCase();
     const firstRisk = analysis.concentrationRisk[0];
     const topHolding = [...portfolio.funds].sort((a, b) => b.currentValue - a.currentValue)[0];
@@ -186,7 +194,7 @@ export default function AIPortfolioAssistant({
 
     return `The cloud assistant is unavailable, so I used the local engine. Health is **${portfolio.healthScore}/100** (${analysis.overallHealth}), risk is **${portfolio.riskScore}/100**, and returns are **${formatPercent(portfolio.returnsPercent)}**.`;
   }
-  async function askAssistant(question: string) {
+  async function askAssistant(question: string, consentOverride?: boolean) {
     const trimmed = question.trim();
     if (!trimmed || loading) return;
 
@@ -233,6 +241,8 @@ export default function AIPortfolioAssistant({
       return;
     }
 
+    const consent = consentOverride ?? onlineConsent;
+    if (consent === null) { setPendingQuestion(trimmed); return; }
     const nextMessages: ChatMessage[] = [...messages, { role: "user", content: trimmed }];
     setMessages(nextMessages);
     setInput("");
@@ -243,7 +253,7 @@ export default function AIPortfolioAssistant({
       const res = await fetch("/api/ai/portfolio-chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ portfolio, messages: nextMessages }),
+        body: JSON.stringify({ portfolio, messages: nextMessages, allowPrivateAI: consent }),
       });
       const data = await res.json();
 
@@ -268,6 +278,13 @@ export default function AIPortfolioAssistant({
       setLoading(false);
     }
   }
+
+  const consentDialog = <AIConsentDialog open={pendingQuestion !== null} onClose={() => setPendingQuestion(null)} onChoose={(online) => {
+    const question = pendingQuestion;
+    setOnlineConsent(online);
+    setPendingQuestion(null);
+    if (question) void askAssistant(question, online);
+  }} />;
 
   // ── Inline renderer: **bold** and *italic* ──────────────────────────────
   function renderInline(text: string, keyPrefix: string): React.ReactNode[] {
@@ -398,7 +415,9 @@ export default function AIPortfolioAssistant({
   if (!hasStarted) {
     return (
       <div className="flex h-full w-full flex-col overflow-hidden">
+        {consentDialog}
         <div className="shrink-0 flex items-center justify-end gap-2 px-5 py-4">
+          <button title="Change AI privacy choice" onClick={() => setOnlineConsent(null)} className="rounded-lg p-2 text-[var(--shell-text-faint)]"><ShieldCheck className="h-4 w-4" /></button>
           <button
             onClick={onRefresh}
             disabled={refreshing}
@@ -415,10 +434,11 @@ export default function AIPortfolioAssistant({
               <h1 className="text-2xl font-semibold text-[var(--shell-text)]">Ask Invesutra</h1>
               <p className="mt-2 text-sm text-[var(--shell-text-muted)]">Understand your portfolio and decide what to review next.</p>
               <div className="mt-8 flex flex-wrap gap-x-8 gap-y-3 border-y border-[var(--shell-border)] py-4 text-sm">
-                <span className="text-[var(--shell-text-muted)]">Value <strong className="ml-1 text-[var(--shell-text)]">{formatCurrency(portfolio.currentValue, true)}</strong></span>
-                <span className="text-[var(--shell-text-muted)]">Return <strong className="ml-1 text-[var(--shell-text)]">{formatPercent(portfolio.returnsPercent)}</strong></span>
+                <span className="text-[var(--shell-text-muted)]">NAV value <strong className="ml-1 text-[var(--shell-text)]">{portfolio.valuationComplete === false ? "Unavailable" : formatCurrency(portfolio.currentValue, true)}</strong></span>
+                <span className="text-[var(--shell-text-muted)]">Return <strong className="ml-1 text-[var(--shell-text)]">{isPortfolioDataReady(portfolio) ? formatPercent(portfolio.returnsPercent) : "Unverified"}</strong></span>
                 <span className="text-[var(--shell-text-muted)]">Holdings <strong className="ml-1 text-[var(--shell-text)]">{portfolio.funds.length}</strong></span>
               </div>
+              <ValuationStatus portfolio={portfolio} />
             </div>
 
             <ChatInputBar
@@ -453,6 +473,7 @@ export default function AIPortfolioAssistant({
   // ---- Ongoing conversation: minimal transcript with a pinned input ----
   return (
     <div className="flex h-full w-full flex-col overflow-hidden">
+      {consentDialog}
       {/* Header */}
       <div className="shrink-0 border-b border-[var(--shell-border)] px-5 py-3.5">
         <div className="flex items-center justify-between gap-4">
@@ -464,6 +485,7 @@ export default function AIPortfolioAssistant({
             </div>
           </div>
           <div className="flex items-center gap-1">
+            <button title="Change AI privacy choice before your next question" onClick={() => setOnlineConsent(null)} className="rounded-lg p-2 text-[var(--shell-text-faint)]"><ShieldCheck className="h-4 w-4" /></button>
             <button
               onClick={onRefresh}
               disabled={refreshing}
@@ -486,6 +508,7 @@ export default function AIPortfolioAssistant({
       {/* Messages */}
       <div className="min-h-0 flex-1 overflow-y-auto px-5 py-6">
         <div className="mx-auto max-w-3xl space-y-6">
+          <ValuationStatus portfolio={portfolio} />
           {messages.map((message, index) => (
             <div key={`${message.role}-${index}`} className="animate-sprout">
               {message.role === "user" ? (
@@ -548,7 +571,7 @@ export default function AIPortfolioAssistant({
                           </p>
                         </div>
                         <div className="ml-3 text-right">
-                          <p className="text-sm font-semibold text-[var(--shell-text)]">{formatCurrency(fund.currentValue, true)}</p>
+                          <p className="text-sm font-semibold text-[var(--shell-text)]">{hasVerifiedValue(fund) ? formatCurrency(fund.currentValue, true) : "NAV unavailable"}</p>
                           <p className="text-xs text-[var(--shell-text-faint)]">
                             {portfolio.currentValue > 0 ? ((fund.currentValue / portfolio.currentValue) * 100).toFixed(1) : "0.0"}%
                           </p>

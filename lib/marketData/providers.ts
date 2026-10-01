@@ -5,12 +5,7 @@ import type { FundDataProvider, FundDetails, FundSearchResult, ProviderStatus } 
 import { callMutualFundTool } from "@/lib/mcp/mcpClient";
 import { inferRiskLevel, isMutualFundSourceConfigured, mapAmfiCategory } from "@/lib/mcp/mutualFundSource";
 import { isRecentNav } from "./navFreshness";
-
-interface McpSearchHit {
-  schemeCode: number;
-  name: string;
-}
-
+import { AMFI_NAV_URL, getAmfiCatalogue, searchAmfiCatalogue } from "./amfi";
 
 function schemeMetadata(name: string) {
   const normalized = name.toLowerCase();
@@ -41,86 +36,61 @@ interface McpFundDetail {
  */
 class MutualFundMcpProvider implements FundDataProvider {
   id = "mutual-fund-mcp";
-  label = "Mutual Fund MCP (AMFI data)";
+  label = "AMFI NAV catalogue and MFAPI history";
 
   isConfigured() {
     return isMutualFundSourceConfigured();
   }
 
   async searchFunds(query: string): Promise<FundSearchResult[]> {
-    let hits: McpSearchHit[] = [];
-    try {
-      const { json } = await callMutualFundTool("search_mutual_funds", { query, limit: 20 });
-      hits = (json as { results?: McpSearchHit[] } | null)?.results || [];
-    } catch (error) {
-      throw new Error("Published fund search is unavailable", { cause: error });
-    }
-
-    const detailed = await Promise.all(
-      hits.slice(0, 20).map(async (hit) => {
-        try {
-          return await this.getFundDetails(String(hit.schemeCode));
-        } catch {
-          return null;
-        }
-      })
-    );
-
-    const detailedResults = detailed
-      .filter((f): f is FundDetails => Boolean(f))
-      .map((f) => {
-        const hasRecentNav = isRecentNav(f.navAsOf) && f.nav !== undefined && Number.isFinite(f.nav) && f.nav > 0;
-        return {
-        provider: this.id,
-        symbol: String(f.schemeCode),
-        isin: f.isin,
-        name: f.name,
-        category: f.category,
-        riskLevel: f.riskLevel,
-        nav: hasRecentNav ? f.nav : undefined,
-        returns1Y: hasRecentNav ? f.returns1Y : undefined,
-        returns3Y: hasRecentNav ? f.returns3Y : undefined,
-        returns5Y: hasRecentNav ? f.returns5Y : undefined,
-        expenseRatio: undefined,
-        aum: undefined,
-        benchmark: undefined,
-        sourceUrl: `https://www.mfapi.in/mf/${f.schemeCode}`,
-        asOf: f.navAsOf,
-        ...schemeMetadata(f.name),
-        dataQuality: hasRecentNav ? "live" as const : "partial" as const,
-      };
-      });
-
-    if (detailedResults.length > 0) return detailedResults.sort((a, b) => {
-      const freshness = Number(b.dataQuality === "live") - Number(a.dataQuality === "live");
-      return freshness || Number(b.planType === "direct") - Number(a.planType === "direct");
-    }).slice(0, 20);
-
-    return hits.slice(0, 20).map((hit) => {
-      const category = mapAmfiCategory("", hit.name);
+    const catalogue = await getAmfiCatalogue();
+    return searchAmfiCatalogue(catalogue, query).map((scheme) => {
+      const category = mapAmfiCategory(scheme.category, scheme.name);
       return {
         provider: this.id,
-        symbol: String(hit.schemeCode),
-        name: hit.name,
+        symbol: scheme.schemeCode,
+        name: scheme.name,
+        isin: scheme.isin,
         category,
         riskLevel: inferRiskLevel(category),
-        expenseRatio: undefined,
-        aum: undefined,
-        benchmark: undefined,
-        sourceUrl: `https://www.mfapi.in/mf/${hit.schemeCode}`,
-        ...schemeMetadata(hit.name),
-        dataQuality: "partial" as const,
+        nav: scheme.nav,
+        asOf: scheme.navAsOf,
+        sourceUrl: AMFI_NAV_URL,
+        planType: scheme.planType,
+        optionType: scheme.optionType,
+        dataQuality: "live" as const,
       };
     });
   }
 
   async getFundDetails(schemeCode: string): Promise<FundDetails> {
-    const { json } = await callMutualFundTool("get_fund_details", { schemeCode });
-    const detail = json as McpFundDetail | null;
-    if (!detail) {
-      throw new Error(`No details returned for scheme ${schemeCode}`);
-    }
-    return detail;
+    if (!/^\d+$/.test(schemeCode)) throw new Error("Invalid AMFI scheme code");
+    const [official, history] = await Promise.allSettled([
+      getAmfiCatalogue(), callMutualFundTool("get_fund_details", { schemeCode }),
+    ]);
+    const scheme = official.status === "fulfilled" ? official.value.find((entry) => entry.schemeCode === schemeCode) : undefined;
+    const detail = history.status === "fulfilled" ? history.value.json as McpFundDetail | null : null;
+    if (detail && String(detail.schemeCode) !== schemeCode) throw new Error("Fund source returned a different scheme");
+    if (!scheme && !detail) throw new Error("Published fund data is unavailable");
+    const name = scheme?.name || detail!.name;
+    const category = scheme ? mapAmfiCategory(scheme.category, scheme.name) : detail!.category;
+    const nav = scheme?.nav ?? detail?.nav;
+    const navAsOf = scheme?.navAsOf ?? detail?.navAsOf;
+    const optionType = scheme?.optionType ?? schemeMetadata(name).optionType;
+    const historyMatches = optionType === "growth" && Boolean(detail?.nav && nav &&
+      detail.navAsOf === navAsOf && Math.abs(detail.nav - nav) <= Math.max(0.001, nav * 0.0001) && isRecentNav(navAsOf));
+    return {
+      schemeCode, name, category, riskLevel: inferRiskLevel(category),
+      fundHouse: scheme?.fundHouse || detail?.fundHouse,
+      nav, navAsOf, isin: scheme?.isin || detail?.isin,
+      returns1Y: historyMatches ? detail?.returns1Y : undefined,
+      returns3Y: historyMatches ? detail?.returns3Y : undefined,
+      returns5Y: historyMatches ? detail?.returns5Y : undefined,
+      optionType, historyAvailable: historyMatches,
+      navSource: scheme ? "amfi" : "mfapi",
+      sourceUrl: scheme ? AMFI_NAV_URL : `https://api.mfapi.in/mf/${schemeCode}`,
+      navCheckedAt: new Date().toISOString(),
+    };
   }
 }
 
@@ -155,7 +125,7 @@ export function getProviderStatuses(): ProviderStatus[] {
     configured: provider.isConfigured(),
     notes: provider.isConfigured()
       ? provider.id === "mutual-fund-mcp"
-        ? "AMFI-sourced fund data via MCP. NAV availability and freshness vary by scheme."
+        ? "Official daily AMFI NAV catalogue, with MFAPI historical NAVs. Checked every 15 minutes."
         : "Credentials present."
       : "Not configured.",
   }));

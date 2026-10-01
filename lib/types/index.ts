@@ -18,6 +18,13 @@ export interface Fund {
   manager: string;
   purchaseDate?: string;
   purchaseNav?: number;
+  schemeCode?: string;
+  navAsOf?: string;
+  navSourceUrl?: string;
+  valuationStatus?: "verified" | "stale" | "unavailable" | "missing_units" | "missing_scheme" | "unsupported";
+  valuationCheckedAt?: string;
+  purchaseStatus?: "verified" | "unverified" | "unavailable";
+  verifiedMetrics?: Array<"returns1Y" | "returns3Y" | "returns5Y" | "expenseRatio" | "aum">;
   aiRecommendation?: AIRecommendation;
   /** Date added to the app. Used as a lot-age fallback for legacy holdings
    * that have no recorded purchase date. */
@@ -59,6 +66,9 @@ export interface Portfolio {
   returnsPercent: number;
   healthScore: number; // 0-100
   riskScore: number; // 0-100
+  valuationComplete?: boolean;
+  purchaseComplete?: boolean;
+  valuationCheckedAt?: string;
   analysis?: PortfolioAnalysis;
 }
 

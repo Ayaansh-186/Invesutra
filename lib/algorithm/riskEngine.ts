@@ -1,5 +1,6 @@
 import type { Fund, Portfolio, PortfolioAnalysis, ConcentrationRisk, RiskMetrics, AllocationBreakdown } from "../types";
 import { createRebalanceEngine } from "./rebalanceEngine";
+import { hasVerifiedMetric, isPortfolioDataReady } from "@/lib/marketData/quality";
 
 export class RiskEngine {
   analyzePortfolio(portfolio: Portfolio): PortfolioAnalysis {
@@ -13,7 +14,7 @@ export class RiskEngine {
     const underperformers = this.detectUnderperformers(funds);
     const healthScore = this.calculateHealthScore(diversificationScore, concentrationRisks, riskMetrics, underperformers.length);
     const aiInsights = this.generateInsights(concentrationRisks, underperformers, riskMetrics, allocationBreakdown);
-    const rebalancingSuggestions = createRebalanceEngine().generateRebalancingSuggestions(funds, totalValue);
+    const rebalancingSuggestions = isPortfolioDataReady(portfolio) ? createRebalanceEngine().generateRebalancingSuggestions(funds, totalValue) : [];
 
     return {
       overallHealth: this.scoreToHealth(healthScore),
@@ -118,7 +119,7 @@ export class RiskEngine {
     for (const fund of funds) {
       const weight = totalValue > 0 ? fund.currentValue / totalValue : 1 / funds.length;
       weightedBeta += (riskWeights[fund.riskLevel] || 1) * weight;
-      weightedReturn += fund.returns1Y * weight;
+      if (hasVerifiedMetric(fund, "returns1Y")) weightedReturn += fund.returns1Y * weight;
     }
 
     const stdDev = weightedBeta * 12 + this.stableNoise(funds);
@@ -166,7 +167,7 @@ export class RiskEngine {
 
   private detectUnderperformers(funds: Fund[]): string[] {
     return funds
-      .filter((fund) => fund.returns1Y < 0 || (fund.returns1Y < 8 && fund.riskLevel !== "low"))
+      .filter((fund) => hasVerifiedMetric(fund, "returns1Y") && (fund.returns1Y < 0 || (fund.returns1Y < 8 && fund.riskLevel !== "low")))
       .map((fund) => fund.id);
   }
 
@@ -214,7 +215,7 @@ export class RiskEngine {
     }
 
     if (underperformerIds.length > 0) {
-      insights.push(`${underperformerIds.length} fund(s) are underperforming their category benchmark. Review and consider switching.`);
+      insights.push(`${underperformerIds.length} fund(s) have low or negative trailing NAV returns under the local screening rules. Compare the appropriate benchmarks before making a decision.`);
     }
 
     if (metrics.sharpeRatio < 0.5) {

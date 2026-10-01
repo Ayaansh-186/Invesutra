@@ -2,7 +2,7 @@ import type { DbFund, DbPortfolio, DbTransaction } from "@/lib/supabase/database
 import type { Fund, FundCategory, Portfolio, RiskLevel } from "@/lib/types";
 import { riskEngine } from "@/lib/algorithm/riskEngine";
 
-export type DbPurchase = Pick<DbTransaction, "fund_id" | "created_at" | "nav">;
+export type DbPurchase = Pick<DbTransaction, "fund_id" | "created_at" | "nav"> & Partial<Pick<DbTransaction, "notes">>;
 
 export function dbFundToFund(row: DbFund, purchase?: DbPurchase): Fund {
   return {
@@ -23,6 +23,7 @@ export function dbFundToFund(row: DbFund, purchase?: DbPurchase): Fund {
     manager: row.manager || "",
     purchaseDate: purchase?.created_at.slice(0, 10),
     purchaseNav: purchase?.nav == null ? undefined : Number(purchase.nav),
+    schemeCode: /^AMFI scheme (\d+)$/.exec(purchase?.notes || "")?.[1],
     createdAt: row.created_at,
   };
 }
@@ -80,6 +81,16 @@ export function buildPortfolio(portfolioRow: DbPortfolio, fundRows: DbFund[], pu
     riskScore: 0,
   };
 
+  return recalculatePortfolio(basePortfolio);
+}
+
+export function recalculatePortfolio(portfolio: Portfolio): Portfolio {
+  const totalInvested = portfolio.funds.reduce((sum, fund) => sum + fund.investedAmount, 0);
+  const currentValue = portfolio.funds.reduce((sum, fund) => sum + fund.currentValue, 0);
+  const basePortfolio = {
+    ...portfolio, totalInvested, currentValue, returns: currentValue - totalInvested,
+    returnsPercent: totalInvested > 0 ? ((currentValue - totalInvested) / totalInvested) * 100 : 0,
+  };
   // Run the same deterministic engine used elsewhere to derive health/risk
   // scores so a freshly-loaded portfolio from the DB looks identical to one
   // computed from mock data.

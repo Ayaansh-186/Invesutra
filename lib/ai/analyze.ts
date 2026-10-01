@@ -2,6 +2,7 @@ import { getAIChatCompletion, type AIProvider } from "./aiClient";
 import { riskEngine } from "@/lib/algorithm/riskEngine";
 import { createRebalanceEngine } from "@/lib/algorithm/rebalanceEngine";
 import type { Portfolio } from "@/lib/types";
+import { isPortfolioDataReady } from "@/lib/marketData/quality";
 
 export interface AINarrativeInsight {
   title: string;
@@ -81,7 +82,7 @@ function buildDeterministicNarrative(
 
   return { summary, narrativeInsights };
 }
-export async function analyzePortfolioWithAI(portfolio: Portfolio): Promise<AIAnalysisResult> {
+export async function analyzePortfolioWithAI(portfolio: Portfolio, options: { allowPrivateAI?: boolean } = {}): Promise<AIAnalysisResult> {
   const analysis = riskEngine.analyzePortfolio(portfolio);
   const engine = createRebalanceEngine();
   const rebalancingSuggestions = engine.generateRebalancingSuggestions(portfolio.funds, portfolio.currentValue);
@@ -98,10 +99,16 @@ export async function analyzePortfolioWithAI(portfolio: Portfolio): Promise<AIAn
     rebalancingSuggestions,
   };
 
+  if (!isPortfolioDataReady(portfolio)) return {
+    ...deterministicResult, summary: "Analysis paused: verify the flagged NAVs and purchase costs on Portfolio first.",
+    narrativeInsights: [{ title: "Data verification needed", body: "Stale prices or unverified purchase costs cannot support reliable gain or investment suggestions.", tone: "warning" }],
+    rebalancingSuggestions: [],
+  };
+
   const hasAnyProvider =
     process.env.GROQ_API_KEY || process.env.GEMINI_API_KEY || process.env.OPENAI_API_KEY;
 
-  if (!hasAnyProvider) {
+  if (options.allowPrivateAI !== true || !hasAnyProvider) {
     return deterministicResult;
   }
 

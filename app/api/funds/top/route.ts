@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
   const requested = request.nextUrl.searchParams.get("period");
   const period: RankingPeriod = requested === "3Y" || requested === "5Y" ? requested : "1Y";
   try {
-    if (!cached || Date.now() - cached.at > 60 * 60 * 1000) {
+    if (!cached || Date.now() - cached.at > 15 * 60 * 1000) {
       pending ??= loadShortlist().finally(() => { pending = null; });
       const funds = await pending;
       if (funds.length === 0) throw new Error("No recent NAVs were returned");
@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
       period,
       universe: `${cached.funds.length} verified schemes from ${SHORTLIST_QUERIES.length} named comparison queries`,
       checkedAt: new Date(cached.at).toISOString(),
-      source: "https://www.mfapi.in/docs/",
+      source: "https://portal.amfiindia.com/spages/NAVAll.txt",
     });
   } catch {
     return NextResponse.json({ error: "Recent published NAV data is unavailable. The ranking cannot be verified right now." }, { status: 503 });

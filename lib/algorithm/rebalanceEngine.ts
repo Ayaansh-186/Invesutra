@@ -12,6 +12,7 @@
 
 import type { QRPConfig, QRPState, RebalanceEvent, Fund, RebalancingSuggestion } from "../types";
 import { allocationEngine, type AllocationResult } from "./allocationEngine";
+import { hasVerifiedMetric, hasVerifiedValue } from "../marketData/quality";
 
 export interface FundProtocolInput extends Fund {
   lotAgeDays?: number;
@@ -326,6 +327,7 @@ export class QuantRebalanceEngine {
    * Generate rebalancing suggestions based on current fund allocation
    */
   generateRebalancingSuggestions(funds: Fund[], totalValue: number): RebalancingSuggestion[] {
+    if (funds.some((fund) => !hasVerifiedValue(fund) || (fund.purchaseStatus !== undefined && fund.purchaseStatus !== "verified"))) return [];
     if (!Number.isFinite(totalValue) || totalValue <= 0 || funds.length === 0) return [];
     const suggestions: RebalancingSuggestion[] = [];
     const categoryExposure = this.calculateCategoryExposure(funds, totalValue);
@@ -370,14 +372,14 @@ export class QuantRebalanceEngine {
     }
 
     // Underperforming fund detection
-    if (fund.returns1Y < -10 && fund.riskLevel !== "low") {
+    if (hasVerifiedMetric(fund, "returns1Y") && fund.returns1Y < -10 && fund.riskLevel !== "low") {
       return this.createSuggestion(fund, "exit", currentAllocation, 0, totalValue,
         `One-year return is below -10% (${fund.returns1Y.toFixed(1)}%)`,
         `${fund.name} has delivered ${fund.returns1Y.toFixed(1)}% in 1Y, significantly underperforming. Consider exiting.`);
     }
 
     // High expense ratio with average returns
-    if (fund.expenseRatio > 1.5 && fund.returns1Y < 12) {
+    if (hasVerifiedMetric(fund, "expenseRatio") && hasVerifiedMetric(fund, "returns1Y") && fund.expenseRatio > 1.5 && fund.returns1Y < 12) {
       return this.createSuggestion(fund, "reduce", currentAllocation, currentAllocation * 0.5, totalValue,
         `Expense ratio is above 1.5% while one-year return is below 12%`,
         `Expense ratio of ${fund.expenseRatio}% is high relative to ${fund.returns1Y}% returns. Consider switching to a lower-cost alternative.`);
@@ -405,8 +407,8 @@ export class QuantRebalanceEngine {
     // typically overlap heavily in underlying stocks. If a clearly
     // stronger peer already covers this category, the weaker one is
     // mostly adding expense drag rather than diversification.
-    const sameCategoryPeers = allFunds.filter((f) => f.id !== fund.id && f.category === fund.category);
-    if (sameCategoryPeers.length > 0) {
+    const sameCategoryPeers = allFunds.filter((f) => f.id !== fund.id && f.category === fund.category && hasVerifiedMetric(f, "returns1Y"));
+    if (sameCategoryPeers.length > 0 && hasVerifiedMetric(fund, "returns1Y")) {
       const bestPeer = sameCategoryPeers.reduce((best, f) => (f.returns1Y > best.returns1Y ? f : best));
       if (bestPeer.returns1Y - fund.returns1Y > 3 && fund.returns1Y < 15) {
         return this.createSuggestion(fund, "reduce", currentAllocation, currentAllocation * 0.5, totalValue,

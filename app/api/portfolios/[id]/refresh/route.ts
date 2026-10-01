@@ -3,6 +3,7 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getFundDetails, searchFunds } from "@/lib/marketData/providers";
 import { findExactLiveFund } from "@/lib/marketData/matchFund";
 import { isRecentNav } from "@/lib/marketData/navFreshness";
+import { isExchangeTradedFund } from "@/lib/marketData/amfi";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -45,7 +46,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     await Promise.all(rows.slice(offset, offset + 4).map(async (fund) => {
       try {
         const units = Number(fund.units);
-        if (!Number.isFinite(units) || !(units > 0) || /\bETF\b/i.test(fund.name)) {
+        if (!Number.isFinite(units) || !(units > 0) || isExchangeTradedFund(fund.name)) {
           unavailable.push(fund.name);
           return;
         }

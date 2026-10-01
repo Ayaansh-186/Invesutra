@@ -2,10 +2,11 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 import Link from "next/link";
-import { X, Loader2, AlertCircle, Search, ArrowLeft, LockKeyhole } from "lucide-react";
+import { X, Loader2, AlertCircle, Search, ArrowLeft, LockKeyhole, RefreshCw } from "lucide-react";
 import { categoryLabel, formatCurrencyExact, formatPercent } from "@/lib/utils/format";
 import type { FundSearchResult } from "@/lib/marketData/types";
 import { isRecentNav } from "@/lib/marketData/navFreshness";
+import { isExchangeTradedFund } from "@/lib/marketData/amfi";
 import { calculatePurchaseValues, isValidPurchaseDate, todayInIndia } from "@/lib/utils/purchase";
 import { useToast } from "@/components/shared/ToastProvider";
 
@@ -19,7 +20,7 @@ interface Props {
 }
 
 function hasRecentPrice(fund: FundSearchResult): boolean {
-  return !/\bETF\b/i.test(fund.name) && fund.dataQuality === "live" && isRecentNav(fund.asOf) &&
+  return !isExchangeTradedFund(fund.name) && fund.dataQuality === "live" && isRecentNav(fund.asOf) &&
     Number.isFinite(fund.nav) && (fund.nav || 0) > 0 && /^\d+$/.test(fund.symbol || "");
 }
 
@@ -49,6 +50,8 @@ export default function AddFundModal({ portfolioId, onClose, onAdded }: Props) {
 
   const [mode, setMode] = useState<"search" | "selected">("search");
   const [query, setQuery] = useState("");
+  const [plan, setPlan] = useState("all");
+  const [option, setOption] = useState("all");
   const [results, setResults] = useState<FundSearchResult[]>([]);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const [searching, setSearching] = useState(false);
@@ -58,11 +61,18 @@ export default function AddFundModal({ portfolioId, onClose, onAdded }: Props) {
   const [purchaseNav, setPurchaseNav] = useState("");
   const [units, setUnits] = useState("");
   const [purchaseDate, setPurchaseDate] = useState("");
+  const [verifiedPurchaseNav, setVerifiedPurchaseNav] = useState<number | null>(null);
+  const [checkingNav, setCheckingNav] = useState(false);
+  const [quoteError, setQuoteError] = useState<string | null>(null);
+  const [quoteRetry, setQuoteRetry] = useState(0);
+  const [resolvedPortfolioId, setResolvedPortfolioId] = useState(portfolioId);
   const { showToast } = useToast();
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const latestNav = selectedFund?.dataQuality === "live" && isRecentNav(selectedFund.asOf) ? selectedFund.nav || 0 : 0;
-  const values = calculatePurchaseValues(Number(purchaseNav), Number(units), latestNav);
+  const purchaseMatches = verifiedPurchaseNav !== null && Number(purchaseNav) > 0 &&
+    Math.abs(Number(purchaseNav) - verifiedPurchaseNav) <= Math.max(0.001, verifiedPurchaseNav * 0.0001);
+  const values = purchaseMatches ? calculatePurchaseValues(verifiedPurchaseNav!, Number(units), latestNav) : null;
   const purchaseDateValid = isValidPurchaseDate(purchaseDate);
 
   // Debounced search against the MCP-backed fund data (real AMFI schemes).
@@ -87,7 +97,7 @@ export default function AddFundModal({ portfolioId, onClose, onAdded }: Props) {
     setSearching(true);
     const timer = setTimeout(async () => {
       try {
-        const res = await fetch(`/api/funds/search?q=${encodeURIComponent(query.trim())}`, {
+        const res = await fetch(`/api/funds/search?q=${encodeURIComponent(query.trim())}&plan=${plan}&option=${option}`, {
           signal: controller.signal,
         });
         const data = await res.json();
@@ -107,7 +117,38 @@ export default function AddFundModal({ portfolioId, onClose, onAdded }: Props) {
       clearTimeout(timer);
       controller.abort();
     };
-  }, [query, mode]);
+  }, [query, mode, plan, option]);
+
+  useEffect(() => {
+    if (mode !== "selected" || !selectedFund?.symbol || !isValidPurchaseDate(purchaseDate)) return;
+    const controller = new AbortController();
+    setCheckingNav(true);
+    setQuoteError(null);
+    fetch(`/api/funds/details?schemeCode=${selectedFund.symbol}&purchaseDate=${purchaseDate}`, { signal: controller.signal })
+      .then(async (response) => {
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || "Purchase NAV could not be verified.");
+        if (controller.signal.aborted) return;
+        setVerifiedPurchaseNav(data.purchase.nav);
+        setPurchaseNav(String(data.purchase.nav));
+        setSelectedFund((fund) => fund ? { ...fund, nav: data.fund.nav, asOf: data.fund.navAsOf, sourceUrl: data.fund.sourceUrl } : null);
+      })
+      .catch((reason) => {
+        if (controller.signal.aborted) return;
+        setVerifiedPurchaseNav(null);
+        setQuoteError(reason instanceof Error ? reason.message : "Purchase NAV lookup failed.");
+      })
+      .finally(() => { if (!controller.signal.aborted) setCheckingNav(false); });
+    return () => controller.abort();
+  }, [mode, selectedFund?.symbol, purchaseDate, quoteRetry]);
+
+  function updatePurchaseDate(date: string) {
+    setPurchaseDate(date);
+    setPurchaseNav("");
+    setVerifiedPurchaseNav(null);
+    setQuoteError(null);
+    setCheckingNav(isValidPurchaseDate(date));
+  }
 
   function selectFund(fund: FundSearchResult) {
     if (!hasRecentPrice(fund)) return;
@@ -115,6 +156,9 @@ export default function AddFundModal({ portfolioId, onClose, onAdded }: Props) {
     setPurchaseNav("");
     setUnits("");
     setPurchaseDate("");
+    setVerifiedPurchaseNav(null);
+    setQuoteError(null);
+    setCheckingNav(false);
     setError(null);
     setMode("selected");
   }
@@ -134,7 +178,7 @@ export default function AddFundModal({ portfolioId, onClose, onAdded }: Props) {
     setError(null);
 
     try {
-      let pid = portfolioId;
+      let pid = resolvedPortfolioId;
 
       // If signed in but no portfolio yet, create one first
       if (pid === "needs-portfolio") {
@@ -146,6 +190,7 @@ export default function AddFundModal({ portfolioId, onClose, onAdded }: Props) {
         const createData = await createRes.json();
         if (!createRes.ok) { setError(createData.error || "Could not create portfolio."); setSubmitting(false); return; }
         pid = createData.portfolio?.id;
+        if (pid) setResolvedPortfolioId(pid);
       }
 
       if (!pid) { setError("No portfolio found."); setSubmitting(false); return; }
@@ -270,6 +315,15 @@ export default function AddFundModal({ portfolioId, onClose, onAdded }: Props) {
               <p className="text-xs text-[var(--shell-text-faint)]">Keep typing — at least 2 characters.</p>
             )}
 
+            <div className="flex flex-wrap gap-2">
+              <select aria-label="Fund plan" value={plan} onChange={(e) => { setPlan(e.target.value); updateQuery(query); }} className="rounded-md border border-[var(--shell-border)] bg-[var(--shell-surface)] px-2 py-1.5 text-xs text-[var(--shell-text)]">
+                <option value="all">All plans</option><option value="direct">Direct</option><option value="regular">Regular</option>
+              </select>
+              <select aria-label="Fund option" value={option} onChange={(e) => { setOption(e.target.value); updateQuery(query); }} className="rounded-md border border-[var(--shell-border)] bg-[var(--shell-surface)] px-2 py-1.5 text-xs text-[var(--shell-text)]">
+                <option value="all">All options</option><option value="growth">Growth</option><option value="idcw">IDCW</option>
+              </select>
+            </div>
+
             {results.length > 0 && (
               <div id={searchResultsId} role="listbox" className="space-y-1.5 max-h-72 overflow-y-auto">
                 {results.map((fund, i) => {
@@ -296,7 +350,8 @@ export default function AddFundModal({ portfolioId, onClose, onAdded }: Props) {
                         {fund.planType && fund.planType !== "unknown" && <span className="capitalize">{fund.planType}</span>}
                         {fund.optionType && fund.optionType !== "unknown" && <span className="capitalize">{fund.optionType}</span>}
                         {fund.asOf && <span>{canPrice ? "NAV date" : "Last NAV"} {fund.asOf}</span>}
-                        {!canPrice && <span className="text-amber-600">{/\bETF\b/i.test(fund.name) ? "ETF market price unavailable" : "Recent NAV unavailable"}</span>}
+                        {fund.symbol && <span>Scheme {fund.symbol}</span>}
+                        {!canPrice && <span className="text-amber-600">{isExchangeTradedFund(fund.name) ? "ETF market price unavailable" : "Recent NAV unavailable"}</span>}
                       </div>
                     </button>
                   );
@@ -308,7 +363,7 @@ export default function AddFundModal({ portfolioId, onClose, onAdded }: Props) {
               <p role="status" className="text-xs text-[var(--shell-text-faint)]">{searchMessage || "No matching funds found."}</p>
             )}
 
-            <p className="text-xs text-[var(--shell-text-faint)]">Only schemes with a recent NAV can be added.</p>
+            <p className="text-xs text-[var(--shell-text-faint)]">Latest published NAVs · <a href="https://portal.amfiindia.com/spages/NAVAll.txt" target="_blank" rel="noopener noreferrer" className="underline">AMFI</a></p>
           </div>
         )}
 
@@ -338,11 +393,17 @@ export default function AddFundModal({ portfolioId, onClose, onAdded }: Props) {
 
             <div className="grid gap-3 sm:grid-cols-2">
               <div>
-                <label htmlFor={purchaseNavId} className="mb-1.5 block text-xs font-medium text-[var(--shell-text-muted)]">Purchase NAV (₹ per unit)</label>
+                <label htmlFor={purchaseDateId} className="mb-1.5 block text-xs font-medium text-[var(--shell-text-muted)]">Allotment date</label>
+                <input id={purchaseDateId} type="date" required value={purchaseDate} max={todayInIndia()} onChange={(e) => updatePurchaseDate(e.target.value)} className="w-full rounded-md border border-[var(--shell-border)] bg-[var(--shell-surface)] px-3 py-2.5 text-sm text-[var(--shell-text)] focus:outline-none focus:border-cyan-500/40" />
+              </div>
+              <div>
+                <label htmlFor={purchaseNavId} className="mb-1.5 block text-xs font-medium text-[var(--shell-text-muted)]">Buying NAV (₹ per unit)</label>
                 <input
                   id={purchaseNavId}
                   type="number" required value={purchaseNav}
-                  min="0.0001" step="0.0001" inputMode="decimal"
+                  min="0.0001" step="any" inputMode="decimal"
+                  disabled={verifiedPurchaseNav === null || checkingNav}
+                  placeholder={checkingNav ? "Checking published NAV..." : "Select an allotment date"}
                   onChange={(e) => setPurchaseNav(e.target.value)}
                   className="w-full rounded-md border border-[var(--shell-border)] bg-[var(--shell-surface)] px-3 py-2.5 text-sm text-[var(--shell-text)] focus:outline-none focus:border-cyan-500/40"
                 />
@@ -357,16 +418,11 @@ export default function AddFundModal({ portfolioId, onClose, onAdded }: Props) {
                   className="w-full rounded-md border border-[var(--shell-border)] bg-[var(--shell-surface)] px-3 py-2.5 text-sm text-[var(--shell-text)] focus:outline-none focus:border-cyan-500/40"
                 />
               </div>
-              <div>
-                <label htmlFor={purchaseDateId} className="mb-1.5 block text-xs font-medium text-[var(--shell-text-muted)]">Purchase date</label>
-                <input
-                  id={purchaseDateId}
-                  type="date" required value={purchaseDate} max={todayInIndia()}
-                  onChange={(e) => setPurchaseDate(e.target.value)}
-                  className="w-full rounded-md border border-[var(--shell-border)] bg-[var(--shell-surface)] px-3 py-2.5 text-sm text-[var(--shell-text)] focus:outline-none focus:border-cyan-500/40"
-                />
-              </div>
             </div>
+
+            {checkingNav && <p role="status" className="text-xs text-[var(--shell-text-muted)]">Checking the published NAV for your allotment date...</p>}
+            {quoteError && <div role="alert" className="flex flex-wrap items-center gap-2 text-xs text-amber-600"><p>{quoteError}</p><button type="button" onClick={() => setQuoteRetry((value) => value + 1)} className="inline-flex items-center gap-1 underline"><RefreshCw className="h-3 w-3" />Retry NAV lookup</button></div>}
+            {verifiedPurchaseNav !== null && !checkingNav && <p className={`text-xs ${purchaseMatches ? "text-[var(--shell-text-faint)]" : "text-amber-600"}`}>Published buying NAV: {formatCurrencyExact(verifiedPurchaseNav, 5)} on {purchaseDate}{!purchaseMatches && ". The entered price must match this NAV."}</p>}
 
             <div aria-live="polite" className="border-t border-[var(--shell-border)] pt-4">
               <div className="flex items-baseline justify-between gap-3 text-sm">
@@ -374,13 +430,13 @@ export default function AddFundModal({ portfolioId, onClose, onAdded }: Props) {
                 <strong className="tabular-nums text-[var(--shell-text)]">{values ? formatCurrencyExact(values.investedAmount) : "—"}</strong>
               </div>
               <div className="mt-2 flex items-baseline justify-between gap-3 text-sm">
-                <span className="text-[var(--shell-text-muted)]">Estimated current value</span>
+                <span className="text-[var(--shell-text-muted)]">Value at latest NAV</span>
                 <strong className="tabular-nums text-[var(--shell-text)]">{values ? formatCurrencyExact(values.currentValue) : "—"}</strong>
               </div>
             </div>
 
             <div className="flex gap-3 pt-2">
-              <button type="submit" disabled={submitting || !values || !purchaseDateValid || !latestNav}
+              <button type="submit" disabled={submitting || checkingNav || !purchaseMatches || !values || !purchaseDateValid || !latestNav}
                 className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-cyan-400 text-slate-950 text-sm font-semibold rounded-xl hover:bg-cyan-300 disabled:opacity-60 transition-colors">
                 {submitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                 {submitting ? "Adding..." : "Add Fund"}

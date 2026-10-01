@@ -40,13 +40,13 @@ test("saved purchase metadata appears on the holding", () => {
   assert.equal(dbFundToFund(row).purchaseDate, undefined);
 });
 
-test("purchase NAV uses the first published allotment date and rejects missing history", () => {
+test("purchase NAV requires the exact allotment date and never guesses the next date", () => {
   const history = [
     { date: "02-10-2026", nav: "182.0000" },
     { date: "01-10-2026", nav: "181.0000" },
     { date: "30-09-2026", nav: "180.0000" },
   ];
   assert.equal(purchaseNavForDate(history, "2026-10-01")?.nav, "181.0000");
-  assert.equal(purchaseNavForDate(history, "2026-09-28")?.nav, "180.0000");
+  assert.equal(purchaseNavForDate(history, "2026-09-28"), undefined);
   assert.equal(purchaseNavForDate(history, "2026-09-20"), undefined);
 });

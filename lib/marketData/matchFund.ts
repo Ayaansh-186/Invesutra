@@ -13,7 +13,7 @@ function normalizeFundName(name: string): string {
 export function findExactLiveFund(name: string, matches: FundSearchResult[], now = new Date()): FundSearchResult | undefined {
   const target = normalizeFundName(name);
   if (!target) return undefined;
-  return matches.find((candidate) =>
+  const exact = matches.filter((candidate) =>
     candidate.dataQuality === "live" &&
     candidate.nav !== undefined &&
     Number.isFinite(candidate.nav) &&
@@ -21,4 +21,5 @@ export function findExactLiveFund(name: string, matches: FundSearchResult[], now
     isRecentNav(candidate.asOf, now) &&
     normalizeFundName(candidate.name) === target
   );
+  return exact.length === 1 ? exact[0] : undefined;
 }

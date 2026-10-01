@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import type { Portfolio } from "@/lib/types";
 import { SAMPLE_PORTFOLIO } from "@/lib/utils/mockData";
 import { useAuth } from "./useAuth";
@@ -36,9 +36,12 @@ export function useActivePortfolio(): UsePortfolioResult {
   const [isDemo, setIsDemo] = useState(true);
   const [isEmpty, setIsEmpty] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const requestSequence = useRef(0);
+  const lastLoad = useRef(0);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (background = false) => {
     if (authLoading) return;
+    const sequence = ++requestSequence.current;
 
     // Not signed in → pure demo mode
     if (!user) {
@@ -50,13 +53,15 @@ export function useActivePortfolio(): UsePortfolioResult {
     }
 
     // Signed in → try to load their portfolios
-    setLoading(true);
+    if (!background) setLoading(true);
     setError(null);
     setIsDemo(false); // They ARE signed in — never show "create account" banner
 
     try {
-      const res = await fetch("/api/portfolios");
+      const res = await fetch("/api/portfolios", { cache: "no-store", signal: AbortSignal.timeout(45_000) });
       const data = await res.json();
+      if (sequence !== requestSequence.current) return;
+      lastLoad.current = Date.now();
 
       if (!res.ok) {
         // A signed-in user's holdings must never be replaced with demo figures.
@@ -76,21 +81,38 @@ export function useActivePortfolio(): UsePortfolioResult {
         setIsEmpty(true);
       } else {
         setPortfolio(portfolios[0]);
-        setIsEmpty(false);
+        setIsEmpty(portfolios[0].funds.length === 0);
       }
     } catch (err) {
+      if (sequence !== requestSequence.current) return;
       console.error("Failed to load portfolio:", err);
       setError("Could not reach the portfolio service. Please try again.");
       setPortfolio(EMPTY_PORTFOLIO);
       setIsEmpty(true);
     } finally {
-      setLoading(false);
+      if (sequence === requestSequence.current) setLoading(false);
     }
   }, [user, authLoading]);
 
   useEffect(() => {
-    load();
+    void load();
+    return () => { requestSequence.current += 1; };
   }, [load]);
 
-  return { portfolio, loading, isDemo, isEmpty, error, refresh: load };
+  useEffect(() => {
+    if (!user || authLoading) return;
+    const reload = () => {
+      if (document.visibilityState === "visible" && Date.now() - lastLoad.current > 60_000) void load(true);
+    };
+    const timer = window.setInterval(reload, 15 * 60 * 1000);
+    window.addEventListener("focus", reload);
+    document.addEventListener("visibilitychange", reload);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("focus", reload);
+      document.removeEventListener("visibilitychange", reload);
+    };
+  }, [user, authLoading, load]);
+
+  return { portfolio, loading, isDemo, isEmpty, error, refresh: () => load(true) };
 }

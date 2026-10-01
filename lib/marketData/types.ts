@@ -14,6 +14,11 @@ export interface FundDetails {
   returns3Y?: number;
   returns5Y?: number;
   isin?: string;
+  sourceUrl?: string;
+  navSource?: "amfi" | "mfapi";
+  navCheckedAt?: string;
+  optionType?: "growth" | "idcw" | "unknown";
+  historyAvailable?: boolean;
 }
 
 export interface FundSearchResult {

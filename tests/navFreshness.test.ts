@@ -6,7 +6,8 @@ const now = new Date("2026-09-28T12:00:00Z");
 
 test("accepts recently dated NAV through a weekend", () => {
   assert.equal(isRecentNav("25-09-2026", now), true);
-  assert.equal(isRecentNav("18-09-2026", now), true);
+  assert.equal(isRecentNav("23-09-2026", now), true);
+  assert.equal(isRecentNav("18-09-2026", now), false);
 });
 
 test("rejects stale, missing, invalid, and future NAV dates", () => {

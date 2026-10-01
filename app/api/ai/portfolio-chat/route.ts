@@ -3,7 +3,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { answerPortfolioQuestion } from "@/lib/ai/portfolioAssistant";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
-import { buildPortfolio } from "@/lib/supabase/mappers";
+import { buildPortfolio, type DbPurchase } from "@/lib/supabase/mappers";
+import { hydratePortfolioValuations } from "@/lib/marketData/valuation";
 import type { Portfolio } from "@/lib/types";
 import type { DbFund, DbPortfolio } from "@/lib/supabase/database.types";
 import type { ToolExecutionContext } from "@/lib/ai/tools";
@@ -74,7 +75,10 @@ export async function POST(request: NextRequest) {
         .select("*")
         .eq("portfolio_id", clientPortfolio.id);
       if (fundsError) throw fundsError;
-      portfolio = buildPortfolio(owned as DbPortfolio, (funds || []) as DbFund[]);
+      const { data: purchases, error: purchaseError } = await supabase.from("transactions")
+        .select("fund_id, created_at, nav, notes").eq("portfolio_id", clientPortfolio.id).eq("type", "buy");
+      if (purchaseError) throw purchaseError;
+      portfolio = await hydratePortfolioValuations(buildPortfolio(owned as DbPortfolio, (funds || []) as DbFund[], (purchases || []) as DbPurchase[]));
       hasOwnedPortfolio = true;
     }
 
@@ -84,7 +88,7 @@ export async function POST(request: NextRequest) {
       canMutate: false,
     };
 
-    const result = await answerPortfolioQuestion(portfolio, safeMessages, toolContext);
+    const result = await answerPortfolioQuestion(portfolio, safeMessages, toolContext, { allowPrivateAI: body.allowPrivateAI === true });
 
     // Persist chat history so it survives a full page reload / new session.
     // Client resends the full running

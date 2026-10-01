@@ -12,6 +12,7 @@ import { createRebalanceEngine } from "@/lib/algorithm/rebalanceEngine";
 import { categoryLabel, formatCurrency, formatPercent } from "@/lib/utils/format";
 import type { Portfolio } from "@/lib/types";
 import { executeTool, getAvailableTools, type ToolExecutionContext } from "./tools";
+import { hasVerifiedMetric, isPortfolioDataReady } from "@/lib/marketData/quality";
 
 export interface PortfolioChatMessage {
   role: "user" | "assistant";
@@ -36,9 +37,9 @@ function getTopAllocations(portfolio: Portfolio) {
       name: fund.name,
       category: categoryLabel(fund.category),
       allocation: Number(((fund.currentValue / total) * 100).toFixed(1)),
-      returns1Y: fund.returns1Y,
+      returns1Y: hasVerifiedMetric(fund, "returns1Y") ? fund.returns1Y : null,
       riskLevel: fund.riskLevel.replace(/_/g, " "),
-      expenseRatio: fund.expenseRatio,
+      expenseRatio: hasVerifiedMetric(fund, "expenseRatio") ? fund.expenseRatio : null,
     }));
 }
 
@@ -137,13 +138,14 @@ function fallbackAnswer(portfolio: Portfolio, question: string): string {
   if (lower.includes("compar") && portfolio.funds.length >= 2) {
     const compared = [...portfolio.funds]
       .sort((a, b) => b.returns1Y - a.returns1Y)
-      .map((f) => `${f.name}: ${formatPercent(f.returns1Y)} 1Y, ${categoryLabel(f.category)}, ${f.expenseRatio}% expense ratio`);
+      .map((f) => `${f.name}: ${hasVerifiedMetric(f, "returns1Y") ? formatPercent(f.returns1Y) : "Unavailable"} 1Y, ${categoryLabel(f.category)}, expense ratio ${hasVerifiedMetric(f, "expenseRatio") ? `${f.expenseRatio}%` : "unavailable"}`);
     return `Comparing your holdings by 1-year return:
 
 ${compared.slice(0, 5).join("\n")}${compared.length > 5 ? `\n...and ${compared.length - 5} more` : ""}`;
   }
 
   if (lower.includes("expense") || lower.includes("fee") || lower.includes("cost")) {
+    if (portfolio.funds.some((fund) => !hasVerifiedMetric(fund, "expenseRatio"))) return "Verified expense ratios are unavailable from the NAV source. I cannot calculate an accurate portfolio expense ratio or recommend a cheaper fund from missing figures. Check the AMC's latest published expense ratios for the exact plan.";
     const avgExpense = portfolio.funds.length
       ? portfolio.funds.reduce((sum, f) => sum + f.expenseRatio, 0) / portfolio.funds.length
       : 0;
@@ -166,7 +168,9 @@ function systemPrompt(canMutate: boolean, hasTools: boolean): string {
     "supplied portfolio data and tool results. Explain health score, risk, diversification, fund performance, and " +
     "improvements in plain English. Do not invent live market prices, holdings overlap, fund facts, or future " +
     "returns — use the search_mutual_funds / get_fund_details tools for real fund data instead of guessing. This is " +
-    "educational decision support, not investment advice. " +
+    "educational decision support, not investment advice. Treat null or absent metrics as unavailable, never zero. " +
+    "NAV is the latest published daily value, not an intraday quote. Check NAV dates in tool results before describing any fund as current. " +
+    "Risk scores, beta, drawdown and Sharpe are heuristic estimates, not observed historical market statistics. " +
     "VOICE: You're not a generic advisor reciting numbers — you're Invesutra, and you've actually been paying " +
     "attention to this specific portfolio. Have real, direct opinions grounded in the actual data (never invented). " +
     "When the conversation history shows the user asked about a fund or issue before, reference that naturally " +
@@ -286,7 +290,8 @@ async function runToolLoop(
 export async function answerPortfolioQuestion(
   portfolio: Portfolio,
   messages: PortfolioChatMessage[],
-  toolContext?: ToolExecutionContext
+  toolContext?: ToolExecutionContext,
+  options: { allowPrivateAI?: boolean } = {}
 ): Promise<PortfolioAssistantResponse> {
   const analysis = riskEngine.analyzePortfolio(portfolio);
   const latestQuestion = messages.filter((m) => m.role === "user").at(-1)?.content?.trim() || "";
@@ -295,7 +300,11 @@ export async function answerPortfolioQuestion(
   const hasAnyProvider =
     process.env.GROQ_API_KEY || process.env.GEMINI_API_KEY || process.env.OPENAI_API_KEY;
 
-  if (!hasAnyProvider) {
+  if (!isPortfolioDataReady(portfolio)) return {
+    source: "deterministic", answer: "Some holdings have an unavailable or stale NAV, or an unverified purchase cost. Review the flagged holdings on Portfolio first. Gain, allocation, and investment suggestions are paused until those figures are verified.",
+    suggestedQuestions: [], portfolioChanged: false,
+  };
+  if (options.allowPrivateAI !== true || !hasAnyProvider) {
     return {
       source: "deterministic",
       answer: fallbackAnswer(portfolio, latestQuestion),

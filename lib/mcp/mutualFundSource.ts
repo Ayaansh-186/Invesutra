@@ -19,6 +19,7 @@
 // rather than show a fabricated figure.
 
 import type { FundCategory, RiskLevel } from "@/lib/types";
+import { navDateToIso } from "@/lib/marketData/navFreshness";
 
 const MFAPI_BASE = process.env.MFAPI_BASE_URL || "https://api.mfapi.in";
 
@@ -59,20 +60,17 @@ async function cachedFetchJson<T>(url: string): Promise<T> {
   }
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
-  let res: Response;
   try {
-    res = await fetch(url, { headers: { Accept: "application/json" }, signal: controller.signal });
+    const res = await fetch(url, { headers: { Accept: "application/json" }, signal: controller.signal, cache: "no-store" });
+    if (!res.ok) throw new Error(`mfapi.in request failed (${res.status})`);
+    const json = (await res.json()) as T;
+    cache.set(url, { at: Date.now(), value: json });
+    return json;
   } catch (error) {
     throw new Error(`mfapi.in request failed for ${url}: ${error instanceof Error ? error.message : "network error"}`);
   } finally {
     clearTimeout(timeout);
   }
-  if (!res.ok) {
-    throw new Error(`mfapi.in request failed (${res.status}) for ${url}`);
-  }
-  const json = (await res.json()) as T;
-  cache.set(url, { at: Date.now(), value: json });
-  return json;
 }
 
 export function isMutualFundSourceConfigured(): boolean {
@@ -88,22 +86,20 @@ export async function searchSchemes(query: string, limit = 10): Promise<MfApiSea
 }
 
 export async function getSchemeDetail(schemeCode: number | string): Promise<MfApiSchemeDetail> {
+  if (!/^\d+$/.test(String(schemeCode))) throw new Error("Invalid scheme code");
   const url = `${MFAPI_BASE}/mf/${schemeCode}`;
-  return cachedFetchJson<MfApiSchemeDetail>(url);
+  const detail = await cachedFetchJson<MfApiSchemeDetail>(url);
+  if (String(detail?.meta?.scheme_code) !== String(schemeCode) || !Array.isArray(detail?.data)) throw new Error("Invalid scheme history response");
+  return detail;
 }
 
 export function purchaseNavForDate(data: MfApiNavPoint[], purchaseDate: string): MfApiNavPoint | undefined {
-  const start = Date.parse(`${purchaseDate}T00:00:00Z`);
-  if (!Number.isFinite(start)) return undefined;
-  return data.filter((point) => {
-    const time = parseDdMmYyyy(point.date);
-    return time >= start && time - start <= 5 * 24 * 60 * 60 * 1000 && Number.isFinite(Number(point.nav)) && Number(point.nav) > 0;
-  }).sort((a, b) => parseDdMmYyyy(a.date) - parseDdMmYyyy(b.date))[0];
+  return data.find((point) => navDateToIso(point.date) === purchaseDate && Number.isFinite(Number(point.nav)) && Number(point.nav) > 0);
 }
 
 function parseDdMmYyyy(date: string): number {
-  const [dd, mm, yyyy] = date.split("-").map(Number);
-  return Date.UTC(yyyy, (mm || 1) - 1, dd || 1);
+  const iso = navDateToIso(date);
+  return iso ? Date.parse(`${iso}T00:00:00Z`) : NaN;
 }
 
 /**
@@ -121,7 +117,9 @@ export function computeReturns(data: MfApiNavPoint[]): {
 } {
   if (!data || data.length === 0) return {};
 
-  const sorted = [...data].sort((a, b) => parseDdMmYyyy(b.date) - parseDdMmYyyy(a.date));
+  const sorted = data.filter((point) => navDateToIso(point.date) && Number.isFinite(Number(point.nav)) && Number(point.nav) > 0)
+    .sort((a, b) => parseDdMmYyyy(b.date) - parseDdMmYyyy(a.date));
+  if (!sorted.length) return {};
   const latest = sorted[0];
   const latestNav = Number(latest.nav);
   const latestTime = parseDdMmYyyy(latest.date);

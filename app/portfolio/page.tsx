@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { riskEngine } from "@/lib/algorithm/riskEngine";
@@ -10,6 +10,8 @@ import { formatCurrency, formatPercent, getHealthColor } from "@/lib/utils/forma
 import HoldingsTable from "@/components/dashboard/HoldingsTable";
 import MilestoneTracker from "@/components/dashboard/MilestoneTracker";
 import SinceLastVisit from "@/components/dashboard/SinceLastVisit";
+import ValuationStatus from "@/components/dashboard/ValuationStatus";
+import { isPortfolioDataReady } from "@/lib/marketData/quality";
 import {
   Sparkles, Plus, RefreshCw, TrendingUp, TrendingDown, MessageSquare, AlertTriangle, ChevronDown,
 } from "lucide-react";
@@ -25,10 +27,11 @@ export default function PortfolioPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [refreshNotice, setRefreshNotice] = useState<string | null>(null);
   const analysis = portfolio.analysis ?? riskEngine.analyzePortfolio(portfolio);
+  const dataReady = isPortfolioDataReady(portfolio);
   const returnsUp = portfolio.returnsPercent >= 0;
   const primaryRisk = analysis.concentrationRisk[0];
   const firstSuggestion = analysis.rebalancingSuggestions[0];
-  const attentionText = primaryRisk
+  const attentionText = !dataReady ? "Some holdings need NAV or purchase verification. Review the marked rows before relying on returns or allocation suggestions." : primaryRisk
     ? `${primaryRisk.label} is ${primaryRisk.currentPercent.toFixed(1)}% of your portfolio, above the ${primaryRisk.recommendedMax}% guide.`
     : firstSuggestion
       ? `${firstSuggestion.fundName} may need an allocation review.`
@@ -64,18 +67,6 @@ export default function PortfolioPage() {
       setRefreshing(false);
     }
   }
-
-  useEffect(() => {
-    if (loading || !user || isDemo || isEmpty || !portfolio.id || portfolio.funds.length === 0) return;
-    const key = `invesutra-nav-refresh:${portfolio.id}`;
-    const lastRefresh = Number(window.localStorage.getItem(key) || 0);
-    if (Date.now() - lastRefresh < 24 * 60 * 60 * 1000) return;
-    void handleRefresh().then((complete) => {
-      if (complete) window.localStorage.setItem(key, String(Date.now()));
-    });
-    // Refresh once per portfolio per day; handleRefresh intentionally stays outside dependencies.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loading, user, isDemo, isEmpty, portfolio.id, portfolio.funds.length]);
 
   if (loading) {
     return (
@@ -180,16 +171,17 @@ export default function PortfolioPage() {
           ) : (
             <>
               <section className="border-b border-[var(--shell-border)] pb-7">
-                <p className="text-sm text-[var(--shell-text-muted)]">Current value</p>
+                <ValuationStatus portfolio={portfolio} />
+                <p className="text-sm text-[var(--shell-text-muted)]">Value at latest published NAV</p>
                 <p className="mt-1 text-3xl font-semibold tabular-nums text-[var(--shell-text)] sm:text-4xl">
-                  {formatCurrency(portfolio.currentValue)}
+                  {portfolio.valuationComplete === false ? "Unavailable" : formatCurrency(portfolio.currentValue)}
                 </p>
                 <div className="mt-4 flex flex-wrap gap-x-8 gap-y-2 text-sm">
                   <p className="text-[var(--shell-text-muted)]">Invested <span className="font-medium text-[var(--shell-text)]">{formatCurrency(portfolio.totalInvested, true)}</span></p>
-                  <p className="text-[var(--shell-text-muted)]">Change <span className={`inline-flex items-center gap-1 font-medium ${returnsUp ? "text-emerald-500" : "text-rose-500"}`}>
+                  {dataReady ? <p className="text-[var(--shell-text-muted)]">Change <span className={`inline-flex items-center gap-1 font-medium ${returnsUp ? "text-emerald-500" : "text-rose-500"}`}>
                     {returnsUp ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
                     {formatCurrency(portfolio.returns, true)} ({formatPercent(portfolio.returnsPercent)})
-                  </span></p>
+                  </span></p> : <p className="text-[var(--shell-text-muted)]">Change: awaiting verified purchase and NAV data</p>}
                 </div>
               </section>
 
@@ -212,7 +204,7 @@ export default function PortfolioPage() {
                 <HoldingsTable funds={portfolio.funds} totalValue={portfolio.currentValue} onChanged={!isDemo && user ? refresh : undefined} canAskAI={!isDemo && Boolean(user)} />
               </section>
 
-              <details className="group border-t border-[var(--shell-border)]">
+              {dataReady && <details className="group border-t border-[var(--shell-border)]">
                 <summary className="flex cursor-pointer list-none items-center justify-between py-5 text-sm font-medium text-[var(--shell-text)]">
                   More analysis
                   <ChevronDown className="h-4 w-4 text-[var(--shell-text-muted)] transition-transform group-open:rotate-180" />
@@ -248,7 +240,7 @@ export default function PortfolioPage() {
                     </section>
                   )}
                 </div>
-              </details>
+              </details>}
             </>
           )}
         </div>
@@ -257,7 +249,7 @@ export default function PortfolioPage() {
 
       {showAddFund && (
         <AddFundModal
-          portfolioId={!isDemo && !isEmpty ? portfolio.id : user ? "needs-portfolio" : null}
+          portfolioId={!isDemo && portfolio.id ? portfolio.id : user ? "needs-portfolio" : null}
           onClose={() => setShowAddFund(false)}
           onAdded={() => {
             setShowAddFund(false);

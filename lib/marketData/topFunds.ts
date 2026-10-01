@@ -1,6 +1,7 @@
-import { computeReturns, getSchemeDetail, searchSchemes } from "@/lib/mcp/mutualFundSource";
 import type { MfApiSearchHit } from "@/lib/mcp/mutualFundSource";
 import { isRecentNav } from "./navFreshness";
+import { getAmfiCatalogue, searchAmfiCatalogue } from "./amfi";
+import { getFundDetails } from "./providers";
 
 export type RankingPeriod = "1Y" | "3Y" | "5Y";
 
@@ -46,23 +47,22 @@ export function rankFunds(funds: RankedFund[], period: RankingPeriod, now = new 
 }
 
 export async function loadShortlist(): Promise<RankedFund[]> {
+  const catalogue = await getAmfiCatalogue();
   const results = await Promise.allSettled(SHORTLIST_QUERIES.map(async (query) => {
-    const hits = await searchSchemes(query, 100);
+    const hits = searchAmfiCatalogue(catalogue, query, 100).map((scheme) => ({ schemeCode: Number(scheme.schemeCode), schemeName: scheme.name }));
     const hit = selectDirectGrowthScheme(query, hits);
     if (!hit) return null;
-    const detail = await getSchemeDetail(hit.schemeCode);
-    if (detail.meta.scheme_code !== hit.schemeCode) return null;
-    const values = computeReturns(detail.data);
-    if (!values.latestNav || !isRecentNav(values.asOf)) return null;
+    const detail = await getFundDetails(String(hit.schemeCode));
+    if (!detail.nav || !isRecentNav(detail.navAsOf) || !detail.historyAvailable) return null;
     return {
       schemeCode: hit.schemeCode,
-      name: detail.meta.scheme_name,
-      category: detail.meta.scheme_category,
-      nav: values.latestNav,
-      navAsOf: values.asOf!,
-      returns1Y: values.returns1Y,
-      returns3Y: values.returns3Y,
-      returns5Y: values.returns5Y,
+      name: detail.name,
+      category: catalogue.find((scheme) => scheme.schemeCode === String(hit.schemeCode))?.category || detail.category,
+      nav: detail.nav,
+      navAsOf: detail.navAsOf!,
+      returns1Y: detail.returns1Y,
+      returns3Y: detail.returns3Y,
+      returns5Y: detail.returns5Y,
     } satisfies RankedFund;
   }));
   const unique = new Map<number, RankedFund>();

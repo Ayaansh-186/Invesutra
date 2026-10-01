@@ -3,6 +3,7 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { buildPortfolio } from "@/lib/supabase/mappers";
 import type { DbFund, DbPortfolio } from "@/lib/supabase/database.types";
 import type { DbPurchase } from "@/lib/supabase/mappers";
+import { hydratePortfolioValuations } from "@/lib/marketData/valuation";
 
 export async function GET() {
   const supabase = await createServerSupabaseClient();
@@ -61,7 +62,7 @@ export async function GET() {
 
   const fundIds = ((funds || []) as DbFund[]).map((fund) => fund.id);
   const { data: purchases, error: purchasesError } = fundIds.length > 0
-    ? await supabase.from("transactions").select("fund_id, created_at, nav").in("portfolio_id", portfolioIds).eq("type", "buy")
+    ? await supabase.from("transactions").select("fund_id, created_at, nav, notes").in("portfolio_id", portfolioIds).eq("type", "buy")
     : { data: [], error: null };
   if (purchasesError) {
     console.error("purchase history fetch error:", purchasesError.message);
@@ -75,9 +76,9 @@ export async function GET() {
     fundsByPortfolio.set(fund.portfolio_id, list);
   }
 
-  const result = (portfolios as DbPortfolio[]).map((p) =>
-    buildPortfolio(p, fundsByPortfolio.get(p.id) || [], (purchases || []) as DbPurchase[])
-  );
+  const result = await Promise.all((portfolios as DbPortfolio[]).map((p) =>
+    hydratePortfolioValuations(buildPortfolio(p, fundsByPortfolio.get(p.id) || [], (purchases || []) as DbPurchase[]))
+  ));
 
   return NextResponse.json({ portfolios: result });
 }

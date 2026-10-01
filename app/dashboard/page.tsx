@@ -69,7 +69,7 @@ function DashboardPageInner() {
         </div>
         {showAddFund && !error && (
           <AddFundModal
-            portfolioId="needs-portfolio"
+            portfolioId={portfolio.id || "needs-portfolio"}
             onClose={() => setShowAddFund(false)}
             onAdded={() => { setShowAddFund(false); void refresh(); }}
           />
@@ -109,7 +109,7 @@ function DashboardPageInner() {
 
       {showAddFund && (
         <AddFundModal
-          portfolioId={!isDemo && !isEmpty ? portfolio.id : user ? "needs-portfolio" : null}
+          portfolioId={!isDemo && portfolio.id ? portfolio.id : user ? "needs-portfolio" : null}
           onClose={() => setShowAddFund(false)}
           onAdded={() => {
             setShowAddFund(false);

@@ -9,6 +9,8 @@ import { allocationEngine } from "@/lib/algorithm/allocationEngine";
 import { formatCurrency, formatPercent, categoryLabel } from "@/lib/utils/format";
 import { downloadReportPdf } from "@/lib/pdf/generateReportPdf";
 import type { Portfolio } from "@/lib/types";
+import { isPortfolioDataReady } from "@/lib/marketData/quality";
+import ValuationStatus from "@/components/dashboard/ValuationStatus";
 import {
   FileText,
   Download,
@@ -123,6 +125,7 @@ export default function ReportsPage() {
   const [generating, setGenerating] = useState(false);
   const [plan, setPlan] = useState<"free" | "pro" | "premium">("free");
   const [exportingPdf, setExportingPdf] = useState(false);
+  useEffect(() => { setReport(null); }, [portfolio]);
 
   useEffect(() => {
     if (isDemo) return;
@@ -139,7 +142,7 @@ export default function ReportsPage() {
   const isPremium = plan === "premium";
 
   function handleGenerate() {
-    if (portfolioError || portfolio.funds.length === 0) return;
+    if (portfolioError || portfolio.funds.length === 0 || !isPortfolioDataReady(portfolio)) return;
     setGenerating(true);
     setTimeout(() => {
       const result = generateReport(portfolio);
@@ -274,6 +277,7 @@ export default function ReportsPage() {
 
   return (
     <div className="max-w-4xl mx-auto">
+      <ValuationStatus portfolio={portfolio} />
       {isDemo && (
         <div className="mb-6 flex items-start gap-3 p-4 bg-cyan-400/10 border border-cyan-500/20 rounded-xl">
           <Info className="w-4 h-4 text-cyan-500 shrink-0 mt-0.5" />
@@ -291,12 +295,12 @@ export default function ReportsPage() {
         <div className="min-w-0">
           <h1 className="text-2xl font-semibold text-[var(--shell-text)]">Investment reports</h1>
           <p className="mt-1 text-sm text-[var(--shell-text-muted)]">
-            Generate comprehensive portfolio analysis reports powered by AI
+            Portfolio analysis based on verified holdings
           </p>
         </div>
         <button
           onClick={handleGenerate}
-          disabled={generating}
+          disabled={generating || !isPortfolioDataReady(portfolio)}
           className="inline-flex shrink-0 items-center gap-2 rounded-md bg-cyan-400 px-4 py-2.5 text-sm font-semibold text-slate-950 transition-colors hover:bg-cyan-300 disabled:opacity-60"
         >
           {generating ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
