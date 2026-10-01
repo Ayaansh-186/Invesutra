@@ -60,6 +60,7 @@ export async function hydratePortfolioValuations(portfolio: Portfolio): Promise<
   const funds = await hydrateFundValuations(portfolio.funds);
   return recalculatePortfolio({
     ...portfolio, funds,
+    valuationPending: false,
     valuationComplete: funds.every((fund) => fund.valuationStatus === "verified"),
     purchaseComplete: funds.every((fund) => fund.purchaseStatus === "verified"),
     valuationCheckedAt: new Date().toISOString(),

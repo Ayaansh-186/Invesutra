@@ -2,6 +2,9 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { parseAmfiNav, searchAmfiCatalogue, isExchangeTradedFund } from "../lib/marketData/amfi";
 import { applyVerifiedNav } from "../lib/marketData/valuation";
+import { preparePendingPortfolio, markVerificationUnavailable } from "../lib/marketData/pendingPortfolio";
+import { hasVerifiedValue, hasVerifiedMetric, isPortfolioDataReady } from "../lib/marketData/quality";
+import { getSchemeDetail } from "../lib/mcp/mutualFundSource";
 import { getPurchaseQuote } from "../lib/marketData/purchaseQuote";
 import { navDateToIso, isRecentNav } from "../lib/marketData/navFreshness";
 import { createRebalanceEngine } from "../lib/algorithm/rebalanceEngine";
@@ -26,6 +29,49 @@ Close Ended Schemes(Debt Scheme)
 130;INF130;-;Test Closed Fund;Direct Plan;Growth;10;30-Sep-2026`;
 const holding = { ...SAMPLE_PORTFOLIO.funds[0], name: "Test Fund", schemeCode: "123", units: 20, currentValue: 999999 };
 const detail: FundDetails = { schemeCode: 123, name: "Test Fund - Direct Plan - Growth", category: "flexi_cap", riskLevel: "high", nav: 25.12345, navAsOf: "30-09-2026", sourceUrl: "https://portal.amfiindia.com/spages/NAVAll.txt" };
+
+test("fast saved-holdings responses never expose saved prices as verified data", () => {
+  const pending = preparePendingPortfolio({ ...SAMPLE_PORTFOLIO, funds: [{ ...holding, valuationStatus: "verified", purchaseStatus: "verified", navAsOf: "30-09-2026" }] });
+  assert.equal(pending.valuationPending, true);
+  assert.equal(pending.funds[0].valuationStatus, "pending");
+  assert.equal(pending.funds[0].currentValue, holding.currentValue);
+  assert.equal(pending.funds[0].navAsOf, undefined);
+  assert.equal(pending.currentValue, 0);
+  assert.equal(pending.analysis, undefined);
+  assert.equal(hasVerifiedValue(pending.funds[0]), false);
+  assert.equal(hasVerifiedMetric(pending.funds[0], "returns1Y"), false);
+  assert.equal(isPortfolioDataReady(pending), false);
+  assert.equal(holding.currentValue, 999999);
+});
+
+test("failed background checks retain holdings and clear the pending state", () => {
+  const unavailable = markVerificationUnavailable({ ...SAMPLE_PORTFOLIO, funds: [holding, { ...holding, id: "legacy", units: 0 }, { ...holding, id: "etf", name: "Test ETF" }] });
+  assert.equal(unavailable.valuationPending, false);
+  assert.equal(unavailable.funds.length, 3);
+  assert.deepEqual(unavailable.funds.map((fund) => fund.valuationStatus), ["unavailable", "missing_units", "unsupported"]);
+  assert.equal(isPortfolioDataReady(unavailable), false);
+  assert.equal(preparePendingPortfolio({ ...SAMPLE_PORTFOLIO, funds: [] }).valuationPending, false);
+});
+
+test("concurrent public NAV history lookups share one request and failed requests can retry", async () => {
+  const originalFetch = globalThis.fetch;
+  let calls = 0;
+  globalThis.fetch = async () => {
+    calls += 1;
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    return new Response(JSON.stringify({ meta: { scheme_code: 999001 }, data: [] }), { status: calls === 1 ? 503 : 200 });
+  };
+  try {
+    const failed = await Promise.allSettled([getSchemeDetail(999001), getSchemeDetail(999001)]);
+    assert.equal(calls, 1);
+    assert.ok(failed.every((result) => result.status === "rejected"));
+    const [a, b] = await Promise.all([getSchemeDetail(999001), getSchemeDetail(999001)]);
+    assert.equal(calls, 2);
+    assert.equal(a, b);
+    await getSchemeDetail(999001);
+    assert.equal(calls, 2);
+  } finally { globalThis.fetch = originalFetch; }
+});
 
 test("AMFI parser reads separated plan/option columns and rejects invalid rows", () => {
   const schemes = parseAmfiNav(feed);

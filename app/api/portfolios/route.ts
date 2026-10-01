@@ -4,8 +4,9 @@ import { buildPortfolio } from "@/lib/supabase/mappers";
 import type { DbFund, DbPortfolio } from "@/lib/supabase/database.types";
 import type { DbPurchase } from "@/lib/supabase/mappers";
 import { hydratePortfolioValuations } from "@/lib/marketData/valuation";
+import { preparePendingPortfolio } from "@/lib/marketData/pendingPortfolio";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   const supabase = await createServerSupabaseClient();
   const {
     data: { user },
@@ -76,9 +77,11 @@ export async function GET() {
     fundsByPortfolio.set(fund.portfolio_id, list);
   }
 
-  const result = await Promise.all((portfolios as DbPortfolio[]).map((p) =>
-    hydratePortfolioValuations(buildPortfolio(p, fundsByPortfolio.get(p.id) || [], (purchases || []) as DbPurchase[]))
-  ));
+  const deferred = request.nextUrl.searchParams.get("valuation") === "deferred";
+  const result = await Promise.all((portfolios as DbPortfolio[]).map((p) => {
+    const saved = buildPortfolio(p, fundsByPortfolio.get(p.id) || [], (purchases || []) as DbPurchase[]);
+    return deferred ? preparePendingPortfolio(saved) : hydratePortfolioValuations(saved);
+  }));
 
   return NextResponse.json({ portfolios: result });
 }

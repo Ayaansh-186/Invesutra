@@ -60,19 +60,20 @@ export default function ScreenerPage() {
       </div>
       {view === "top" ? <TopFunds /> : loading ? (
         <div className="flex items-center gap-2 py-10 text-sm text-[var(--shell-text-muted)]"><Loader2 className="h-4 w-4 animate-spin" />Checking published NAVs...</div>
-      ) : error ? (
+      ) : error && !portfolio.funds.length ? (
         <div role="alert" className="py-6 text-sm text-red-500">{error}<button onClick={() => void refresh()} className="ml-3 underline">Retry</button></div>
       ) : !portfolio.funds.length ? (
         <div className="py-12 text-center"><h2 className="text-lg font-semibold text-[var(--shell-text)]">No saved holdings</h2><Link href="/portfolio" className="mt-4 inline-flex items-center gap-2 text-sm text-emerald-600">Add a fund <ArrowRight className="h-4 w-4" /></Link></div>
       ) : (
         <>
+          {error && <p role="alert" className="mb-4 text-xs text-amber-700 dark:text-amber-400">{error}</p>}
           <ValuationStatus portfolio={portfolio} />
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <div className="text-sm text-[var(--shell-text-muted)]">{portfolio.funds.length} holdings | NAV value <strong className="text-[var(--shell-text)]">{portfolio.valuationComplete === false ? "Unavailable" : formatCurrency(portfolio.currentValue)}</strong></div>
             <div className="flex items-center gap-2">
-              <button title="Refresh published NAVs" onClick={() => void refresh()} className="rounded-lg border border-[var(--shell-border)] p-2 text-[var(--shell-text-muted)]"><RefreshCw className="h-4 w-4" /></button>
-              <button onClick={() => void analyze()} disabled={analyzing || !ready} className="inline-flex items-center gap-2 rounded-lg bg-[var(--shell-text)] px-4 py-2 text-sm font-medium text-[var(--shell-bg)] disabled:opacity-40">{analyzing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Brain className="h-4 w-4" />}Analyze</button>
-              <button title="Change AI privacy choice" onClick={() => { setOnlineConsent(null); setAskConsent(true); }} className="rounded-lg p-2 text-[var(--shell-text-muted)]"><ShieldCheck className="h-4 w-4" /></button>
+              <button title="Refresh published NAVs" aria-label="Refresh published NAVs" disabled={portfolio.valuationPending} onClick={() => void refresh()} className="app-icon-button border border-[var(--shell-border)]"><RefreshCw className={`h-4 w-4 ${portfolio.valuationPending ? "animate-spin" : ""}`} /></button>
+              <button onClick={() => void analyze()} disabled={analyzing || !ready} className="app-primary-button">{analyzing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Brain className="h-4 w-4" />}Analyze</button>
+              <button title="Change AI privacy choice" aria-label="Change AI privacy choice" onClick={() => { setOnlineConsent(null); setAskConsent(true); }} className="app-icon-button"><ShieldCheck className="h-4 w-4" /></button>
             </div>
           </div>
           <div className="overflow-x-auto border-y border-[var(--shell-border)]">

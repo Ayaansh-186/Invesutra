@@ -7,7 +7,6 @@ import { riskEngine } from "@/lib/algorithm/riskEngine";
 import { createRebalanceEngine } from "@/lib/algorithm/rebalanceEngine";
 import { allocationEngine } from "@/lib/algorithm/allocationEngine";
 import { formatCurrency, formatPercent, categoryLabel } from "@/lib/utils/format";
-import { downloadReportPdf } from "@/lib/pdf/generateReportPdf";
 import type { Portfolio } from "@/lib/types";
 import { isPortfolioDataReady } from "@/lib/marketData/quality";
 import ValuationStatus from "@/components/dashboard/ValuationStatus";
@@ -170,7 +169,7 @@ export default function ReportsPage() {
           // Non-fatal — report is still shown in the UI even if saving fails.
         });
       }
-    }, 1600);
+    }, 0);
   }
 
   function handleDownload() {
@@ -221,6 +220,7 @@ export default function ReportsPage() {
     if (!report || !isPremium || exportingPdf) return;
     setExportingPdf(true);
     try {
+      const { downloadReportPdf } = await import("@/lib/pdf/generateReportPdf");
       await downloadReportPdf({
         id: report.id,
         generatedAt: report.generatedAt,
@@ -256,7 +256,7 @@ export default function ReportsPage() {
     );
   }
 
-  if (!isDemo && (portfolioError || isEmpty || portfolio.funds.length === 0)) {
+  if (!isDemo && (isEmpty || portfolio.funds.length === 0)) {
     return (
       <div className="mx-auto flex min-h-[50vh] max-w-lg flex-col items-center justify-center text-center">
         <FileText className="h-8 w-8 text-[var(--shell-text-faint)]" />

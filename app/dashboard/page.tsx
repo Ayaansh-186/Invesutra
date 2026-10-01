@@ -8,8 +8,7 @@ import { riskEngine } from "@/lib/algorithm/riskEngine";
 import { useActivePortfolio } from "@/lib/hooks/useActivePortfolio";
 import { useAuth } from "@/lib/hooks/useAuth";
 import AIPortfolioAssistant from "@/components/dashboard/AIPortfolioAssistant";
-import AiOrb from "@/components/landing/AiOrb";
-import { Sparkles, Plus, AlertTriangle } from "lucide-react";
+import { Sparkles, Plus, AlertTriangle, Loader2 } from "lucide-react";
 
 // Only pulled in when the user actually opens "Add Fund".
 const AddFundModal = dynamic(() => import("@/components/dashboard/AddFundModal"), { ssr: false });
@@ -40,15 +39,15 @@ function DashboardPageInner() {
   if (loading) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-4">
-        <AiOrb size="md" speaking />
-        <p className="animate-sprout text-sm text-[var(--shell-text-muted)]">
-          Invesutra AI is loading your portfolio...
+        <Loader2 className="h-6 w-6 animate-spin text-emerald-500" />
+        <p className="text-sm text-[var(--shell-text-muted)]">
+          Loading your holdings...
         </p>
       </div>
     );
   }
 
-  if (user && (error || isEmpty)) {
+  if (user && ((error && !portfolio.funds.length) || isEmpty)) {
     return (
       <div className="flex h-full items-center justify-center overflow-y-auto px-6 py-12">
         <div className="w-full max-w-md text-center">
@@ -62,7 +61,7 @@ function DashboardPageInner() {
           <button
             onClick={error ? handleRefresh : () => setShowAddFund(true)}
             disabled={refreshing}
-            className="mt-6 rounded-md bg-emerald-300 px-5 py-2.5 text-sm font-semibold text-slate-950 disabled:opacity-50"
+            className="app-primary-button mt-6"
           >
             {error ? "Try again" : "Add a fund"}
           </button>

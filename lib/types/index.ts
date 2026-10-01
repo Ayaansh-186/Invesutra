@@ -21,7 +21,7 @@ export interface Fund {
   schemeCode?: string;
   navAsOf?: string;
   navSourceUrl?: string;
-  valuationStatus?: "verified" | "stale" | "unavailable" | "missing_units" | "missing_scheme" | "unsupported";
+  valuationStatus?: "pending" | "verified" | "stale" | "unavailable" | "missing_units" | "missing_scheme" | "unsupported";
   valuationCheckedAt?: string;
   purchaseStatus?: "verified" | "unverified" | "unavailable";
   verifiedMetrics?: Array<"returns1Y" | "returns3Y" | "returns5Y" | "expenseRatio" | "aum">;
@@ -67,6 +67,7 @@ export interface Portfolio {
   healthScore: number; // 0-100
   riskScore: number; // 0-100
   valuationComplete?: boolean;
+  valuationPending?: boolean;
   purchaseComplete?: boolean;
   valuationCheckedAt?: string;
   analysis?: PortfolioAnalysis;

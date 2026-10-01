@@ -101,28 +101,28 @@ export default function PortfolioPage() {
           {/* Header */}
           <div className="mb-6 flex flex-wrap items-start justify-between gap-4 sm:mb-8">
             <div className="min-w-0">
-              <h1 className="text-2xl font-semibold text-[var(--shell-text)]">{error && user ? "Portfolio" : portfolio.name}</h1>
+              <h1 className="text-2xl font-semibold text-[var(--shell-text)]">{error && user && !portfolio.funds.length ? "Portfolio" : portfolio.name}</h1>
               <p className="mt-1 text-sm text-[var(--shell-text-muted)]">
-                {error && user ? "Your holdings could not be loaded" : isEmpty && user ? "No holdings yet" : `${portfolio.funds.length} fund${portfolio.funds.length === 1 ? "" : "s"}`}
+                {error && user && !portfolio.funds.length ? "Your holdings could not be loaded" : isEmpty && user ? "No holdings yet" : `${portfolio.funds.length} fund${portfolio.funds.length === 1 ? "" : "s"}`}
               </p>
               {refreshNotice && <p className="mt-1 text-xs text-[var(--shell-text-faint)]">{refreshNotice}</p>}
             </div>
             <div className="flex items-center gap-2">
-              {!isDemo && !isEmpty && !error && (
+              {!isDemo && !isEmpty && (
                 <button
                   onClick={handleRefresh}
                   disabled={refreshing}
-                  className="rounded-md border border-[var(--shell-border)] p-2 text-[var(--shell-text-muted)] transition hover:text-[var(--shell-text)] disabled:opacity-50"
+                  className="app-icon-button border border-[var(--shell-border)]"
                   title="Update from live NAV data"
                   aria-label="Update portfolio from live NAV data"
                 >
                   <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
                 </button>
               )}
-              {!error && (
+              {(!error || portfolio.funds.length > 0) && (
                 <button
                   onClick={() => setShowAddFund(true)}
-                  className="flex items-center gap-1.5 rounded-md bg-emerald-300 px-3 py-2 text-xs font-semibold text-slate-950 transition hover:bg-emerald-200"
+                  className="app-primary-button"
                 >
                   <Plus className="h-3.5 w-3.5" />
                   Add Fund
@@ -131,7 +131,7 @@ export default function PortfolioPage() {
             </div>
           </div>
 
-          {error && user ? (
+          {error && user && !portfolio.funds.length ? (
             <div className="flex flex-col items-center justify-center gap-4 rounded-xl border border-amber-400/25 bg-amber-400/10 px-6 py-16 text-center">
               <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-amber-400/15">
                 <AlertTriangle className="h-5 w-5 text-amber-500" />
@@ -170,11 +170,12 @@ export default function PortfolioPage() {
             </div>
           ) : (
             <>
+              {error && <p role="alert" className="mb-4 text-xs text-amber-700 dark:text-amber-400">{error}</p>}
               <section className="border-b border-[var(--shell-border)] pb-7">
                 <ValuationStatus portfolio={portfolio} />
                 <p className="text-sm text-[var(--shell-text-muted)]">Value at latest published NAV</p>
-                <p className="mt-1 text-3xl font-semibold tabular-nums text-[var(--shell-text)] sm:text-4xl">
-                  {portfolio.valuationComplete === false ? "Unavailable" : formatCurrency(portfolio.currentValue)}
+                <p className={`mt-1 font-semibold tabular-nums text-[var(--shell-text)] ${portfolio.valuationComplete === false ? "text-2xl" : "text-3xl sm:text-4xl"}`}>
+                  {portfolio.valuationPending ? "Checking NAVs..." : portfolio.valuationComplete === false ? "Unavailable" : formatCurrency(portfolio.currentValue)}
                 </p>
                 <div className="mt-4 flex flex-wrap gap-x-8 gap-y-2 text-sm">
                   <p className="text-[var(--shell-text-muted)]">Invested <span className="font-medium text-[var(--shell-text)]">{formatCurrency(portfolio.totalInvested, true)}</span></p>
@@ -185,7 +186,7 @@ export default function PortfolioPage() {
                 </div>
               </section>
 
-              <section className="border-b border-[var(--shell-border)] py-7">
+              {dataReady && <section className="border-b border-[var(--shell-border)] py-6">
                 <p className="text-xs font-semibold text-[var(--shell-text-faint)]">Worth a look</p>
                 <p className="mt-2 max-w-2xl text-base leading-relaxed text-[var(--shell-text)]">{attentionText}</p>
                 <Link
@@ -194,7 +195,7 @@ export default function PortfolioPage() {
                 >
                   <MessageSquare className="h-4 w-4" /> Ask AI about this
                 </Link>
-              </section>
+              </section>}
 
               <section className="py-8">
                 <div className="mb-4 flex items-center justify-between gap-3">

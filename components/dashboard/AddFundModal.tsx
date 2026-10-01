@@ -227,7 +227,7 @@ export default function AddFundModal({ portfolioId, onClose, onAdded }: Props) {
           role="dialog"
           aria-modal="true"
           aria-labelledby={titleId}
-          className="bg-[var(--shell-surface)] rounded-2xl max-w-sm w-full p-8 text-center shadow-2xl"
+          className="bg-[var(--shell-surface)] rounded-lg max-w-sm w-full p-6 text-center shadow-2xl"
         >
           <div className="w-12 h-12 bg-cyan-400/10 rounded-2xl flex items-center justify-center mx-auto mb-4">
             <LockKeyhole className="h-5 w-5 text-cyan-500" />
@@ -238,7 +238,7 @@ export default function AddFundModal({ portfolioId, onClose, onAdded }: Props) {
           </p>
           <Link
             href="/auth/signup"
-            className="block w-full py-3 bg-cyan-400 text-slate-950 text-sm font-semibold rounded-xl hover:bg-cyan-300 transition-colors mb-3"
+            className="app-primary-button mb-3 w-full"
           >
             Create free account
           </Link>
@@ -258,9 +258,9 @@ export default function AddFundModal({ portfolioId, onClose, onAdded }: Props) {
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className="bg-[var(--shell-surface)] rounded-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto shadow-2xl"
+        className="bg-[var(--shell-surface)] rounded-lg max-w-lg w-full max-h-[90dvh] overflow-y-auto shadow-2xl"
       >
-        <div className="flex items-center justify-between p-5 border-b border-[var(--shell-border)] sticky top-0 bg-[var(--shell-surface)] rounded-t-2xl z-10">
+        <div className="flex items-center justify-between gap-3 p-5 border-b border-[var(--shell-border)] sticky top-0 bg-[var(--shell-surface)] rounded-t-lg z-10">
           <div>
             <h2 id={titleId} className="text-lg font-semibold text-[var(--shell-text)]">Add mutual fund</h2>
             <p className="text-xs text-[var(--shell-text-faint)] mt-0.5">
@@ -268,7 +268,7 @@ export default function AddFundModal({ portfolioId, onClose, onAdded }: Props) {
               {mode === "selected" && "Enter your purchase"}
             </p>
           </div>
-          <button aria-label="Close add fund dialog" onClick={onClose} className="p-1.5 rounded-lg hover:bg-[var(--shell-surface-2)] text-[var(--shell-text-faint)] transition-colors">
+          <button aria-label="Close add fund dialog" onClick={onClose} className="app-icon-button">
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -301,12 +301,13 @@ export default function AddFundModal({ portfolioId, onClose, onAdded }: Props) {
                 }}
                 placeholder="e.g. HDFC Flexi Cap, Mirae Asset Large Cap..."
                 role="combobox"
+                aria-label="Search mutual funds"
                 aria-autocomplete="list"
                 aria-expanded={results.length > 0}
                 aria-controls={searchResultsId}
                 aria-busy={searching}
                 aria-activedescendant={highlightedIndex >= 0 ? `${searchResultsId}-${highlightedIndex}` : undefined}
-                className="w-full pl-9 pr-3 py-2.5 border border-[var(--shell-border)] rounded-xl text-sm focus:outline-none focus:border-cyan-500/40 focus:ring-1 focus:ring-cyan-500/10"
+                className="w-full pl-9 pr-9 py-2.5 border border-[var(--shell-border)] rounded-lg text-sm focus:outline-none focus:border-cyan-500/40 focus:ring-1 focus:ring-cyan-500/10"
               />
               {searching && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--shell-text-faint)] animate-spin" />}
             </div>
@@ -316,10 +317,10 @@ export default function AddFundModal({ portfolioId, onClose, onAdded }: Props) {
             )}
 
             <div className="flex flex-wrap gap-2">
-              <select aria-label="Fund plan" value={plan} onChange={(e) => { setPlan(e.target.value); updateQuery(query); }} className="rounded-md border border-[var(--shell-border)] bg-[var(--shell-surface)] px-2 py-1.5 text-xs text-[var(--shell-text)]">
+              <select aria-label="Fund plan" value={plan} onChange={(e) => { setPlan(e.target.value); updateQuery(query); }} className="h-10 rounded-md border border-[var(--shell-border)] bg-[var(--shell-surface)] px-2 text-xs text-[var(--shell-text)]">
                 <option value="all">All plans</option><option value="direct">Direct</option><option value="regular">Regular</option>
               </select>
-              <select aria-label="Fund option" value={option} onChange={(e) => { setOption(e.target.value); updateQuery(query); }} className="rounded-md border border-[var(--shell-border)] bg-[var(--shell-surface)] px-2 py-1.5 text-xs text-[var(--shell-text)]">
+              <select aria-label="Fund option" value={option} onChange={(e) => { setOption(e.target.value); updateQuery(query); }} className="h-10 rounded-md border border-[var(--shell-border)] bg-[var(--shell-surface)] px-2 text-xs text-[var(--shell-text)]">
                 <option value="all">All options</option><option value="growth">Growth</option><option value="idcw">IDCW</option>
               </select>
             </div>
@@ -338,7 +339,7 @@ export default function AddFundModal({ portfolioId, onClose, onAdded }: Props) {
                       disabled={!canPrice}
                       onClick={() => selectFund(fund)}
                       onMouseEnter={() => { if (canPrice) setHighlightedIndex(i); }}
-                      className={`group w-full rounded-xl border border-[var(--shell-border)] bg-[var(--shell-surface)] p-3 text-left transition-colors focus:outline-none focus:ring-2 focus:ring-cyan-400/20 ${
+                      className={`group w-full rounded-lg border border-[var(--shell-border)] bg-[var(--shell-surface)] p-3 text-left transition-colors focus:outline-none focus:ring-2 focus:ring-cyan-400/20 ${
                         !canPrice ? "cursor-not-allowed opacity-60" : i === highlightedIndex ? "border-cyan-400/50 bg-cyan-400/10" : "hover:border-cyan-400/50 hover:bg-cyan-400/10"
                       }`}
                     >
@@ -371,7 +372,7 @@ export default function AddFundModal({ portfolioId, onClose, onAdded }: Props) {
         {mode === "selected" && (
           <form onSubmit={handleSubmit} className="p-5 space-y-4">
             {error && (
-              <div className="flex items-start gap-2 p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700">
+              <div role="alert" className="flex items-start gap-2 p-3 bg-rose-500/5 border border-rose-500/20 rounded-lg text-xs text-rose-700 dark:text-rose-400">
                 <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
                 <span>{error}</span>
               </div>
@@ -437,12 +438,12 @@ export default function AddFundModal({ portfolioId, onClose, onAdded }: Props) {
 
             <div className="flex gap-3 pt-2">
               <button type="submit" disabled={submitting || checkingNav || !purchaseMatches || !values || !purchaseDateValid || !latestNav}
-                className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-cyan-400 text-slate-950 text-sm font-semibold rounded-xl hover:bg-cyan-300 disabled:opacity-60 transition-colors">
+                className="app-primary-button flex-1">
                 {submitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                 {submitting ? "Adding..." : "Add Fund"}
               </button>
               <button type="button" onClick={onClose}
-                className="px-5 py-2.5 text-[var(--shell-text-muted)] text-sm border border-[var(--shell-border)] rounded-xl hover:bg-[var(--shell-surface-2)] transition-colors">
+                className="app-secondary-button">
                 Cancel
               </button>
             </div>

@@ -52,25 +52,33 @@ export interface MfApiSchemeDetail {
 const CACHE_TTL_MS = 15 * 60 * 1000;
 const FETCH_TIMEOUT_MS = 6_000;
 const cache = new Map<string, { at: number; value: unknown }>();
+const pending = new Map<string, Promise<unknown>>();
 
 async function cachedFetchJson<T>(url: string): Promise<T> {
   const hit = cache.get(url);
   if (hit && Date.now() - hit.at < CACHE_TTL_MS) {
     return hit.value as T;
   }
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
-  try {
-    const res = await fetch(url, { headers: { Accept: "application/json" }, signal: controller.signal, cache: "no-store" });
-    if (!res.ok) throw new Error(`mfapi.in request failed (${res.status})`);
-    const json = (await res.json()) as T;
-    cache.set(url, { at: Date.now(), value: json });
-    return json;
-  } catch (error) {
-    throw new Error(`mfapi.in request failed for ${url}: ${error instanceof Error ? error.message : "network error"}`);
-  } finally {
-    clearTimeout(timeout);
-  }
+  const existing = pending.get(url);
+  if (existing) return existing as Promise<T>;
+  const request = (async () => {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+    try {
+      const res = await fetch(url, { headers: { Accept: "application/json" }, signal: controller.signal, next: { revalidate: 900 } });
+      if (!res.ok) throw new Error(`mfapi.in request failed (${res.status})`);
+      const json = (await res.json()) as T;
+      cache.set(url, { at: Date.now(), value: json });
+      return json;
+    } catch (error) {
+      throw new Error(`mfapi.in request failed for ${url}: ${error instanceof Error ? error.message : "network error"}`);
+    } finally {
+      clearTimeout(timeout);
+    }
+  })();
+  pending.set(url, request);
+  try { return await request; }
+  finally { pending.delete(url); }
 }
 
 export function isMutualFundSourceConfigured(): boolean {

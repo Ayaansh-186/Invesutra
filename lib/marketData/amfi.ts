@@ -79,7 +79,7 @@ export async function getAmfiCatalogue(): Promise<AmfiScheme[]> {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 8000);
     try {
-      const response = await fetch(AMFI_NAV_URL, { signal: controller.signal, cache: "no-store" });
+      const response = await fetch(AMFI_NAV_URL, { signal: controller.signal, next: { revalidate: 900 } });
       if (!response.ok) throw new Error(`AMFI NAV feed returned ${response.status}`);
       const schemes = parseAmfiNav(await response.text());
       if (schemes.length < 100) throw new Error("AMFI NAV feed is incomplete");

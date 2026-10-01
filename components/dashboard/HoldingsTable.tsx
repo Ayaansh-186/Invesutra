@@ -30,7 +30,7 @@ export default function HoldingsTable({
 
   if (funds.length === 0) {
     return (
-      <div className="rounded-2xl border border-[var(--shell-border)] bg-[var(--shell-surface)] p-8 text-center">
+      <div className="rounded-lg border border-[var(--shell-border)] bg-[var(--shell-surface)] p-8 text-center">
         <p className="text-sm text-[var(--shell-text-muted)]">
           No holdings yet. Add your first mutual fund to see it here.
         </p>
@@ -92,10 +92,10 @@ export default function HoldingsTable({
   }
 
   return (
-    <div className="overflow-hidden rounded-xl border border-[var(--shell-border)] bg-[var(--shell-surface)]">
-      <table className="w-full text-left text-sm">
-        <thead>
-          <tr className="border-b border-[var(--shell-border)] text-[10px] font-semibold uppercase tracking-wider text-[var(--shell-text-faint)]">
+    <div className="overflow-hidden rounded-lg border border-[var(--shell-border)] bg-[var(--shell-surface)]">
+      <table className="block w-full text-left text-sm sm:table">
+        <thead className="hidden sm:table-header-group">
+          <tr className="border-b border-[var(--shell-border)] bg-[var(--shell-surface-2)] text-xs font-medium text-[var(--shell-text-muted)]">
             <th className="px-4 py-3">Fund</th>
             <th className="hidden px-4 py-3 md:table-cell">Category</th>
             <th className="hidden px-4 py-3 text-right md:table-cell">Invested</th>
@@ -105,13 +105,14 @@ export default function HoldingsTable({
             {onChanged && <th className="px-2 py-3 text-right sm:px-4"><span className="sr-only sm:not-sr-only">Actions</span></th>}
           </tr>
         </thead>
-        <tbody>
+        <tbody className="block sm:table-row-group">
           {sorted.map((fund) => {
             const personalReturn = fund.investedAmount > 0
               ? ((fund.currentValue - fund.investedAmount) / fund.investedAmount) * 100 : null;
             const up = personalReturn !== null && personalReturn >= 0;
             const needsReview = fund.purchaseStatus === "unverified";
             const valueVerified = hasVerifiedValue(fund);
+            const valuePending = fund.valuationStatus === "pending";
             const costVerified = fund.purchaseStatus === undefined || fund.purchaseStatus === "verified";
             const isEtf = isExchangeTradedFund(fund.name);
             const weight = totalValue > 0 ? (fund.currentValue / totalValue) * 100 : 0;
@@ -119,8 +120,8 @@ export default function HoldingsTable({
             const isBusy = busyId === fund.id;
 
             return (
-              <tr key={fund.id} className="border-b border-[var(--shell-border)] last:border-0 hover:bg-[var(--shell-surface-2)]">
-                <td className="min-w-0 px-3 py-3 sm:px-4">
+              <tr key={fund.id} className="grid grid-cols-[minmax(0,1fr)_auto] border-b border-[var(--shell-border)] last:border-0 hover:bg-[var(--shell-surface-2)] sm:table-row">
+                <td className="col-span-2 block min-w-0 px-3 py-3 sm:table-cell sm:px-4">
                   <div className="flex items-start gap-2">
                     <p className="min-w-0 font-medium text-[var(--shell-text)]">{fund.name}</p>
                     {canAskAI && (
@@ -148,7 +149,7 @@ export default function HoldingsTable({
                   {fund.navAsOf && <p className="mt-1 text-xs text-[var(--shell-text-faint)]">NAV {formatCurrencyExact(fund.nav, 5)} · {fund.navAsOf}{fund.navSourceUrl && <> · <a href={fund.navSourceUrl} target="_blank" rel="noopener noreferrer" className="underline">Source</a></>}</p>}
                   {isEtf && <p className="mt-1 text-xs font-medium text-amber-600">ETF market price is not verified. Saved value is not a live exchange quote.</p>}
                   {needsReview && <p className="mt-1 text-xs font-medium text-amber-600">Purchase details do not match the published allotment-date NAV. Check your statement before relying on returns.</p>}
-                  {!valueVerified && !isEtf && <p className="mt-1 text-xs text-amber-600">{fund.valuationStatus === "missing_units" ? "Units are missing. Add the holding again with statement units." : fund.valuationStatus === "missing_scheme" ? "Exact scheme could not be identified. Add the holding again from verified search." : "Recent NAV could not be verified. The last saved value is shown below."}</p>}
+                  {!valueVerified && !valuePending && !isEtf && <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">{fund.valuationStatus === "missing_units" ? "Units are missing. Add the holding again with statement units." : fund.valuationStatus === "missing_scheme" ? "Exact scheme could not be identified. Add the holding again from verified search." : "Recent NAV could not be verified. The last saved value is shown below."}</p>}
                   <p className="mt-1 text-[11px] text-[var(--shell-text-faint)] md:hidden">
                     Invested {formatCurrency(fund.investedAmount, true)}
                   </p>
@@ -169,11 +170,11 @@ export default function HoldingsTable({
                   )}
                 </td>
                 <td className="hidden px-4 py-3 md:table-cell">
-                  <span className="rounded-full border border-[var(--shell-border)] bg-[var(--shell-surface-2)] px-2 py-0.5 text-xs text-[var(--shell-text-muted)]">
+                  <span className="inline-flex whitespace-nowrap rounded-md border border-[var(--shell-border)] bg-[var(--shell-surface-2)] px-2 py-0.5 text-xs text-[var(--shell-text-muted)]">
                     {categoryLabel(fund.category)}
                   </span>
                 </td>
-                <td className="hidden px-4 py-3 text-right text-[var(--shell-text-muted)] md:table-cell">
+                <td className="hidden whitespace-nowrap px-4 py-3 text-right tabular-nums text-[var(--shell-text-muted)] md:table-cell">
                   {isEditing ? (
                     <input
                       type="number"
@@ -189,26 +190,27 @@ export default function HoldingsTable({
                     formatCurrency(fund.investedAmount, true)
                   )}
                 </td>
-                <td className="px-3 py-3 text-right font-medium text-[var(--shell-text)] sm:px-4">
-                  {valueVerified ? formatCurrency(fund.currentValue, true) : <><span className="text-[var(--shell-text-faint)]">Unavailable</span><span className="mt-1 block text-[10px] font-normal text-[var(--shell-text-faint)]">Last saved {formatCurrency(fund.currentValue, true)}</span></>}
+                <td className="block whitespace-nowrap px-3 pb-3 text-left font-medium tabular-nums text-[var(--shell-text)] sm:table-cell sm:px-4 sm:py-3 sm:text-right">
+                  <span className="mb-1 block text-[11px] font-normal text-[var(--shell-text-muted)] sm:hidden">NAV value</span>
+                  {valueVerified ? formatCurrency(fund.currentValue, true) : <><span className="text-xs text-[var(--shell-text-faint)]">{valuePending ? "Checking..." : "Unavailable"}</span><span className="mt-1 block text-[11px] font-normal text-[var(--shell-text-faint)]">Last saved {formatCurrency(fund.currentValue, true)}</span></>}
                 </td>
-                <td className="hidden px-4 py-3 text-right sm:table-cell">
+                <td className="hidden whitespace-nowrap px-4 py-3 text-right tabular-nums sm:table-cell">
                   {personalReturn === null || !valueVerified || !costVerified || isEtf ? <span className="text-[var(--shell-text-faint)]">Unverified</span> :
                     <span className={`inline-flex items-center gap-1 font-medium ${up ? "text-emerald-500" : "text-rose-500"}`}>
                       {up ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
                       {formatPercent(personalReturn)}
                     </span>}
                 </td>
-                <td className="hidden px-4 py-3 text-right text-[var(--shell-text-muted)] lg:table-cell">{valueVerified && funds.every(hasVerifiedValue) ? `${weight.toFixed(1)}%` : "Unavailable"}</td>
+                <td className="hidden whitespace-nowrap px-4 py-3 text-right tabular-nums text-[var(--shell-text-muted)] lg:table-cell">{valueVerified && funds.every(hasVerifiedValue) ? `${weight.toFixed(1)}%` : "Unavailable"}</td>
 
                 {onChanged && (
-                  <td className="px-2 py-3 text-right sm:px-4">
+                  <td className="block self-end px-2 pb-3 text-right sm:table-cell sm:px-4 sm:py-3">
                     {isEditing ? (
                       <div className="flex justify-end gap-1">
                         <button
                           onClick={() => saveEdit(fund.id)}
                           disabled={isBusy}
-                          className="rounded-lg p-1.5 text-emerald-500 transition hover:bg-[var(--shell-surface-2)] disabled:opacity-50"
+                          className="app-icon-button text-emerald-500"
                           title="Save"
                           aria-label={`Save changes to ${fund.name}`}
                         >
@@ -217,7 +219,7 @@ export default function HoldingsTable({
                         <button
                           onClick={() => setEditingId(null)}
                           disabled={isBusy}
-                          className="rounded-lg p-1.5 text-[var(--shell-text-faint)] transition hover:bg-[var(--shell-surface-2)]"
+                          className="app-icon-button"
                           title="Cancel"
                           aria-label={`Cancel editing ${fund.name}`}
                         >
@@ -225,12 +227,12 @@ export default function HoldingsTable({
                         </button>
                       </div>
                     ) : confirmDeleteId === fund.id ? (
-                      <div className="flex items-center justify-end gap-1.5">
+                      <div className="flex flex-wrap items-center justify-end gap-1">
                         <span className="text-xs text-[var(--shell-text-faint)]">Remove?</span>
                         <button
                           onClick={() => confirmDelete(fund.id)}
                           disabled={isBusy}
-                          className="rounded-lg p-1.5 text-rose-500 transition hover:bg-[var(--shell-surface-2)] disabled:opacity-50"
+                          className="app-icon-button text-rose-500"
                           title="Confirm remove"
                           aria-label={`Confirm removing ${fund.name}`}
                         >
@@ -238,7 +240,7 @@ export default function HoldingsTable({
                         </button>
                         <button
                           onClick={() => setConfirmDeleteId(null)}
-                          className="rounded-lg p-1.5 text-[var(--shell-text-faint)] transition hover:bg-[var(--shell-surface-2)]"
+                          className="app-icon-button"
                           title="Cancel"
                           aria-label={`Cancel removing ${fund.name}`}
                         >
@@ -249,7 +251,7 @@ export default function HoldingsTable({
                       <div className="flex justify-end gap-1">
                         {!fund.purchaseDate && !isEtf && <button
                           onClick={() => startEdit(fund)}
-                          className="rounded-lg p-1.5 text-[var(--shell-text-faint)] transition hover:bg-[var(--shell-surface-2)] hover:text-[var(--shell-text)]"
+                          className="app-icon-button"
                           title="Edit invested amount"
                           aria-label={`Edit invested amount for ${fund.name}`}
                         >
@@ -257,7 +259,7 @@ export default function HoldingsTable({
                         </button>}
                         <button
                           onClick={() => { setConfirmDeleteId(fund.id); setRowError(null); }}
-                          className="rounded-lg p-1.5 text-[var(--shell-text-faint)] transition hover:bg-[var(--shell-surface-2)] hover:text-rose-500"
+                          className="app-icon-button hover:text-rose-500"
                           title="Remove"
                           aria-label={`Remove ${fund.name}`}
                         >
