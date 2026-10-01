@@ -1,15 +1,14 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import localFont from "next/font/local";
 import "./globals.css";
 import { ThemeProvider } from "@/components/shared/ThemeProvider";
 import { isIndexingEnabled, siteUrl } from "@/lib/seo";
 
-// Self-hosts Inter and inlines the @font-face at build time instead of
-// fetching from fonts.googleapis.com at request time — removes a
-// third-party network round-trip from every page load.
-const inter = Inter({
-  subsets: ["latin"],
-  weight: ["300", "400", "500", "600", "700", "800"],
+// Keep font builds independent of Google Fonts and its Turbopack resolver.
+const inter = localFont({
+  src: "../node_modules/@fontsource-variable/inter/files/inter-latin-wght-normal.woff2",
+  weight: "100 900",
+  style: "normal",
   variable: "--font-inter",
   display: "swap",
 });
