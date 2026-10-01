@@ -12,6 +12,7 @@ import type { Fund, FundCategory, RiskLevel } from "@/lib/types";
 import type { FundSearchResult } from "@/lib/marketData/types";
 import { Brain, Plus, Trash2, Sparkles, AlertTriangle, CheckCircle, TrendingUp, Loader2, BarChart2, MessageSquare, ArrowRight, Search } from "lucide-react";
 import { useToast } from "@/components/shared/ToastProvider";
+import TopFunds from "@/components/dashboard/TopFunds";
 
 const CATEGORIES: FundCategory[] = ["large_cap","mid_cap","small_cap","multi_cap","flexi_cap","debt","hybrid","index","sectoral","elss","international"];
 const RISK_LEVELS: RiskLevel[] = ["low","moderate","moderately_high","high","very_high"];
@@ -34,6 +35,7 @@ const emptyFund: Omit<Fund, "id"> = {
 };
 
 export default function ScreenerPage() {
+  const [view, setView] = useState<"portfolio" | "top">("portfolio");
   const { portfolio: activePortfolio, loading: portfolioLoading, isDemo, error: portfolioError } = useActivePortfolio();
   const [funds, setFunds] = useState<Fund[]>([]);
   const [seeded, setSeeded] = useState(false);
@@ -207,9 +209,9 @@ export default function ScreenerPage() {
     <div className="max-w-5xl mx-auto">
       <div className="mb-6 flex flex-wrap items-start justify-between gap-4 sm:mb-8">
         <div className="min-w-0">
-          <h1 className="text-2xl font-semibold text-[var(--shell-text)]">Portfolio screener</h1>
+          <h1 className="text-2xl font-semibold text-[var(--shell-text)]">Fund screener</h1>
           <p className="mt-1 text-sm text-[var(--shell-text-muted)]">
-            {portfolioLoading
+            {view === "top" ? "Compare recent performance and research each fund" : portfolioLoading
               ? "Loading your portfolio..."
               : portfolioError
               ? portfolioError
@@ -218,17 +220,20 @@ export default function ScreenerPage() {
               : "Editing a working copy of your portfolio — changes here don't save automatically"}
           </p>
         </div>
-        <button
+        {view === "portfolio" && <button
           onClick={handleAnalyze}
           disabled={analyzing || funds.length === 0}
           className="inline-flex shrink-0 items-center gap-2 rounded-md bg-cyan-400 px-4 py-2.5 text-sm font-semibold text-slate-950 transition-colors hover:bg-cyan-300 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {analyzing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
           {analyzing ? "Analyzing..." : "Run AI Analysis"}
-        </button>
+        </button>}
       </div>
 
-      <div className="grid lg:grid-cols-5 gap-6">
+      <div className="mb-6 flex gap-1 border-b border-[var(--shell-border)]" role="tablist" aria-label="Screener view">
+        {(["portfolio", "top"] as const).map((tab) => <button key={tab} type="button" role="tab" aria-selected={view === tab} onClick={() => setView(tab)} className={`border-b-2 px-4 py-2.5 text-sm font-medium ${view === tab ? "border-cyan-400 text-[var(--shell-text)]" : "border-transparent text-[var(--shell-text-muted)]"}`}>{tab === "portfolio" ? "Your portfolio" : "Top performers"}</button>)}
+      </div>
+      {view === "top" ? <TopFunds /> : <div className="grid lg:grid-cols-5 gap-6">
         {/* Fund list */}
         <div className="lg:col-span-3 space-y-4">
           {/* Summary bar */}
@@ -572,7 +577,7 @@ export default function ScreenerPage() {
             </div>
           )}
         </div>
-      </div>
+      </div>}
     </div>
   );
 }

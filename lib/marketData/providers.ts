@@ -12,19 +12,6 @@ interface McpSearchHit {
 }
 
 
-const FALLBACK_FUNDS: Array<{ schemeCode: string; name: string; categoryText: string }> = [
-  { schemeCode: "fallback-hdfc-flexi-cap", name: "HDFC Flexi Cap Fund Direct Growth", categoryText: "Equity Scheme - Flexi Cap Fund" },
-  { schemeCode: "fallback-parag-parikh-flexi-cap", name: "Parag Parikh Flexi Cap Fund Direct Growth", categoryText: "Equity Scheme - Flexi Cap Fund" },
-  { schemeCode: "fallback-axis-bluechip", name: "Axis Bluechip Fund Direct Growth", categoryText: "Equity Scheme - Large Cap Fund" },
-  { schemeCode: "fallback-icici-bluechip", name: "ICICI Prudential Bluechip Fund Direct Growth", categoryText: "Equity Scheme - Large Cap Fund" },
-  { schemeCode: "fallback-nippon-small-cap", name: "Nippon India Small Cap Fund Direct Growth", categoryText: "Equity Scheme - Small Cap Fund" },
-  { schemeCode: "fallback-sbi-small-cap", name: "SBI Small Cap Fund Direct Growth", categoryText: "Equity Scheme - Small Cap Fund" },
-  { schemeCode: "fallback-kotak-emerging-equity", name: "Kotak Emerging Equity Fund Direct Growth", categoryText: "Equity Scheme - Mid Cap Fund" },
-  { schemeCode: "fallback-motilal-midcap", name: "Motilal Oswal Midcap Fund Direct Growth", categoryText: "Equity Scheme - Mid Cap Fund" },
-  { schemeCode: "fallback-uti-nifty-50", name: "UTI Nifty 50 Index Fund Direct Growth", categoryText: "Other Scheme - Index Fund" },
-  { schemeCode: "fallback-hdfc-liquid", name: "HDFC Liquid Fund Direct Growth", categoryText: "Debt Scheme - Liquid Fund" },
-];
-
 function schemeMetadata(name: string) {
   const normalized = name.toLowerCase();
   return {
@@ -33,43 +20,6 @@ function schemeMetadata(name: string) {
   };
 }
 
-function fallbackSearchResults(query: string): FundSearchResult[] {
-  const terms = query.toLowerCase().split(/\s+/).filter(Boolean);
-  if (terms.length === 0) return [];
-
-  return FALLBACK_FUNDS.filter((fund) => {
-    const haystack = `${fund.name} ${fund.categoryText}`.toLowerCase();
-    return terms.every((term) => haystack.includes(term));
-  }).slice(0, 5).map((fund) => {
-    const category = mapAmfiCategory(fund.categoryText, fund.name);
-    return {
-      provider: "mutual-fund-mcp",
-      symbol: fund.schemeCode,
-      name: fund.name,
-      category,
-      riskLevel: inferRiskLevel(category),
-      sourceUrl: undefined,
-      benchmark: undefined,
-      expenseRatio: undefined,
-      aum: undefined,
-      ...schemeMetadata(fund.name),
-      dataQuality: "fallback",
-    };
-  });
-}
-
-function fallbackFundDetails(schemeCode: string): FundDetails | null {
-  const fund = FALLBACK_FUNDS.find((item) => item.schemeCode === schemeCode);
-  if (!fund) return null;
-  const category = mapAmfiCategory(fund.categoryText, fund.name);
-  return {
-    schemeCode: fund.schemeCode,
-    name: fund.name,
-    fundHouse: fund.name.split(" ")[0],
-    category,
-    riskLevel: inferRiskLevel(category),
-  };
-}
 interface McpFundDetail {
   schemeCode: number;
   name: string;
@@ -100,15 +50,14 @@ class MutualFundMcpProvider implements FundDataProvider {
   async searchFunds(query: string): Promise<FundSearchResult[]> {
     let hits: McpSearchHit[] = [];
     try {
-      const { json } = await callMutualFundTool("search_mutual_funds", { query, limit: 8 });
+      const { json } = await callMutualFundTool("search_mutual_funds", { query, limit: 20 });
       hits = (json as { results?: McpSearchHit[] } | null)?.results || [];
     } catch (error) {
-      console.warn(`${this.id} live fund search unavailable, using local fallback catalog:`, error);
-      return fallbackSearchResults(query);
+      throw new Error("Published fund search is unavailable", { cause: error });
     }
 
     const detailed = await Promise.all(
-      hits.slice(0, 5).map(async (hit) => {
+      hits.slice(0, 20).map(async (hit) => {
         try {
           return await this.getFundDetails(String(hit.schemeCode));
         } catch {
@@ -142,9 +91,12 @@ class MutualFundMcpProvider implements FundDataProvider {
       };
       });
 
-    if (detailedResults.length > 0) return detailedResults;
+    if (detailedResults.length > 0) return detailedResults.sort((a, b) => {
+      const freshness = Number(b.dataQuality === "live") - Number(a.dataQuality === "live");
+      return freshness || Number(b.planType === "direct") - Number(a.planType === "direct");
+    }).slice(0, 20);
 
-    return hits.slice(0, 5).map((hit) => {
+    return hits.slice(0, 20).map((hit) => {
       const category = mapAmfiCategory("", hit.name);
       return {
         provider: this.id,
@@ -163,9 +115,6 @@ class MutualFundMcpProvider implements FundDataProvider {
   }
 
   async getFundDetails(schemeCode: string): Promise<FundDetails> {
-    const fallbackDetail = fallbackFundDetails(schemeCode);
-    if (fallbackDetail) return fallbackDetail;
-
     const { json } = await callMutualFundTool("get_fund_details", { schemeCode });
     const detail = json as McpFundDetail | null;
     if (!detail) {
@@ -215,14 +164,18 @@ export function getProviderStatuses(): ProviderStatus[] {
 export async function searchFunds(query: string): Promise<FundSearchResult[]> {
   const configuredProviders = providers.filter((provider) => provider.isConfigured());
   const results: FundSearchResult[] = [];
+  let providerFailed = false;
 
   for (const provider of configuredProviders) {
     try {
       results.push(...(await provider.searchFunds(query)));
     } catch (error) {
+      providerFailed = true;
       console.warn(`${provider.id} fund search failed:`, error);
     }
   }
+
+  if (providerFailed && results.length === 0) throw new Error("Published fund search is unavailable");
 
   return results;
 }

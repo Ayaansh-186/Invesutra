@@ -24,9 +24,13 @@ export async function GET(request: NextRequest) {
     });
   }
 
-  const funds = await searchFunds(query);
+  let funds;
+  try {
+    funds = await searchFunds(query);
+  } catch {
+    return NextResponse.json({ error: "Published NAV data is unavailable. Please try again later." }, { status: 503 });
+  }
   const hasLiveNav = funds.some((fund) => fund.dataQuality === "live");
-  const hasFallback = funds.some((fund) => fund.symbol?.startsWith("fallback-"));
   return NextResponse.json({
     funds,
     providers,
@@ -35,8 +39,6 @@ export async function GET(request: NextRequest) {
         ? "No matching funds found for that query."
         : hasLiveNav
           ? "Live results from the Mutual Fund MCP provider (AMFI data)."
-          : hasFallback
-            ? "Showing local fallback matches because live AMFI fund data is temporarily unavailable. Values are editable before saving."
-            : "Showing AMFI fund matches. Current NAV is unavailable or outdated; use your statement for current value.",
+        : "Only schemes with a recent published NAV can be added; older schemes are shown for identification only.",
   });
 }

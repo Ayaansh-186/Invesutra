@@ -3,6 +3,7 @@ import test from "node:test";
 import { calculatePurchaseValues, isValidPurchaseDate, todayInIndia } from "../lib/utils/purchase";
 import { dbFundToFund } from "../lib/supabase/mappers";
 import type { DbFund } from "../lib/supabase/database.types";
+import { purchaseNavForDate } from "../lib/mcp/mutualFundSource";
 
 test("purchase amounts come from price, units, and latest NAV", () => {
   assert.deepEqual(calculatePurchaseValues(20.1234, 12.3456, 25.6789), {
@@ -37,4 +38,15 @@ test("saved purchase metadata appears on the holding", () => {
   assert.equal(fund.purchaseDate, "2025-02-15");
   assert.equal(fund.purchaseNav, 20.1234);
   assert.equal(dbFundToFund(row).purchaseDate, undefined);
+});
+
+test("purchase NAV uses the first published allotment date and rejects missing history", () => {
+  const history = [
+    { date: "02-10-2026", nav: "182.0000" },
+    { date: "01-10-2026", nav: "181.0000" },
+    { date: "30-09-2026", nav: "180.0000" },
+  ];
+  assert.equal(purchaseNavForDate(history, "2026-10-01")?.nav, "181.0000");
+  assert.equal(purchaseNavForDate(history, "2026-09-28")?.nav, "180.0000");
+  assert.equal(purchaseNavForDate(history, "2026-09-20"), undefined);
 });

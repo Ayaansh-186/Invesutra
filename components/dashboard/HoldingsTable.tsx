@@ -50,11 +50,6 @@ export default function HoldingsTable({
       setRowError({ id: fundId, message: "Invested amount must be greater than 0." });
       return;
     }
-    if (!Number.isFinite(editValues.currentValue) || editValues.currentValue < 0) {
-      setRowError({ id: fundId, message: "Current value must be 0 or greater." });
-      return;
-    }
-
     setBusyId(fundId);
     setRowError(null);
     try {
@@ -63,7 +58,6 @@ export default function HoldingsTable({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           investedAmount: editValues.investedAmount,
-          currentValue: editValues.currentValue,
         }),
       });
       const data = await res.json();
@@ -103,15 +97,20 @@ export default function HoldingsTable({
             <th className="px-4 py-3">Fund</th>
             <th className="hidden px-4 py-3 md:table-cell">Category</th>
             <th className="hidden px-4 py-3 text-right md:table-cell">Invested</th>
-            <th className="px-3 py-3 text-right sm:px-4">Current</th>
-            <th className="hidden px-4 py-3 text-right sm:table-cell">1Y Return</th>
+            <th className="px-3 py-3 text-right sm:px-4">Last saved value</th>
+            <th className="hidden px-4 py-3 text-right sm:table-cell">Your gain/loss</th>
             <th className="hidden px-4 py-3 text-right lg:table-cell">Weight</th>
             {onChanged && <th className="px-2 py-3 text-right sm:px-4"><span className="sr-only sm:not-sr-only">Actions</span></th>}
           </tr>
         </thead>
         <tbody>
           {sorted.map((fund) => {
-            const up = fund.returns1Y >= 0;
+            const personalReturn = fund.investedAmount > 0
+              ? ((fund.currentValue - fund.investedAmount) / fund.investedAmount) * 100 : null;
+            const up = personalReturn !== null && personalReturn >= 0;
+            const needsReview = fund.purchaseNav !== undefined && fund.nav > 0 &&
+              fund.purchaseNav > fund.nav * 5;
+            const isEtf = /\bETF\b/i.test(fund.name);
             const weight = totalValue > 0 ? (fund.currentValue / totalValue) * 100 : 0;
             const isEditing = editingId === fund.id;
             const isBusy = busyId === fund.id;
@@ -133,7 +132,7 @@ export default function HoldingsTable({
                     )}
                   </div>
                   <p className="text-xs text-[var(--shell-text-faint)]">
-                    <span className="md:hidden">{categoryLabel(fund.category)} · {formatPercent(fund.returns1Y)} 1Y</span>
+                    <span className="md:hidden">{categoryLabel(fund.category)} · Your gain/loss {personalReturn === null || isEtf || needsReview ? "Unverified" : formatPercent(personalReturn)}</span>
                     <span className="hidden md:inline">{fund.manager}</span>
                   </p>
                   {fund.purchaseDate && (
@@ -142,6 +141,8 @@ export default function HoldingsTable({
                       {fund.purchaseNav !== undefined && ` · ${formatCurrencyExact(fund.purchaseNav, 4)} per unit`}
                     </p>
                   )}
+                  {isEtf && <p className="mt-1 text-xs font-medium text-amber-600">ETF market price is not verified. Saved value is not a live exchange quote.</p>}
+                  {needsReview && <p className="mt-1 text-xs font-medium text-amber-600">Purchase price looks inconsistent with the saved NAV. Check your statement before relying on this holding; correct or remove it.</p>}
                   <p className="mt-1 text-[11px] text-[var(--shell-text-faint)] md:hidden">
                     Invested {formatCurrency(fund.investedAmount, true)} · {weight.toFixed(1)}% weight
                   </p>
@@ -183,26 +184,14 @@ export default function HoldingsTable({
                   )}
                 </td>
                 <td className="px-3 py-3 text-right font-medium text-[var(--shell-text)] sm:px-4">
-                  {isEditing ? (
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      inputMode="decimal"
-                      aria-label={`Current value for ${fund.name}`}
-                      value={editValues.currentValue}
-                      onChange={(e) => setEditValues((v) => ({ ...v, currentValue: +e.target.value }))}
-                      className="w-24 rounded-lg border border-[var(--shell-border)] bg-[var(--shell-bg)] px-2 py-1 text-right text-sm text-[var(--shell-text)] outline-none focus:border-cyan-500/40 sm:w-28"
-                    />
-                  ) : (
-                    formatCurrency(fund.currentValue, true)
-                  )}
+                  {formatCurrency(fund.currentValue, true)}
                 </td>
                 <td className="hidden px-4 py-3 text-right sm:table-cell">
-                  <span className={`inline-flex items-center gap-1 font-medium ${up ? "text-emerald-500" : "text-rose-500"}`}>
-                    {up ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
-                    {formatPercent(fund.returns1Y)}
-                  </span>
+                  {personalReturn === null || isEtf || needsReview ? <span className="text-[var(--shell-text-faint)]">Unverified</span> :
+                    <span className={`inline-flex items-center gap-1 font-medium ${up ? "text-emerald-500" : "text-rose-500"}`}>
+                      {up ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+                      {formatPercent(personalReturn)}
+                    </span>}
                 </td>
                 <td className="hidden px-4 py-3 text-right text-[var(--shell-text-muted)] lg:table-cell">{weight.toFixed(1)}%</td>
 
@@ -252,14 +241,14 @@ export default function HoldingsTable({
                       </div>
                     ) : (
                       <div className="flex justify-end gap-1">
-                        <button
+                        {!fund.purchaseDate && !isEtf && <button
                           onClick={() => startEdit(fund)}
                           className="rounded-lg p-1.5 text-[var(--shell-text-faint)] transition hover:bg-[var(--shell-surface-2)] hover:text-[var(--shell-text)]"
-                          title="Edit"
-                          aria-label={`Edit ${fund.name}`}
+                          title="Edit invested amount"
+                          aria-label={`Edit invested amount for ${fund.name}`}
                         >
                           <Pencil className="h-3.5 w-3.5" />
-                        </button>
+                        </button>}
                         <button
                           onClick={() => { setConfirmDeleteId(fund.id); setRowError(null); }}
                           className="rounded-lg p-1.5 text-[var(--shell-text-faint)] transition hover:bg-[var(--shell-surface-2)] hover:text-rose-500"

@@ -92,9 +92,18 @@ export async function getSchemeDetail(schemeCode: number | string): Promise<MfAp
   return cachedFetchJson<MfApiSchemeDetail>(url);
 }
 
+export function purchaseNavForDate(data: MfApiNavPoint[], purchaseDate: string): MfApiNavPoint | undefined {
+  const start = Date.parse(`${purchaseDate}T00:00:00Z`);
+  if (!Number.isFinite(start)) return undefined;
+  return data.filter((point) => {
+    const time = parseDdMmYyyy(point.date);
+    return time >= start && time - start <= 5 * 24 * 60 * 60 * 1000 && Number.isFinite(Number(point.nav)) && Number(point.nav) > 0;
+  }).sort((a, b) => parseDdMmYyyy(a.date) - parseDdMmYyyy(b.date))[0];
+}
+
 function parseDdMmYyyy(date: string): number {
   const [dd, mm, yyyy] = date.split("-").map(Number);
-  return new Date(yyyy, (mm || 1) - 1, dd || 1).getTime();
+  return Date.UTC(yyyy, (mm || 1) - 1, dd || 1);
 }
 
 /**

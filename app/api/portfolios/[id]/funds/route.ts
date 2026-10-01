@@ -6,6 +6,7 @@ import type { DbFund } from "@/lib/supabase/database.types";
 import { getFundDetails } from "@/lib/marketData/providers";
 import { isRecentNav } from "@/lib/marketData/navFreshness";
 import { calculatePurchaseValues, isValidPurchaseDate } from "@/lib/utils/purchase";
+import { getSchemeDetail, purchaseNavForDate } from "@/lib/mcp/mutualFundSource";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -92,6 +93,22 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   }
   if (String(detail.schemeCode) !== schemeCode || !isRecentNav(detail.navAsOf) || !detail.nav) {
     return NextResponse.json({ error: "This fund has no recent NAV, so its current value cannot be calculated." }, { status: 422 });
+  }
+  if (/\bETF\b/i.test(detail.name)) {
+    return NextResponse.json({ error: "ETFs trade at market prices that can differ from mutual-fund NAV. ETF entry is unavailable until a verified exchange-price source is connected." }, { status: 422 });
+  }
+  let historical;
+  try {
+    historical = purchaseNavForDate((await getSchemeDetail(schemeCode)).data, purchaseDate);
+  } catch {
+    return NextResponse.json({ error: "Purchase-date NAV could not be verified. Please try again later." }, { status: 503 });
+  }
+  if (!historical) {
+    return NextResponse.json({ error: "No published NAV is available for this purchase date yet. Choose the date shown on your statement or try later." }, { status: 422 });
+  }
+  const verifiedPurchaseNav = Number(historical.nav);
+  if (Math.abs(purchaseNav - verifiedPurchaseNav) > Math.max(0.001, verifiedPurchaseNav * 0.0001)) {
+    return NextResponse.json({ error: `Purchase NAV does not match the published NAV of ₹${verifiedPurchaseNav.toFixed(4)} on ${historical.date}. Check the scheme, allotment date, and statement.` }, { status: 422 });
   }
   const values = calculatePurchaseValues(purchaseNav, units, detail.nav);
   if (!values) {

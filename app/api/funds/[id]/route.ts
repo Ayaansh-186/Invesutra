@@ -27,6 +27,18 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   }
 
   const body = await request.json();
+  const sourceFields = ["currentValue", "nav", "units", "returns1Y", "returns3Y", "returns5Y", "expenseRatio", "aum"];
+  if (sourceFields.some((field) => body[field] !== undefined)) {
+    return NextResponse.json({ error: "Market values and scheme metrics cannot be edited manually. Refresh NAV data instead." }, { status: 422 });
+  }
+  if (body.investedAmount !== undefined) {
+    const { data: purchases, error: purchaseError } = await supabase.from("transactions")
+      .select("id").eq("fund_id", id).eq("type", "buy").limit(1);
+    if (purchaseError) return NextResponse.json({ error: "Could not verify purchase records." }, { status: 500 });
+    if (purchases?.length) {
+      return NextResponse.json({ error: "This holding has recorded purchase details. Remove and re-add it using the correct statement details to correct its cost." }, { status: 422 });
+    }
+  }
   const updates: Record<string, unknown> = {};
 
   // Fields that must be a finite, non-negative number if provided. money/

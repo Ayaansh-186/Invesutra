@@ -43,6 +43,7 @@ export default function PortfolioPage() {
     setRefreshing(true);
     setRefreshNotice(null);
     try {
+      let complete = false;
       if (user && !isDemo && !isEmpty && portfolio.id) {
         const response = await fetch(`/api/portfolios/${portfolio.id}/refresh`, { method: "POST" });
         const result = await response.json();
@@ -52,10 +53,13 @@ export default function PortfolioPage() {
             ? `Updated ${result.updated} of ${result.total} fund${result.total === 1 ? "" : "s"} from live NAV data.`
             : "Live NAV data was unavailable. Your saved values were kept unchanged."
         );
+        complete = result.updated === result.total;
       }
       await refresh();
+      return complete;
     } catch (refreshError) {
       setRefreshNotice(refreshError instanceof Error ? refreshError.message : "Refresh failed.");
+      return false;
     } finally {
       setRefreshing(false);
     }
@@ -66,8 +70,9 @@ export default function PortfolioPage() {
     const key = `invesutra-nav-refresh:${portfolio.id}`;
     const lastRefresh = Number(window.localStorage.getItem(key) || 0);
     if (Date.now() - lastRefresh < 24 * 60 * 60 * 1000) return;
-    window.localStorage.setItem(key, String(Date.now()));
-    void handleRefresh();
+    void handleRefresh().then((complete) => {
+      if (complete) window.localStorage.setItem(key, String(Date.now()));
+    });
     // Refresh once per portfolio per day; handleRefresh intentionally stays outside dependencies.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, user, isDemo, isEmpty, portfolio.id, portfolio.funds.length]);

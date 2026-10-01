@@ -19,7 +19,7 @@ interface Props {
 }
 
 function hasRecentPrice(fund: FundSearchResult): boolean {
-  return fund.dataQuality === "live" && isRecentNav(fund.asOf) &&
+  return !/\bETF\b/i.test(fund.name) && fund.dataQuality === "live" && isRecentNav(fund.asOf) &&
     Number.isFinite(fund.nav) && (fund.nav || 0) > 0 && /^\d+$/.test(fund.symbol || "");
 }
 
@@ -296,7 +296,7 @@ export default function AddFundModal({ portfolioId, onClose, onAdded }: Props) {
                         {fund.planType && fund.planType !== "unknown" && <span className="capitalize">{fund.planType}</span>}
                         {fund.optionType && fund.optionType !== "unknown" && <span className="capitalize">{fund.optionType}</span>}
                         {fund.asOf && <span>{canPrice ? "NAV date" : "Last NAV"} {fund.asOf}</span>}
-                        {!canPrice && <span className="text-amber-600">Recent NAV unavailable</span>}
+                        {!canPrice && <span className="text-amber-600">{/\bETF\b/i.test(fund.name) ? "ETF market price unavailable" : "Recent NAV unavailable"}</span>}
                       </div>
                     </button>
                   );
