@@ -26,6 +26,7 @@ Create `.env.local` (never commit it):
 ```bash
 # Public URL of the deployed app (used in metadata + auth redirects)
 NEXT_PUBLIC_SITE_URL=
+NEXT_PUBLIC_SEO_INDEXING=false
 
 # Supabase
 NEXT_PUBLIC_SUPABASE_URL=

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/shared/ThemeProvider";
+import { isIndexingEnabled, siteUrl } from "@/lib/seo";
 
 // Self-hosts Inter and inlines the @font-face at build time instead of
 // fetching from fonts.googleapis.com at request time — removes a
@@ -13,16 +14,14 @@ const inter = Inter({
   display: "swap",
 });
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://invesutra.ai";
-
 export const metadata: Metadata = {
-  metadataBase: new URL(SITE_URL),
+  metadataBase: siteUrl,
   title: {
-    default: "Invesutra — AI-Powered Mutual Fund Portfolio Intelligence",
+    default: "Invesutra | Mutual Fund Portfolio Intelligence",
     template: "%s | Invesutra",
   },
   description:
-    "Screen, analyze, and optimize your mutual fund portfolio with AI-powered insights and the QuantRebalance Protocol. AI-powered intelligence for smarter wealth decisions.",
+    "Understand, analyze, and rebalance Indian mutual fund portfolios with clear portfolio insights and the QuantRebalance Protocol.",
   keywords: [
     "AI mutual fund screener",
     "AI portfolio analyzer",
@@ -37,26 +36,38 @@ export const metadata: Metadata = {
   ],
   authors: [{ name: "Invesutra" }],
   creator: "Invesutra",
+  publisher: "Invesutra",
   applicationName: "Invesutra",
+  category: "finance",
+  alternates: {
+    canonical: "/",
+  },
   openGraph: {
     type: "website",
     locale: "en_IN",
-    url: SITE_URL,
+    url: "/",
     siteName: "Invesutra",
-    title: "Invesutra — AI-Powered Portfolio Intelligence",
-    description: "Screen, analyze, and optimize your mutual fund portfolio with intelligent algorithms and AI insights.",
-    images: [{ url: "/og-image.png", width: 1200, height: 630, alt: "Invesutra" }],
+    title: "Invesutra | Mutual Fund Portfolio Intelligence",
+    description:
+      "Understand, analyze, and rebalance Indian mutual fund portfolios with clearer insights.",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Invesutra",
-    description: "AI-powered intelligence for smarter wealth decisions.",
-    images: ["/og-image.png"],
+    title: "Invesutra | Mutual Fund Portfolio Intelligence",
+    description:
+      "Understand, analyze, and rebalance Indian mutual fund portfolios with clearer insights.",
   },
   robots: {
-    index: true,
-    follow: true,
-    googleBot: { index: true, follow: true, "max-image-preview": "large", "max-snippet": -1 },
+    index: isIndexingEnabled,
+    follow: isIndexingEnabled,
+    noarchive: !isIndexingEnabled,
+    googleBot: {
+      index: isIndexingEnabled,
+      follow: isIndexingEnabled,
+      noimageindex: !isIndexingEnabled,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+    },
   },
   icons: { icon: "/invesutra-mark.png" },
 };

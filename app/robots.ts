@@ -1,16 +1,30 @@
 import type { MetadataRoute } from "next";
-
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://invesutra.ai";
+import { isIndexingEnabled, siteUrl } from "@/lib/seo";
 
 export default function robots(): MetadataRoute.Robots {
-  return {
-    rules: [
-      {
+  if (!isIndexingEnabled) {
+    return {
+      rules: {
         userAgent: "*",
-        allow: "/",
-        disallow: ["/api/", "/dashboard", "/screener", "/simulator", "/reports", "/auth/callback"],
+        disallow: "/",
       },
-    ],
-    sitemap: `${SITE_URL}/sitemap.xml`,
+    };
+  }
+
+  return {
+    rules: {
+      userAgent: "*",
+      allow: "/",
+      disallow: [
+        "/api/",
+        "/auth/",
+        "/dashboard",
+        "/portfolio",
+        "/reports",
+        "/screener",
+        "/simulator",
+      ],
+    },
+    sitemap: new URL("/sitemap.xml", siteUrl).toString(),
   };
 }

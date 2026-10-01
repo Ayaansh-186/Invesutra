@@ -4,6 +4,16 @@ import { ArrowRight, Search, SlidersHorizontal, MessageSquareText } from "lucide
 import Navbar from "@/components/shared/Navbar";
 import Footer from "@/components/shared/Footer";
 
+const structuredData = {
+  "@context": "https://schema.org",
+  "@type": "WebApplication",
+  name: "Invesutra",
+  applicationCategory: "FinanceApplication",
+  operatingSystem: "Web",
+  description:
+    "Mutual fund portfolio analysis and rebalancing tools for Indian investors.",
+};
+
 const steps = [
   {
     icon: Search,
@@ -25,6 +35,12 @@ const steps = [
 export default function HomePage() {
   return (
     <main className="min-h-screen bg-white">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(structuredData).replace(/</g, "\\u003c"),
+        }}
+      />
       <Navbar />
 
       <section className="relative isolate flex min-h-[min(76svh,700px)] items-center overflow-hidden bg-[#102820] px-6 pb-20 pt-36 text-white sm:pb-24 sm:pt-40">
