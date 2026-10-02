@@ -46,8 +46,13 @@ export interface FundDataProvider {
   id: string;
   label: string;
   isConfigured(): boolean;
-  searchFunds(query: string): Promise<FundSearchResult[]>;
+  searchFunds(query: string, filters?: FundSearchFilters): Promise<FundSearchResult[]>;
   getFundDetails?(schemeCode: string): Promise<FundDetails>;
+}
+
+export interface FundSearchFilters {
+  planType?: "direct" | "regular";
+  optionType?: "growth" | "idcw";
 }
 
 export interface ProviderStatus {

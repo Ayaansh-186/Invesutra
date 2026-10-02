@@ -31,6 +31,8 @@ export interface ToolExecutionContext {
   portfolioId: string;
   /** False for demo/guest sessions or portfolios the caller doesn't own — mutation tools are hidden. */
   canMutate: boolean;
+  /** Set by the server after authentication and ownership checks, independently of mutation permission. */
+  isSignedIn?: boolean;
 }
 
 export const READ_ONLY_TOOL_DEFINITIONS: ToolDefinition[] = [

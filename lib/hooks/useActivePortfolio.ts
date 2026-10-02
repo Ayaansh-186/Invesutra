@@ -5,6 +5,14 @@ import type { Portfolio } from "@/lib/types";
 import { SAMPLE_PORTFOLIO } from "@/lib/utils/mockData";
 import { useAuth } from "./useAuth";
 import { markVerificationUnavailable } from "@/lib/marketData/pendingPortfolio";
+import { createAccountRequestCache } from "@/lib/utils/accountRequestCache";
+
+const portfolioRequests = createAccountRequestCache<{ portfolios?: Portfolio[]; portfolio?: Portfolio }>(async url => {
+  const response = await fetch(url, { cache: "no-store", signal: AbortSignal.timeout(url.includes("valuation=deferred") ? 15_000 : 45_000) });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error || "Could not load your saved portfolio.");
+  return data;
+});
 
 const EMPTY_PORTFOLIO: Portfolio = {
   ...SAMPLE_PORTFOLIO,
@@ -41,8 +49,10 @@ export function useActivePortfolio(): UsePortfolioResult {
   const lastLoad = useRef(0);
   const activeRequest = useRef<AbortController | null>(null);
 
-  const load = useCallback(async (background = false) => {
+  const load = useCallback(async (background = false, force = false) => {
     if (authLoading) return;
+    portfolioRequests.setOwner(user?.id || null);
+    if (force) portfolioRequests.invalidate();
     const sequence = ++requestSequence.current;
     activeRequest.current?.abort();
     const controller = new AbortController();
@@ -65,20 +75,9 @@ export function useActivePortfolio(): UsePortfolioResult {
     setIsDemo(false); // They ARE signed in — never show "create account" banner
 
     try {
-      const res = await fetch("/api/portfolios?valuation=deferred", { cache: "no-store", signal: AbortSignal.any([controller.signal, AbortSignal.timeout(15_000)]) });
-      const data = await res.json();
+      const data = await portfolioRequests.read("/api/portfolios?valuation=deferred", controller.signal);
       if (sequence !== requestSequence.current) return;
       lastLoad.current = Date.now();
-
-      if (!res.ok) {
-        // A signed-in user's holdings must never be replaced with demo figures.
-        console.warn("Portfolio API error:", data.error);
-        setError(data.error || "Could not load your saved portfolio.");
-        if (background) setPortfolio((saved) => saved.id ? markVerificationUnavailable(saved) : EMPTY_PORTFOLIO);
-        else { setPortfolio(EMPTY_PORTFOLIO); setIsEmpty(true); }
-        setLoading(false);
-        return;
-      }
 
       const portfolios: Portfolio[] = data.portfolios || [];
 
@@ -92,12 +91,9 @@ export function useActivePortfolio(): UsePortfolioResult {
         setLoading(false);
         if (portfolios[0].funds.length > 0) {
           try {
-            const verifiedResponse = await fetch(`/api/portfolios/${encodeURIComponent(portfolios[0].id)}`, {
-              cache: "no-store", signal: AbortSignal.any([controller.signal, AbortSignal.timeout(45_000)]),
-            });
-            const verified = await verifiedResponse.json();
+            const verified = await portfolioRequests.read(`/api/portfolios/${encodeURIComponent(portfolios[0].id)}`, controller.signal);
             if (sequence !== requestSequence.current) return;
-            if (!verifiedResponse.ok || !verified.portfolio) throw new Error(verified.error || "NAV verification could not finish.");
+            if (!verified.portfolio) throw new Error("NAV verification could not finish.");
             setPortfolio(verified.portfolio);
           } catch (err) {
             if (sequence !== requestSequence.current) return;
@@ -109,7 +105,7 @@ export function useActivePortfolio(): UsePortfolioResult {
     } catch (err) {
       if (sequence !== requestSequence.current) return;
       console.error("Failed to load portfolio:", err);
-      setError("Could not reach the portfolio service. Please try again.");
+      setError(err instanceof Error && err.name !== "TimeoutError" ? err.message : "Could not reach the portfolio service. Please try again.");
       if (background) setPortfolio((saved) => saved.id ? markVerificationUnavailable(saved) : EMPTY_PORTFOLIO);
       else { setPortfolio(EMPTY_PORTFOLIO); setIsEmpty(true); }
     } finally {
@@ -140,5 +136,5 @@ export function useActivePortfolio(): UsePortfolioResult {
     };
   }, [user, authLoading, load]);
 
-  return { portfolio, loading, isDemo, isEmpty, error, refresh: () => load(true) };
+  return { portfolio, loading, isDemo, isEmpty, error, refresh: () => load(true, true) };
 }

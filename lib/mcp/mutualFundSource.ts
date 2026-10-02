@@ -68,6 +68,7 @@ async function cachedFetchJson<T>(url: string): Promise<T> {
       const res = await fetch(url, { headers: { Accept: "application/json" }, signal: controller.signal, next: { revalidate: 900 } });
       if (!res.ok) throw new Error(`mfapi.in request failed (${res.status})`);
       const json = (await res.json()) as T;
+      if (cache.size >= 128) cache.delete(cache.keys().next().value!);
       cache.set(url, { at: Date.now(), value: json });
       return json;
     } catch (error) {
@@ -97,7 +98,11 @@ export async function getSchemeDetail(schemeCode: number | string): Promise<MfAp
   if (!/^\d+$/.test(String(schemeCode))) throw new Error("Invalid scheme code");
   const url = `${MFAPI_BASE}/mf/${schemeCode}`;
   const detail = await cachedFetchJson<MfApiSchemeDetail>(url);
-  if (String(detail?.meta?.scheme_code) !== String(schemeCode) || !Array.isArray(detail?.data)) throw new Error("Invalid scheme history response");
+  if (String(detail?.meta?.scheme_code) !== String(schemeCode) || !Array.isArray(detail?.data) ||
+      typeof detail.meta.scheme_name !== "string" || typeof detail.meta.scheme_category !== "string") {
+    cache.delete(url);
+    throw new Error("Invalid scheme history response");
+  }
   return detail;
 }
 
@@ -125,7 +130,7 @@ export function computeReturns(data: MfApiNavPoint[]): {
 } {
   if (!data || data.length === 0) return {};
 
-  const sorted = data.filter((point) => navDateToIso(point.date) && Number.isFinite(Number(point.nav)) && Number(point.nav) > 0)
+  const sorted = data.filter((point) => point && typeof point.date === "string" && navDateToIso(point.date) && Number.isFinite(Number(point.nav)) && Number(point.nav) > 0)
     .sort((a, b) => parseDdMmYyyy(b.date) - parseDdMmYyyy(a.date));
   if (!sorted.length) return {};
   const latest = sorted[0];

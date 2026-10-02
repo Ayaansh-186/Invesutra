@@ -58,6 +58,7 @@ export default function AddFundModal({ portfolioId, onClose, onAdded, holdingToR
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const [searching, setSearching] = useState(false);
   const [searchMessage, setSearchMessage] = useState<string | null>(null);
+  const [searchRetry, setSearchRetry] = useState(0);
   const [selectedFund, setSelectedFund] = useState<FundSearchResult | null>(null);
 
   const [purchaseNav, setPurchaseNav] = useState("");
@@ -110,7 +111,7 @@ export default function AddFundModal({ portfolioId, onClose, onAdded, holdingToR
         setHighlightedIndex(-1);
       } catch (searchError) {
         if (searchError instanceof DOMException && searchError.name === "AbortError") return;
-        if (seq === searchSeq.current) setSearchMessage("Search is unavailable. Please try again later.");
+        if (seq === searchSeq.current) setSearchMessage(searchError instanceof Error ? searchError.message : "Search is unavailable. Please try again later.");
       } finally {
         if (seq === searchSeq.current) setSearching(false);
       }
@@ -119,7 +120,7 @@ export default function AddFundModal({ portfolioId, onClose, onAdded, holdingToR
       clearTimeout(timer);
       controller.abort();
     };
-  }, [query, mode, plan, option, holdingToRepair?.schemeCode]);
+  }, [query, mode, plan, option, holdingToRepair?.schemeCode, searchRetry]);
 
   useEffect(() => {
     if (mode !== "selected" || !selectedFund?.symbol || !isValidPurchaseDate(purchaseDate)) return;
@@ -363,7 +364,10 @@ export default function AddFundModal({ portfolioId, onClose, onAdded, holdingToR
             )}
 
             {!searching && query.trim().length >= 2 && results.length === 0 && (
-              <p role="status" className="text-xs text-[var(--shell-text-faint)]">{searchMessage || "No matching funds found."}</p>
+              <div className="flex flex-wrap items-center gap-2 text-xs text-[var(--shell-text-faint)]">
+                <p role="status">{searchMessage || "No matching funds found."}</p>
+                {searchMessage && <button type="button" onClick={() => setSearchRetry(value => value + 1)} className="inline-flex items-center gap-1 underline"><RefreshCw className="h-3 w-3" />Retry search</button>}
+              </div>
             )}
 
             <p className="text-xs text-[var(--shell-text-faint)]">Latest published NAVs · <a href="https://portal.amfiindia.com/spages/NAVAll.txt" target="_blank" rel="noopener noreferrer" className="underline">AMFI</a></p>

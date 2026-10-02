@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { formatCurrency, formatCurrencyExact, formatPercent, categoryLabel } from "@/lib/utils/format";
 import type { Fund } from "@/lib/types";
-import { TrendingUp, TrendingDown, Pencil, Trash2, Check, X, Loader2, MessageSquare } from "lucide-react";
+import { TrendingUp, TrendingDown, Pencil, Trash2, Check, X, Loader2, MessageSquare, Search } from "lucide-react";
 import { useToast } from "@/components/shared/ToastProvider";
 import { hasVerifiedValue } from "@/lib/marketData/quality";
 import { isExchangeTradedFund } from "@/lib/marketData/amfi";
@@ -29,6 +29,8 @@ export default function HoldingsTable({
   const [busyId, setBusyId] = useState<string | null>(null);
   const [rowError, setRowError] = useState<{ id: string; message: string } | null>(null);
   const { showToast } = useToast();
+  const [query, setQuery] = useState("");
+  const [reviewOnly, setReviewOnly] = useState(false);
 
   if (funds.length === 0) {
     return (
@@ -40,7 +42,11 @@ export default function HoldingsTable({
     );
   }
 
-  const sorted = [...funds].sort((a, b) => b.currentValue - a.currentValue);
+  const needsReview = (fund: Fund) => !hasVerifiedValue(fund) || (fund.purchaseStatus !== undefined && fund.purchaseStatus !== "verified");
+  const reviewCount = funds.filter(needsReview).length;
+  const sorted = funds.filter(fund => (!reviewOnly || needsReview(fund)) &&
+    `${fund.name} ${fund.schemeCode || ""}`.toLowerCase().includes(query.trim().toLowerCase()))
+    .sort((a, b) => Number(hasVerifiedValue(b)) - Number(hasVerifiedValue(a)) || b.currentValue - a.currentValue);
 
   function startEdit(fund: Fund) {
     setConfirmDeleteId(null);
@@ -94,7 +100,17 @@ export default function HoldingsTable({
   }
 
   return (
-    <div className="overflow-hidden rounded-lg border border-[var(--shell-border)] bg-[var(--shell-surface)]">
+    <div>
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+        <div className="relative w-full sm:max-w-xs">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--shell-text-faint)]" />
+          <input aria-label="Find a holding" type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder="Find a holding" className="h-10 w-full rounded-md border border-[var(--shell-border)] bg-[var(--shell-surface)] pl-9 pr-3 text-sm text-[var(--shell-text)] focus:border-emerald-400/60 focus:outline-none focus:ring-2 focus:ring-emerald-400/15" />
+        </div>
+        <div role="group" aria-label="Holdings filter" className="inline-flex rounded-md border border-[var(--shell-border)] p-0.5">
+          {[{label:`All ${funds.length}`,review:false},{label:`Needs review ${reviewCount}`,review:true}].map(item => <button key={item.label} type="button" aria-pressed={reviewOnly === item.review} onClick={() => setReviewOnly(item.review)} className={`h-9 rounded px-3 text-xs font-medium ${reviewOnly === item.review ? "bg-[var(--shell-surface-2)] text-[var(--shell-text)]" : "text-[var(--shell-text-muted)]"}`}>{item.label}</button>)}
+        </div>
+      </div>
+      <div className="overflow-hidden rounded-lg border border-[var(--shell-border)] bg-[var(--shell-surface)]">
       <table className="block w-full text-left text-sm sm:table">
         <thead className="hidden sm:table-header-group">
           <tr className="border-b border-[var(--shell-border)] bg-[var(--shell-surface-2)] text-xs font-medium text-[var(--shell-text-muted)]">
@@ -276,6 +292,8 @@ export default function HoldingsTable({
           })}
         </tbody>
       </table>
+      {sorted.length === 0 && <p role="status" className="px-4 py-8 text-center text-sm text-[var(--shell-text-muted)]">{query ? "No holdings match your search." : "No holdings need review."}</p>}
+      </div>
     </div>
   );
 }

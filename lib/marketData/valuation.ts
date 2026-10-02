@@ -7,6 +7,7 @@ import { isExchangeTradedFund } from "./amfi";
 import { getPurchaseQuote } from "./purchaseQuote";
 import { roundMoney } from "@/lib/utils/purchase";
 import { recalculatePortfolio } from "@/lib/supabase/mappers";
+import { mapConcurrent } from "@/lib/utils/mapConcurrent";
 
 export function applyVerifiedNav(fund: Fund, detail?: FundDetails, now = new Date()): Fund {
   const base: Fund = { ...fund, verifiedMetrics: [], valuationCheckedAt: now.toISOString() };
@@ -49,11 +50,7 @@ async function verifyHolding(fund: Fund): Promise<Fund> {
 }
 
 export async function hydrateFundValuations(holdings: Fund[]): Promise<Fund[]> {
-  const funds: Fund[] = [];
-  for (let index = 0; index < holdings.length; index += 6) {
-    funds.push(...await Promise.all(holdings.slice(index, index + 6).map(verifyHolding)));
-  }
-  return funds;
+  return mapConcurrent(holdings, 6, verifyHolding);
 }
 
 export async function hydratePortfolioValuations(portfolio: Portfolio): Promise<Portfolio> {

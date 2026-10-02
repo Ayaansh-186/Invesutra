@@ -10,6 +10,8 @@ import { formatCurrency, formatPercent, categoryLabel } from "@/lib/utils/format
 import ValuationStatus from "./ValuationStatus";
 import { hasVerifiedValue, isPortfolioDataReady } from "@/lib/marketData/quality";
 import AIConsentDialog from "@/components/shared/AIConsentDialog";
+import { answerHoldingQuestion, detectPortfolioIntent } from "@/lib/ai/holdingAnswer";
+import { DETAILED_AI_CONSENT_VERSION } from "@/lib/ai/privacy";
 interface ChatMessage {
   role: "user" | "assistant";
   content: string;
@@ -165,14 +167,12 @@ export default function AIPortfolioAssistant({
   }, [initialQuery, historyStatus]);
 
   function detectLocalIntent(question: string): "add_fund" | "show_holdings" | "manage_holdings" | null {
-    const q = question.toLowerCase();
-    if (q.includes("add fund") || q.includes("add a fund") || q.includes("new fund")) return "add_fund";
-    if (/\b(edit|update|remove|delete)\b/.test(q) && /\b(fund|holding)\b/.test(q)) return "manage_holdings";
-    if (q.includes("show holding") || q.includes("my holding") || q.includes("list fund") || q.includes("holdings breakdown")) return "show_holdings";
-    return null;
+    return detectPortfolioIntent(question);
   }
 
   function localFallbackReply(question: string): string {
+    const holdingAnswer = answerHoldingQuestion(portfolio, question, messages);
+    if (holdingAnswer) return holdingAnswer;
     if (!isPortfolioDataReady(portfolio)) return "Some NAVs or purchase costs are unverified. Review the flagged holdings on Portfolio before using gain, allocation, or investment suggestions.";
     const lower = question.toLowerCase();
     const firstRisk = analysis.concentrationRisk[0];
@@ -206,7 +206,7 @@ export default function AIPortfolioAssistant({
         { role: "user", content: trimmed },
         {
           role: "assistant",
-          content: "I'll open the fund manager so you can add a new mutual fund holding. Fill in the fund details and I'll include it in your next analysis.",
+          content: "I'll open Add Fund so you can confirm the exact scheme, allotment date and units. Nothing is saved until you confirm the purchase.",
           action: "add_fund",
         },
       ]);
@@ -253,7 +253,8 @@ export default function AIPortfolioAssistant({
       const res = await fetch("/api/ai/portfolio-chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ portfolio, messages: nextMessages, allowPrivateAI: consent }),
+        body: JSON.stringify({ portfolio, messages: nextMessages, allowPrivateAI: consent,
+          privateAIConsentVersion: consent ? DETAILED_AI_CONSENT_VERSION : undefined }),
       });
       const data = await res.json();
 

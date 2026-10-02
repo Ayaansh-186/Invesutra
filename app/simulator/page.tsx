@@ -86,7 +86,7 @@ export default function SimulatorPage() {
       const res = runSimulation(input);
       setResult(res);
       setRunning(false);
-    }, 800);
+    }, 0);
   }
 
   function handleRunStressTest() {
@@ -96,7 +96,7 @@ export default function SimulatorPage() {
       const res = runScenarioMatrix(input.initialInvestment, fundCount);
       setStressResults(res);
       setRunningStress(false);
-    }, 600);
+    }, 0);
   }
 
   return (
@@ -252,9 +252,9 @@ export default function SimulatorPage() {
                 <div className="space-y-3">
                   {input.funds.map((fund, idx) => (
                     <div key={fund.name}>
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-xs text-[var(--shell-text-muted)] font-medium">{fund.name}</span>
-                        <span className="text-xs text-[var(--shell-text-faint)]">
+                      <div className="mb-1 flex flex-wrap items-start justify-between gap-x-3 gap-y-1">
+                        <span className="min-w-0 break-words text-xs text-[var(--shell-text-muted)] font-medium">{fund.name}</span>
+                        <span className="shrink-0 whitespace-nowrap text-xs text-[var(--shell-text-faint)]">
                           {fund.allocation.toFixed(1)}% · {fund.expectedReturn}% assumed
                         </span>
                       </div>

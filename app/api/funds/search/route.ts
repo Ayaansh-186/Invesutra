@@ -28,7 +28,10 @@ export async function GET(request: NextRequest) {
 
   let funds;
   try {
-    funds = await searchFunds([query, ["direct", "regular"].includes(plan) ? plan : "", ["growth", "idcw"].includes(option) ? option : ""].filter(Boolean).join(" "));
+    funds = await searchFunds(query, {
+      planType: plan === "direct" || plan === "regular" ? plan : undefined,
+      optionType: option === "growth" || option === "idcw" ? option : undefined,
+    });
   } catch {
     return NextResponse.json({ error: "Published NAV data is unavailable. Please try again later." }, { status: 503 });
   }

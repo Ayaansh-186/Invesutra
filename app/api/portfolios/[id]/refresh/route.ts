@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
-import { getFundDetails, searchFunds } from "@/lib/marketData/providers";
+import { getFundNav, searchFunds } from "@/lib/marketData/providers";
 import { findExactLiveFund } from "@/lib/marketData/matchFund";
 import { isRecentNav } from "@/lib/marketData/navFreshness";
 import { isExchangeTradedFund } from "@/lib/marketData/amfi";
+import { getAmfiCatalogue } from "@/lib/marketData/amfi";
+import { mapConcurrent } from "@/lib/utils/mapConcurrent";
+import { checkRateLimit } from "@/lib/security/rateLimit";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -22,6 +25,10 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     .eq("user_id", user.id)
     .maybeSingle();
   if (!portfolio) return NextResponse.json({ error: "Portfolio not found" }, { status: 404 });
+  const rate = checkRateLimit(request, `nav-refresh:${user.id}:${id}`, 4, 60_000);
+  if (!rate.allowed) return NextResponse.json({ error: "Please wait before refreshing again." }, {
+    status: 429, headers: { "Retry-After": String(rate.retryAfterSeconds) },
+  });
 
   const { data: funds, error } = await supabase
     .from("funds")
@@ -42,8 +49,11 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   const unavailable: string[] = [];
 
   const rows = funds || [];
-  for (let offset = 0; offset < rows.length; offset += 4) {
-    await Promise.all(rows.slice(offset, offset + 4).map(async (fund) => {
+  // A manual refresh checks the feed now instead of reusing its 15-minute cache.
+  try { await getAmfiCatalogue(true); } catch {
+    return NextResponse.json({ error: "Published NAV source is unavailable. Your saved holdings were kept unchanged; please try again later." }, { status: 503 });
+  }
+  await mapConcurrent(rows, 4, async (fund) => {
       try {
         const units = Number(fund.units);
         if (!Number.isFinite(units) || !(units > 0) || isExchangeTradedFund(fund.name)) {
@@ -53,7 +63,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         const code = schemeCodes.get(fund.id);
         let match;
         if (code) {
-          const detail = await getFundDetails(code);
+          const detail = await getFundNav(code);
           if (String(detail.schemeCode) !== code || !isRecentNav(detail.navAsOf)) {
             unavailable.push(fund.name);
             return;
@@ -68,20 +78,20 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         }
 
         const nextValue = Number((units * match.nav).toFixed(2));
-        const { error: updateError } = await supabase.from("funds").update({
+        if (!Number.isFinite(nextValue) || nextValue <= 0 || nextValue >= 1e12) { unavailable.push(fund.name); return; }
+        const { data: changed, error: updateError } = await supabase.from("funds").update({
           nav: match.nav,
           current_value: nextValue,
           ...(match.returns1Y !== undefined ? { returns_1y: match.returns1Y } : {}),
           ...(match.returns3Y !== undefined ? { returns_3y: match.returns3Y } : {}),
           ...(match.returns5Y !== undefined ? { returns_5y: match.returns5Y } : {}),
-        }).eq("id", fund.id);
-        if (updateError) unavailable.push(fund.name);
+        }).eq("id", fund.id).eq("units", fund.units).select("id");
+        if (updateError || !changed?.length) unavailable.push(fund.name);
         else updated += 1;
       } catch {
         unavailable.push(fund.name);
       }
-    }));
-  }
+    });
 
   return NextResponse.json({
     updated,

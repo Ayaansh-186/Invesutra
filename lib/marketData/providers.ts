@@ -1,10 +1,8 @@
 // Copyright © 2026 Ayaansh Singhal. All Rights Reserved.
 
-import type { FundCategory, RiskLevel } from "@/lib/types";
-import type { FundDataProvider, FundDetails, FundSearchResult, ProviderStatus } from "./types";
-import { callMutualFundTool } from "@/lib/mcp/mcpClient";
-import { inferRiskLevel, isMutualFundSourceConfigured, mapAmfiCategory } from "@/lib/mcp/mutualFundSource";
-import { isRecentNav } from "./navFreshness";
+import type { FundDataProvider, FundDetails, FundSearchResult, FundSearchFilters, ProviderStatus } from "./types";
+import { computeReturns, getSchemeDetail, inferRiskLevel, isMutualFundSourceConfigured, mapAmfiCategory } from "@/lib/mcp/mutualFundSource";
+import { isRecentNav, navDateToIso } from "./navFreshness";
 import { AMFI_NAV_URL, getAmfiCatalogue, searchAmfiCatalogue } from "./amfi";
 
 function schemeMetadata(name: string) {
@@ -15,24 +13,9 @@ function schemeMetadata(name: string) {
   };
 }
 
-interface McpFundDetail {
-  schemeCode: number;
-  name: string;
-  fundHouse: string;
-  category: FundCategory;
-  riskLevel: RiskLevel;
-  nav?: number;
-  navAsOf?: string;
-  returns1Y?: number;
-  returns3Y?: number;
-  returns5Y?: number;
-  isin?: string;
-}
-
 /**
- * Mutual fund search/details provider, backed by the MCP server in
- * lib/mcp/mutualFundMcpServer.ts (AMFI data via mfapi.in — see that file's
- * header comment for why this isn't literally Zerodha Kite data).
+ * Website lookups use the same AMFI/MFAPI source as the MCP tools directly,
+ * without creating a tool session for each portfolio holding.
  */
 class MutualFundMcpProvider implements FundDataProvider {
   id = "mutual-fund-mcp";
@@ -42,9 +25,9 @@ class MutualFundMcpProvider implements FundDataProvider {
     return isMutualFundSourceConfigured();
   }
 
-  async searchFunds(query: string): Promise<FundSearchResult[]> {
+  async searchFunds(query: string, filters?: FundSearchFilters): Promise<FundSearchResult[]> {
     const catalogue = await getAmfiCatalogue();
-    return searchAmfiCatalogue(catalogue, query).map((scheme) => {
+    return searchAmfiCatalogue(catalogue, query, 30, new Date(), filters).map((scheme) => {
       const category = mapAmfiCategory(scheme.category, scheme.name);
       return {
         provider: this.id,
@@ -66,10 +49,16 @@ class MutualFundMcpProvider implements FundDataProvider {
   async getFundDetails(schemeCode: string): Promise<FundDetails> {
     if (!/^\d+$/.test(schemeCode)) throw new Error("Invalid AMFI scheme code");
     const [official, history] = await Promise.allSettled([
-      getAmfiCatalogue(), callMutualFundTool("get_fund_details", { schemeCode }),
+      getAmfiCatalogue(), getSchemeDetail(schemeCode),
     ]);
     const scheme = official.status === "fulfilled" ? official.value.find((entry) => entry.schemeCode === schemeCode) : undefined;
-    const detail = history.status === "fulfilled" ? history.value.json as McpFundDetail | null : null;
+    const raw = history.status === "fulfilled" ? history.value : undefined;
+    const returns = raw ? computeReturns(raw.data) : {};
+    const detail = raw ? {
+      schemeCode: raw.meta.scheme_code, name: raw.meta.scheme_name, fundHouse: raw.meta.fund_house,
+      category: mapAmfiCategory(raw.meta.scheme_category, raw.meta.scheme_name),
+      nav: returns.latestNav, navAsOf: returns.asOf, ...returns, isin: raw.meta.isin_growth || undefined,
+    } : null;
     if (detail && String(detail.schemeCode) !== schemeCode) throw new Error("Fund source returned a different scheme");
     if (!scheme && !detail) throw new Error("Published fund data is unavailable");
     const name = scheme?.name || detail!.name;
@@ -78,7 +67,7 @@ class MutualFundMcpProvider implements FundDataProvider {
     const navAsOf = scheme?.navAsOf ?? detail?.navAsOf;
     const optionType = scheme?.optionType ?? schemeMetadata(name).optionType;
     const historyMatches = optionType === "growth" && Boolean(detail?.nav && nav &&
-      detail.navAsOf === navAsOf && Math.abs(detail.nav - nav) <= Math.max(0.001, nav * 0.0001) && isRecentNav(navAsOf));
+      navDateToIso(detail.navAsOf) === navDateToIso(navAsOf) && Math.abs(detail.nav - nav) <= Math.max(0.001, nav * 0.0001) && isRecentNav(navAsOf));
     return {
       schemeCode, name, category, riskLevel: inferRiskLevel(category),
       fundHouse: scheme?.fundHouse || detail?.fundHouse,
@@ -131,14 +120,14 @@ export function getProviderStatuses(): ProviderStatus[] {
   }));
 }
 
-export async function searchFunds(query: string): Promise<FundSearchResult[]> {
+export async function searchFunds(query: string, filters?: FundSearchFilters): Promise<FundSearchResult[]> {
   const configuredProviders = providers.filter((provider) => provider.isConfigured());
   const results: FundSearchResult[] = [];
   let providerFailed = false;
 
   for (const provider of configuredProviders) {
     try {
-      results.push(...(await provider.searchFunds(query)));
+      results.push(...(await provider.searchFunds(query, filters)));
     } catch (error) {
       providerFailed = true;
       console.warn(`${provider.id} fund search failed:`, error);
@@ -153,4 +142,19 @@ export async function searchFunds(query: string): Promise<FundSearchResult[]> {
 export async function getFundDetails(schemeCode: string): Promise<FundDetails> {
   const provider = providers.find((p) => p.id === "mutual-fund-mcp") as MutualFundMcpProvider;
   return provider.getFundDetails(schemeCode);
+}
+
+// Updating current value does not require downloading or analysing NAV history.
+export async function getFundNav(schemeCode: string): Promise<FundDetails> {
+  if (!/^\d+$/.test(schemeCode)) throw new Error("Invalid AMFI scheme code");
+  try {
+    const scheme = (await getAmfiCatalogue()).find(entry => entry.schemeCode === schemeCode);
+    if (scheme && isRecentNav(scheme.navAsOf)) {
+      const category = mapAmfiCategory(scheme.category, scheme.name);
+      return { schemeCode, name: scheme.name, category, riskLevel: inferRiskLevel(category),
+        nav: scheme.nav, navAsOf: scheme.navAsOf, navSource: "amfi", sourceUrl: AMFI_NAV_URL,
+        navCheckedAt: new Date().toISOString(), optionType: scheme.optionType };
+    }
+  } catch { /* Exact-scheme history may still provide a recent published NAV. */ }
+  return getFundDetails(schemeCode);
 }

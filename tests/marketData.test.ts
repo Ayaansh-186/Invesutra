@@ -59,7 +59,7 @@ test("concurrent public NAV history lookups share one request and failed request
   globalThis.fetch = async () => {
     calls += 1;
     await new Promise((resolve) => setTimeout(resolve, 10));
-    return new Response(JSON.stringify({ meta: { scheme_code: 999001 }, data: [] }), { status: calls === 1 ? 503 : 200 });
+    return new Response(JSON.stringify({ meta: { scheme_code: 999001, scheme_name: "Test Fund Direct Growth", scheme_category: "Equity Scheme - Large Cap Fund" }, data: [] }), { status: calls === 1 ? 503 : 200 });
   };
   try {
     const failed = await Promise.allSettled([getSchemeDetail(999001), getSchemeDetail(999001)]);
@@ -81,6 +81,28 @@ test("AMFI parser reads separated plan/option columns and rejects invalid rows",
   assert.equal(schemes[0].navAsOf, "30-09-2026");
   assert.equal(schemes[0].planType, "direct");
   assert.equal(schemes[0].optionType, "growth");
+});
+
+test("malformed scheme history is rejected and evicted so a valid response can retry", async () => {
+  const original = globalThis.fetch;
+  let calls = 0;
+  globalThis.fetch = async () => {
+    calls++;
+    return Response.json({meta:{scheme_code:999002,...(calls > 1 ? {scheme_name:"Test Fund",scheme_category:"Equity"} : {})},data:[]});
+  };
+  try {
+    await assert.rejects(getSchemeDetail(999002), /Invalid scheme history/);
+    assert.equal((await getSchemeDetail(999002)).meta.scheme_name,"Test Fund");
+    assert.equal(calls,2);
+  } finally { globalThis.fetch = original; }
+});
+
+test("plan and payout filters use metadata before limiting results, including Dividend aliases", () => {
+  const schemes = parseAmfiNav(feed.replace(";IDCW;", ";Dividend Option;"));
+  const payout = searchAmfiCatalogue(schemes, "test", 1, now, { planType: "direct", optionType: "idcw" });
+  assert.equal(payout.length, 1);
+  assert.equal(payout[0].schemeCode, "125");
+  assert.equal(searchAmfiCatalogue(schemes, "test", 1, now, { planType: "regular", optionType: "growth" })[0].schemeCode, "124");
 });
 
 test("AMFI parser retains support for the six-column daily NAV format", () => {

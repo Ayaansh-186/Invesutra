@@ -1,4 +1,5 @@
 import { isRecentNav, navDateToIso } from "./navFreshness";
+import type { FundSearchFilters } from "./types";
 
 export const AMFI_NAV_URL = "https://portal.amfiindia.com/spages/NAVAll.txt";
 
@@ -71,29 +72,38 @@ export function parseAmfiNav(text: string): AmfiScheme[] {
 
 let cached: { at: number; schemes: AmfiScheme[] } | undefined;
 let pending: Promise<AmfiScheme[]> | undefined;
+let pendingForced = false;
 
-export async function getAmfiCatalogue(): Promise<AmfiScheme[]> {
-  if (cached && Date.now() - cached.at < 15 * 60 * 1000) return cached.schemes;
-  if (pending) return pending;
+export async function getAmfiCatalogue(forceRefresh = false): Promise<AmfiScheme[]> {
+  if (!forceRefresh && cached && Date.now() - cached.at < 15 * 60 * 1000) return cached.schemes;
+  if (pending) {
+    if (forceRefresh && !pendingForced) {
+      try { await pending; } catch { /* A forced check can retry a failed cached request. */ }
+      return getAmfiCatalogue(true);
+    }
+    return pending;
+  }
+  pendingForced = forceRefresh;
   pending = (async () => {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 8000);
     try {
-      const response = await fetch(AMFI_NAV_URL, { signal: controller.signal, next: { revalidate: 900 } });
+      const response = await fetch(AMFI_NAV_URL, { signal: controller.signal, ...(forceRefresh ? { cache: "no-store" as const } : { next: { revalidate: 900 } }) });
       if (!response.ok) throw new Error(`AMFI NAV feed returned ${response.status}`);
       const schemes = parseAmfiNav(await response.text());
       if (schemes.length < 100) throw new Error("AMFI NAV feed is incomplete");
       cached = { at: Date.now(), schemes };
       return schemes;
     } finally { clearTimeout(timeout); }
-  })().finally(() => { pending = undefined; });
+  })().finally(() => { pending = undefined; pendingForced = false; });
   return pending;
 }
 
-export function searchAmfiCatalogue(schemes: AmfiScheme[], query: string, limit = 30, now = new Date()): AmfiScheme[] {
+export function searchAmfiCatalogue(schemes: AmfiScheme[], query: string, limit = 30, now = new Date(), filters: FundSearchFilters = {}): AmfiScheme[] {
   const terms = query.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim().split(/\s+/).filter(Boolean);
   if (!terms.length) return [];
   return schemes.filter((scheme) => scheme.schemeType === "Open Ended Schemes" && isRecentNav(scheme.navAsOf, now) &&
+    (!filters.planType || scheme.planType === filters.planType) && (!filters.optionType || scheme.optionType === filters.optionType) &&
     !isExchangeTradedFund(scheme.name) && terms.every((term) => `${scheme.name} ${scheme.schemeCode}`.toLowerCase().includes(term)))
     .sort((a, b) => Number(b.planType === "direct") - Number(a.planType === "direct") ||
       Number(b.optionType === "growth") - Number(a.optionType === "growth") || a.name.localeCompare(b.name))

@@ -9,6 +9,7 @@ import type { Portfolio } from "@/lib/types";
 import type { DbFund, DbPortfolio } from "@/lib/supabase/database.types";
 import type { ToolExecutionContext } from "@/lib/ai/tools";
 import { checkRateLimit } from "@/lib/security/rateLimit";
+import { hasDetailedAIConsent } from "@/lib/ai/privacy";
 
 export async function POST(request: NextRequest) {
   const rate = checkRateLimit(request, "portfolio-chat", 20, 60_000);
@@ -86,9 +87,13 @@ export async function POST(request: NextRequest) {
       supabase,
       portfolioId: portfolio.id,
       canMutate: false,
+      isSignedIn: hasOwnedPortfolio,
     };
 
-    const result = await answerPortfolioQuestion(portfolio, safeMessages, toolContext, { allowPrivateAI: body.allowPrivateAI === true });
+    const result = await answerPortfolioQuestion(portfolio, safeMessages, toolContext, {
+      allowPrivateAI: body.allowPrivateAI === true,
+      allowDetailedPrivateAI: hasDetailedAIConsent(body),
+    });
 
     // Persist chat history so it survives a full page reload / new session.
     // Client resends the full running

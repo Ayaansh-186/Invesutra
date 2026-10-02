@@ -13,6 +13,7 @@ import SinceLastVisit from "@/components/dashboard/SinceLastVisit";
 import ValuationStatus from "@/components/dashboard/ValuationStatus";
 import { isPortfolioDataReady } from "@/lib/marketData/quality";
 import type { Fund } from "@/lib/types";
+import { valuationSummary } from "@/lib/marketData/valuationSummary";
 import {
   Sparkles, Plus, RefreshCw, TrendingUp, TrendingDown, MessageSquare, AlertTriangle, ChevronDown,
 } from "lucide-react";
@@ -30,6 +31,7 @@ export default function PortfolioPage() {
   const [refreshNotice, setRefreshNotice] = useState<string | null>(null);
   const analysis = portfolio.analysis ?? riskEngine.analyzePortfolio(portfolio);
   const dataReady = isPortfolioDataReady(portfolio);
+  const verifiedSummary = valuationSummary(portfolio);
   const returnsUp = portfolio.returnsPercent >= 0;
   const primaryRisk = analysis.concentrationRisk[0];
   const firstSuggestion = analysis.rebalancingSuggestions[0];
@@ -115,8 +117,8 @@ export default function PortfolioPage() {
                   onClick={handleRefresh}
                   disabled={refreshing}
                   className="app-icon-button border border-[var(--shell-border)]"
-                  title="Update from live NAV data"
-                  aria-label="Update portfolio from live NAV data"
+                  title="Check latest published NAV"
+                  aria-label="Check latest published NAV"
                 >
                   <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
                 </button>
@@ -175,10 +177,11 @@ export default function PortfolioPage() {
               {error && <p role="alert" className="mb-4 text-xs text-amber-700 dark:text-amber-400">{error}</p>}
               <section className="border-b border-[var(--shell-border)] pb-7">
                 <ValuationStatus portfolio={portfolio} />
-                <p className="text-sm text-[var(--shell-text-muted)]">Value at latest published NAV</p>
+                <p className="text-sm text-[var(--shell-text-muted)]">{portfolio.valuationComplete === false && verifiedSummary.verifiedCount > 0 ? "Verified holdings value" : "Value at latest published NAV"}</p>
                 <p className={`mt-1 font-semibold tabular-nums text-[var(--shell-text)] ${portfolio.valuationComplete === false ? "text-2xl" : "text-3xl sm:text-4xl"}`}>
-                  {portfolio.valuationPending ? "Checking NAVs..." : portfolio.valuationComplete === false ? "Unavailable" : formatCurrency(portfolio.currentValue)}
+                  {portfolio.valuationPending ? "Checking NAVs..." : portfolio.valuationComplete === false ? verifiedSummary.verifiedCount > 0 ? formatCurrency(verifiedSummary.verifiedValue) : "Unavailable" : formatCurrency(portfolio.currentValue)}
                 </p>
+                {!portfolio.valuationPending && portfolio.valuationComplete === false && verifiedSummary.verifiedCount > 0 && <p className="mt-1 text-xs text-[var(--shell-text-muted)]">{verifiedSummary.verifiedCount} of {verifiedSummary.totalCount} holdings priced. This is not your full portfolio value.</p>}
                 <div className="mt-4 flex flex-wrap gap-x-8 gap-y-2 text-sm">
                   <p className="text-[var(--shell-text-muted)]">Invested <span className="font-medium text-[var(--shell-text)]">{formatCurrency(portfolio.totalInvested, true)}</span></p>
                   {dataReady ? <p className="text-[var(--shell-text-muted)]">Change <span className={`inline-flex items-center gap-1 font-medium ${returnsUp ? "text-emerald-500" : "text-rose-500"}`}>

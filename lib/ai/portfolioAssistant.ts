@@ -13,6 +13,7 @@ import { categoryLabel, formatCurrency, formatPercent } from "@/lib/utils/format
 import type { Portfolio } from "@/lib/types";
 import { executeTool, getAvailableTools, type ToolExecutionContext } from "./tools";
 import { hasVerifiedMetric, isPortfolioDataReady } from "@/lib/marketData/quality";
+import { answerHoldingQuestion, detectPortfolioIntent } from "./holdingAnswer";
 
 export interface PortfolioChatMessage {
   role: "user" | "assistant";
@@ -92,7 +93,7 @@ function fallbackAnswer(portfolio: Portfolio, question: string): string {
     }, 0);
   const lower = question.toLowerCase();
 
-  if (lower.includes("qrp") || lower.includes("quant") || lower.includes("alpha") || lower.includes("dry powder")) {
+  if (/\b(qrp|quantrebalance|quant\s+rebalance|alpha|dry\s+powder)\b/i.test(question)) {
     const dryPowderNote = eligibleAlpha > 0
       ? `About ${formatCurrency(eligibleAlpha, true)} of unrealized gain is currently eligible for alpha-capture review at a 10%+ milestone.`
       : "No holding is currently showing enough milestone gain for alpha capture under the 10% review band.";
@@ -162,14 +163,16 @@ ${compared.slice(0, 5).join("\n")}${compared.length > 5 ? `\n...and ${compared.l
 
 
 
-function systemPrompt(canMutate: boolean, hasTools: boolean): string {
+export function portfolioSystemPrompt(canMutate: boolean, hasTools: boolean, isSignedIn?: boolean): string {
   const base =
     "You are Invesutra AI, the portfolio copilot for Indian mutual fund investors. Answer only from the " +
     "supplied portfolio data and tool results. Explain health score, risk, diversification, fund performance, and " +
-    "improvements in plain English. Do not invent live market prices, holdings overlap, fund facts, or future " +
+    "improvements in plain English. Answer the user's actual question first, and ask for missing facts rather than replacing a direct question with QRP boilerplate. 'Quant' can be an AMC name, not QuantRebalance. Do not invent live market prices, holdings overlap, fund facts, or future " +
     "returns — use the search_mutual_funds / get_fund_details tools for real fund data instead of guessing. This is " +
     "educational decision support, not investment advice. Treat null or absent metrics as unavailable, never zero. " +
     "NAV is the latest published daily value, not an intraday quote. Check NAV dates in tool results before describing any fund as current. " +
+    "For a holding question, use its verified purchase cost and latest verified value, not its trailing fund return. A user-stated loss is a claim to reconcile, not a replacement for saved data. Use verifiedLocalAnswer when supplied. Clarify conflicting AMC names or ambiguous schemes. " +
+    "Do not infer a sell decision from a loss or a model score alone. Ask for the investment goal, time horizon and liquidity needs; do not invent benchmark, tax or exit-load figures. " +
     "Health and category-risk scores are model assessments. Null beta, drawdown, volatility, VaR and Sharpe are unavailable: do not estimate or invent them. " +
     "VOICE: You're not a generic advisor reciting numbers — you're Invesutra, and you've actually been paying " +
     "attention to this specific portfolio. Have real, direct opinions grounded in the actual data (never invented). " +
@@ -189,19 +192,19 @@ function systemPrompt(canMutate: boolean, hasTools: boolean): string {
     "present each option as a numbered list then end with exactly: 'Reply with a number to confirm.' " +
     "Example: '1. **HDFC Balanced Fund** — Hybrid, 39.2%\n2. **HDFC Large Cap** — Large-Cap, 21.6%\n\nReply with a number to confirm.'";
 
-  if (!hasTools) return base;
+  const session = isSignedIn === true ? " The user is signed in and the server verified ownership of this saved portfolio. Do not tell them to sign in again. " : isSignedIn === false ? " This is a guest/demo session. " : " Authentication state is unspecified; do not infer it from tool permissions. ";
+  if (!hasTools) return base + session + "Chat cannot save holdings or place orders. Purchase changes are confirmed in the Add Fund form.";
 
   if (!canMutate) {
     return (
-      base +
+      base + session +
       " You have read-only fund search tools (search_mutual_funds, get_fund_details) backed by AMFI data. You do " +
-      "NOT have tools to add/remove funds in this session (the user isn't signed in or hasn't selected a saved " +
-      "portfolio) — if asked to add or remove a fund, explain that and suggest signing in."
+      "NOT have tools to add/remove funds in this read-only session. This does not imply the user is signed out. Direct purchase entry to the Add Fund form, where the user confirms the exact scheme, date and units."
     );
   }
 
   return (
-    base +
+    base + session +
     " You can search real mutual funds (search_mutual_funds, get_fund_details) and manage the user's own tracked " +
     "Invesutra portfolio (add_fund_to_portfolio, update_fund_holding, remove_fund_from_portfolio) — this updates " +
     "their portfolio tracker only, it does not place any real brokerage order. Look up real fund data before " +
@@ -218,7 +221,7 @@ async function runToolLoop(
 ): Promise<{ answer: string; provider: AIProvider; portfolioChanged: boolean }> {
   const tools = getAvailableTools(toolContext);
   const conversation: ChatTurn[] = [
-    { role: "system", content: systemPrompt(toolContext.canMutate, true) },
+    { role: "system", content: portfolioSystemPrompt(toolContext.canMutate, true, toolContext.isSignedIn) },
     { role: "user", content: `Portfolio data:\n${JSON.stringify(groundingData, null, 2)}` },
     ...messages.slice(-8).map((m) => ({ role: m.role, content: m.content } as ChatTurn)),
   ];
@@ -291,7 +294,7 @@ export async function answerPortfolioQuestion(
   portfolio: Portfolio,
   messages: PortfolioChatMessage[],
   toolContext?: ToolExecutionContext,
-  options: { allowPrivateAI?: boolean } = {}
+  options: { allowPrivateAI?: boolean; allowDetailedPrivateAI?: boolean } = {}
 ): Promise<PortfolioAssistantResponse> {
   const analysis = riskEngine.analyzePortfolio(portfolio);
   const latestQuestion = messages.filter((m) => m.role === "user").at(-1)?.content?.trim() || "";
@@ -299,6 +302,15 @@ export async function answerPortfolioQuestion(
 
   const hasAnyProvider =
     process.env.GROQ_API_KEY || process.env.GEMINI_API_KEY || process.env.OPENAI_API_KEY;
+
+  if (detectPortfolioIntent(latestQuestion) === "add_fund") return {
+    source: "deterministic", answer: toolContext?.isSignedIn === false ? "Sign in to save a holding, then use Add Fund to confirm its exact scheme, allotment date and units." : "Use Add Fund to confirm the exact scheme, allotment date and units. Chat does not save purchases automatically; nothing has been added yet.",
+    suggestedQuestions: [], portfolioChanged: false,
+  };
+  const holdingAnswer = answerHoldingQuestion(portfolio, latestQuestion, messages);
+  if (holdingAnswer && (options.allowPrivateAI !== true || options.allowDetailedPrivateAI !== true || !hasAnyProvider || !isPortfolioDataReady(portfolio))) {
+    return { source: "deterministic", answer: holdingAnswer, suggestedQuestions, portfolioChanged: false };
+  }
 
   if (!isPortfolioDataReady(portfolio)) return {
     source: "deterministic", answer: "Some holdings have an unavailable or stale NAV, or an unverified purchase cost. Review the flagged holdings on Portfolio first. Gain, allocation, and investment suggestions are paused until those figures are verified.",
@@ -325,6 +337,15 @@ export async function answerPortfolioQuestion(
       riskScore: portfolio.riskScore,
     },
     topAllocations: getTopAllocations(portfolio),
+    ...(options.allowDetailedPrivateAI === true ? { holdings: portfolio.funds.map(fund => ({
+      name: fund.name, schemeCode: fund.schemeCode, category: fund.category,
+      investedAmount: fund.investedAmount, units: fund.units, purchaseDate: fund.purchaseDate,
+      purchaseNav: fund.purchaseNav, purchaseStatus: fund.purchaseStatus,
+      currentValue: fund.currentValue, nav: fund.nav, navAsOf: fund.navAsOf,
+      navSourceUrl: fund.navSourceUrl, valuationStatus: fund.valuationStatus,
+      unrealizedChange: fund.currentValue - fund.investedAmount,
+      holdingReturnPercent: fund.investedAmount > 0 ? (fund.currentValue - fund.investedAmount) / fund.investedAmount * 100 : null,
+    })), verifiedLocalAnswer: holdingAnswer } : {}),
     analysis: {
       overallHealth: analysis.overallHealth,
       diversificationScore: analysis.diversificationScore,
@@ -357,7 +378,7 @@ export async function answerPortfolioQuestion(
     }
 
     const { text: answer, provider } = await getAIChatCompletion([
-      { role: "system", content: systemPrompt(false, false) },
+      { role: "system", content: portfolioSystemPrompt(false, false, toolContext?.isSignedIn) },
       { role: "user", content: `Portfolio data:\n${JSON.stringify(groundingData, null, 2)}` },
       ...messages.slice(-8).map((message) => ({ role: message.role, content: message.content })),
     ]);
@@ -367,7 +388,7 @@ export async function answerPortfolioQuestion(
     console.error("Portfolio assistant failed, falling back:", error);
     return {
       source: "deterministic",
-      answer: fallbackAnswer(portfolio, latestQuestion),
+      answer: holdingAnswer || fallbackAnswer(portfolio, latestQuestion),
       suggestedQuestions,
       portfolioChanged: false,
     };
