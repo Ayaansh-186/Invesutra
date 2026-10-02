@@ -95,18 +95,11 @@ export function recalculatePortfolio(portfolio: Portfolio): Portfolio {
   // scores so a freshly-loaded portfolio from the DB looks identical to one
   // computed from mock data.
   const analysis = riskEngine.analyzePortfolio(basePortfolio);
-  const diversificationWeight = 0.6;
-  const riskWeight = 0.4;
-  const healthScore = Math.round(
-    analysis.diversificationScore * diversificationWeight +
-      Math.max(0, 100 - Math.abs(analysis.riskMetrics.beta - 1) * 40) * riskWeight
-  );
-  const riskScore = Math.min(100, Math.round(analysis.riskMetrics.beta * 50 + analysis.riskMetrics.standardDeviation));
 
   return {
     ...basePortfolio,
-    healthScore: Math.max(0, Math.min(100, healthScore)),
-    riskScore: Math.max(0, Math.min(100, riskScore)),
+    healthScore: analysis.healthScore,
+    riskScore: analysis.riskScore,
     analysis,
   };
 }

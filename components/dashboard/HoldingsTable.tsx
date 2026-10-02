@@ -14,12 +14,14 @@ export default function HoldingsTable({
   totalValue,
   onChanged,
   canAskAI = false,
+  onRepair,
 }: {
   funds: Fund[];
   totalValue: number;
   /** Called after a successful edit or delete so the parent can refetch the portfolio. */
   onChanged?: () => void;
   canAskAI?: boolean;
+  onRepair?: (fund: Fund) => void;
 }) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValues, setEditValues] = useState({ investedAmount: 0, currentValue: 0 });
@@ -149,7 +151,7 @@ export default function HoldingsTable({
                   {fund.navAsOf && <p className="mt-1 text-xs text-[var(--shell-text-faint)]">NAV {formatCurrencyExact(fund.nav, 5)} · {fund.navAsOf}{fund.navSourceUrl && <> · <a href={fund.navSourceUrl} target="_blank" rel="noopener noreferrer" className="underline">Source</a></>}</p>}
                   {isEtf && <p className="mt-1 text-xs font-medium text-amber-600">ETF market price is not verified. Saved value is not a live exchange quote.</p>}
                   {needsReview && <p className="mt-1 text-xs font-medium text-amber-600">Purchase details do not match the published allotment-date NAV. Check your statement before relying on returns.</p>}
-                  {!valueVerified && !valuePending && !isEtf && <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">{fund.valuationStatus === "missing_units" ? "Units are missing. Add the holding again with statement units." : fund.valuationStatus === "missing_scheme" ? "Exact scheme could not be identified. Add the holding again from verified search." : "Recent NAV could not be verified. The last saved value is shown below."}</p>}
+                  {!valueVerified && !valuePending && !isEtf && <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">{fund.valuationStatus === "missing_units" ? "Units are missing. Correct purchase details using your statement." : fund.valuationStatus === "missing_scheme" ? "Exact scheme is missing. Correct purchase details using verified search." : "Recent NAV could not be verified. The last saved value is shown below."}</p>}
                   <p className="mt-1 text-[11px] text-[var(--shell-text-faint)] md:hidden">
                     Invested {formatCurrency(fund.investedAmount, true)}
                   </p>
@@ -249,11 +251,11 @@ export default function HoldingsTable({
                       </div>
                     ) : (
                       <div className="flex justify-end gap-1">
-                        {!fund.purchaseDate && !isEtf && <button
-                          onClick={() => startEdit(fund)}
+                        {!isEtf && (onRepair || !fund.purchaseDate) && <button
+                          onClick={() => onRepair ? onRepair(fund) : startEdit(fund)}
                           className="app-icon-button"
-                          title="Edit invested amount"
-                          aria-label={`Edit invested amount for ${fund.name}`}
+                          title={onRepair ? "Correct purchase details" : "Edit invested amount"}
+                          aria-label={`${onRepair ? "Correct purchase details" : "Edit invested amount"} for ${fund.name}`}
                         >
                           <Pencil className="h-3.5 w-3.5" />
                         </button>}

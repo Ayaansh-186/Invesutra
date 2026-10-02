@@ -10,6 +10,9 @@ import SimulatorChart from "@/components/simulator/SimulatorChart";
 import { Play, RefreshCw, TrendingUp, BarChart2, Zap, Shield, PieChart, Flame, Wallet, ArrowRight, AlertTriangle, MessageSquare } from "lucide-react";
 import { categoryLabel } from "@/lib/utils/format";
 import { useActivePortfolio } from "@/lib/hooks/useActivePortfolio";
+import { portfolioSimulationInputs } from "@/lib/algorithm/portfolioSimulation";
+import { isPortfolioDataReady } from "@/lib/marketData/quality";
+import ValuationStatus from "@/components/dashboard/ValuationStatus";
 
 const DEFAULT_INPUT: SimulationInput = {
   initialInvestment: 500000,
@@ -20,10 +23,10 @@ const DEFAULT_INPUT: SimulationInput = {
   triggerPercent: 12,
   enableRebalancing: true,
   funds: [
-    { name: "Large Cap", allocation: 40, expectedReturn: 13, category: "large_cap", riskLevel: "moderately_high" },
-    { name: "Mid Cap", allocation: 30, expectedReturn: 16, category: "mid_cap", riskLevel: "high" },
-    { name: "Debt Fund", allocation: 20, expectedReturn: 7, category: "debt", riskLevel: "low" },
-    { name: "Index Fund", allocation: 10, expectedReturn: 13, category: "index", riskLevel: "moderately_high" },
+    { name: "Large Cap", allocation: 40, expectedReturn: 14, category: "large_cap", riskLevel: "moderately_high" },
+    { name: "Mid Cap", allocation: 30, expectedReturn: 14, category: "mid_cap", riskLevel: "high" },
+    { name: "Debt Fund", allocation: 20, expectedReturn: 14, category: "debt", riskLevel: "low" },
+    { name: "Index Fund", allocation: 10, expectedReturn: 14, category: "index", riskLevel: "moderately_high" },
   ],
 };
 
@@ -51,18 +54,11 @@ export default function SimulatorPage() {
   const triggerCategoryWarning = checkTriggerCategoryFit(input.triggerPercent, input.funds);
 
   function handleLoadRealPortfolio() {
-    if (!activePortfolio.funds.length) return;
-    const totalValue = activePortfolio.funds.reduce((s, f) => s + f.currentValue, 0);
+    const verifiedInputs = portfolioSimulationInputs(activePortfolio, input.expectedReturn);
+    if (!verifiedInputs) { setRunError("Verify NAVs and purchase records before loading this portfolio."); return; }
     setInput({
       ...input,
-      initialInvestment: Math.round(activePortfolio.currentValue || totalValue),
-      funds: activePortfolio.funds.map((f) => ({
-        name: f.name,
-        allocation: totalValue > 0 ? Math.round((f.currentValue / totalValue) * 1000) / 10 : 0,
-        expectedReturn: f.returns1Y,
-        category: f.category,
-        riskLevel: f.riskLevel,
-      })),
+      ...verifiedInputs,
     });
     setLoadedFromPortfolio(true);
     setResult(null);
@@ -116,7 +112,8 @@ export default function SimulatorPage() {
           {!isDemo && !portfolioLoading && activePortfolio.funds.length > 0 && (
             <button
               onClick={handleLoadRealPortfolio}
-              className="flex items-center gap-2 rounded-xl border border-[var(--shell-border)] bg-[var(--shell-surface)] px-4 py-2.5 text-sm font-medium text-[var(--shell-text)] transition hover:border-cyan-500/40"
+              disabled={!isPortfolioDataReady(activePortfolio)}
+              className="app-secondary-button"
             >
               <Wallet className="h-4 w-4 text-cyan-500" />
               {loadedFromPortfolio ? "Reload my portfolio" : "Load my portfolio"}
@@ -131,9 +128,10 @@ export default function SimulatorPage() {
           </Link>
         </div>
       </div>
+      {!isDemo && <ValuationStatus portfolio={activePortfolio} />}
       {loadedFromPortfolio && (
         <div className="-mt-4 mb-6 rounded-lg border border-cyan-500/20 bg-cyan-400/10 px-4 py-2.5 text-xs text-[var(--shell-text-muted)]">
-          Loaded your {activePortfolio.funds.length} real fund{activePortfolio.funds.length === 1 ? "" : "s"} — 1Y returns are used as the expected-return estimate for each.
+          Loaded verified NAV values and allocation. Future returns use your chosen scenario assumption, not the funds' past returns. This is a hypothetical simulation, not a forecast.
         </div>
       )}
 
@@ -188,14 +186,18 @@ export default function SimulatorPage() {
               </div>
 
               <div>
-                <label className="text-xs font-medium text-[var(--shell-text-muted)] mb-1 block">Expected Annual Return: {input.expectedReturn}%</label>
+                <label htmlFor="assumed-return" className="text-xs font-medium text-[var(--shell-text-muted)] mb-1 block">Assumed annual return: {input.expectedReturn}%</label>
                 <input
+                  id="assumed-return"
                   type="range"
                   min={6}
                   max={24}
                   step={0.5}
                   value={input.expectedReturn}
-                  onChange={e => setInput({...input, expectedReturn: +e.target.value})}
+                  onChange={e => {
+                    const expectedReturn = Number(e.target.value);
+                    setInput({...input, expectedReturn, funds: input.funds.map(fund => ({...fund, expectedReturn}))});
+                  }}
                   className="w-full accent-cyan-500"
                 />
                 <div className="flex justify-between text-xs text-[var(--shell-text-faint)] mt-1">
@@ -253,7 +255,7 @@ export default function SimulatorPage() {
                       <div className="flex items-center justify-between mb-1">
                         <span className="text-xs text-[var(--shell-text-muted)] font-medium">{fund.name}</span>
                         <span className="text-xs text-[var(--shell-text-faint)]">
-                          {fund.allocation}% · {fund.expectedReturn}% exp.
+                          {fund.allocation.toFixed(1)}% · {fund.expectedReturn}% assumed
                         </span>
                       </div>
                       <input

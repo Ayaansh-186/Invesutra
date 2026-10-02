@@ -12,6 +12,7 @@ import MilestoneTracker from "@/components/dashboard/MilestoneTracker";
 import SinceLastVisit from "@/components/dashboard/SinceLastVisit";
 import ValuationStatus from "@/components/dashboard/ValuationStatus";
 import { isPortfolioDataReady } from "@/lib/marketData/quality";
+import type { Fund } from "@/lib/types";
 import {
   Sparkles, Plus, RefreshCw, TrendingUp, TrendingDown, MessageSquare, AlertTriangle, ChevronDown,
 } from "lucide-react";
@@ -24,6 +25,7 @@ export default function PortfolioPage() {
   const { user } = useAuth();
   const { portfolio, loading, isDemo, isEmpty, error, refresh } = useActivePortfolio();
   const [showAddFund, setShowAddFund] = useState(false);
+  const [holdingToRepair, setHoldingToRepair] = useState<Fund | undefined>();
   const [refreshing, setRefreshing] = useState(false);
   const [refreshNotice, setRefreshNotice] = useState<string | null>(null);
   const analysis = portfolio.analysis ?? riskEngine.analyzePortfolio(portfolio);
@@ -202,7 +204,7 @@ export default function PortfolioPage() {
                   <h2 className="text-lg font-semibold text-[var(--shell-text)]">Your holdings</h2>
                   <span className="text-xs text-[var(--shell-text-faint)]">{portfolio.funds.length} total</span>
                 </div>
-                <HoldingsTable funds={portfolio.funds} totalValue={portfolio.currentValue} onChanged={!isDemo && user ? refresh : undefined} canAskAI={!isDemo && Boolean(user)} />
+                <HoldingsTable funds={portfolio.funds} totalValue={portfolio.currentValue} onChanged={!isDemo && user ? refresh : undefined} onRepair={!isDemo && user ? setHoldingToRepair : undefined} canAskAI={!isDemo && Boolean(user)} />
               </section>
 
               {dataReady && <details className="group border-t border-[var(--shell-border)]">
@@ -212,9 +214,9 @@ export default function PortfolioPage() {
                 </summary>
                 <div className="space-y-8 pb-10">
                   <div className="grid gap-5 border-b border-[var(--shell-border)] pb-6 text-sm sm:grid-cols-3">
-                    <p className="text-[var(--shell-text-muted)]">Portfolio health <strong className={`mt-1 block text-lg ${getHealthColor(portfolio.healthScore)}`}>{portfolio.healthScore}/100</strong></p>
+                    <p className="text-[var(--shell-text-muted)]">Model health <strong className={`mt-1 block text-lg ${getHealthColor(portfolio.healthScore)}`}>{portfolio.healthScore}/100</strong></p>
                     <p className="text-[var(--shell-text-muted)]">Diversification <strong className="mt-1 block text-lg text-[var(--shell-text)]">{analysis.diversificationScore}/100</strong></p>
-                    <p className="text-[var(--shell-text-muted)]">Risk score <strong className="mt-1 block text-lg text-[var(--shell-text)]">{portfolio.riskScore}/100</strong></p>
+                    <p className="text-[var(--shell-text-muted)]">Category-risk model <strong className="mt-1 block text-lg text-[var(--shell-text)]">{portfolio.riskScore}/100</strong></p>
                   </div>
                   {!isDemo && user && portfolio.id && (
                     <SinceLastVisit
@@ -248,12 +250,14 @@ export default function PortfolioPage() {
 
       </div>
 
-      {showAddFund && (
+      {(showAddFund || holdingToRepair) && (
         <AddFundModal
           portfolioId={!isDemo && portfolio.id ? portfolio.id : user ? "needs-portfolio" : null}
-          onClose={() => setShowAddFund(false)}
+          holdingToRepair={holdingToRepair}
+          onClose={() => { setShowAddFund(false); setHoldingToRepair(undefined); }}
           onAdded={() => {
             setShowAddFund(false);
+            setHoldingToRepair(undefined);
             refresh();
           }}
         />

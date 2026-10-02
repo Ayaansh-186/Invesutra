@@ -74,6 +74,8 @@ export interface Portfolio {
 }
 
 export interface PortfolioAnalysis {
+  healthScore: number;
+  riskScore: number;
   overallHealth: "excellent" | "good" | "fair" | "poor";
   diversificationScore: number;
   concentrationRisk: ConcentrationRisk[];
@@ -114,11 +116,11 @@ export interface AllocationBreakdown {
 }
 
 export interface RiskMetrics {
-  beta: number;
-  sharpeRatio: number;
-  standardDeviation: number;
-  maxDrawdown: number;
-  valueAtRisk: number; // 95% VaR
+  beta: number | null;
+  sharpeRatio: number | null;
+  standardDeviation: number | null;
+  maxDrawdown: number | null;
+  valueAtRisk: number | null; // 95% VaR
 }
 
 // QuantRebalance Protocol Types

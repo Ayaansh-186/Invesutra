@@ -102,12 +102,12 @@ function fallbackAnswer(portfolio: Portfolio, question: string): string {
   if (lower.includes("risk")) {
     const riskReason = topRisk
       ? `${topRisk.label.toLowerCase()} is ${topRisk.currentPercent.toFixed(1)}%, above the ${topRisk.recommendedMax}% guide`
-      : `beta is ${analysis.riskMetrics.beta.toFixed(2)} with estimated max drawdown of ${analysis.riskMetrics.maxDrawdown.toFixed(1)}%`;
+      : "the current fund-category mix; historical beta and drawdown are unavailable";
     return `Risk score: ${portfolio.riskScore}/100 — worth a look. Main driver: ${riskReason}. Mid-cap exposure is ${midPct.toFixed(1)}%, small-cap is ${smallPct.toFixed(1)}%, and debt plus hybrid is ${(debtPct + hybridPct).toFixed(1)}%. First move before adding anything more aggressive: bring that concentration down.`;
   }
 
   if (lower.includes("health") || lower.includes("score")) {
-    return `Health score: ${portfolio.healthScore}/100 (${analysis.overallHealth}). That's coming from diversification at ${analysis.diversificationScore}/100, beta ${analysis.riskMetrics.beta.toFixed(2)}, Sharpe ${analysis.riskMetrics.sharpeRatio.toFixed(2)}, ${analysis.concentrationRisk.length} concentration alert${analysis.concentrationRisk.length === 1 ? "" : "s"}, and ${underperformers.length} underperformer${underperformers.length === 1 ? "" : "s"}.`;
+    return `Model health score: ${portfolio.healthScore}/100 (${analysis.overallHealth}), based on diversification at ${analysis.diversificationScore}/100, category risk, ${analysis.concentrationRisk.length} concentration alert${analysis.concentrationRisk.length === 1 ? "" : "s"}, and ${underperformers.length} trailing-return screening flag${underperformers.length === 1 ? "" : "s"}. Historical beta and Sharpe are unavailable; the score is not a measured risk-adjusted return.`;
   }
 
   if (lower.includes("divers") || lower.includes("allocation")) {
@@ -124,7 +124,7 @@ function fallbackAnswer(portfolio: Portfolio, question: string): string {
 
   if (lower.includes("perform") || lower.includes("return") || lower.includes("review")) {
     const laggards = underperformers.map((fund) => `${fund.name} (${formatPercent(fund.returns1Y)} 1Y)`).slice(0, 3);
-    return `Portfolio return is ${formatPercent(portfolio.returnsPercent)} on ${formatCurrency(portfolio.totalInvested, true)} invested. ${laggards.length ? `Review these first: ${laggards.join(", ")}.` : "No major underperformer is currently flagged by the local rules."} Current Sharpe estimate is ${analysis.riskMetrics.sharpeRatio.toFixed(2)}.`;
+    return `Portfolio return is ${formatPercent(portfolio.returnsPercent)} on ${formatCurrency(portfolio.totalInvested, true)} invested. ${laggards.length ? `Review these first: ${laggards.join(", ")}.` : "No major underperformer is currently flagged by the local rules."} Sharpe is unavailable without a validated historical portfolio-return series.`;
   }
 
   if (lower.includes("sip") && (lower.includes("what") || lower.includes("how") || lower.includes("explain"))) {
@@ -170,7 +170,7 @@ function systemPrompt(canMutate: boolean, hasTools: boolean): string {
     "returns — use the search_mutual_funds / get_fund_details tools for real fund data instead of guessing. This is " +
     "educational decision support, not investment advice. Treat null or absent metrics as unavailable, never zero. " +
     "NAV is the latest published daily value, not an intraday quote. Check NAV dates in tool results before describing any fund as current. " +
-    "Risk scores, beta, drawdown and Sharpe are heuristic estimates, not observed historical market statistics. " +
+    "Health and category-risk scores are model assessments. Null beta, drawdown, volatility, VaR and Sharpe are unavailable: do not estimate or invent them. " +
     "VOICE: You're not a generic advisor reciting numbers — you're Invesutra, and you've actually been paying " +
     "attention to this specific portfolio. Have real, direct opinions grounded in the actual data (never invented). " +
     "When the conversation history shows the user asked about a fund or issue before, reference that naturally " +

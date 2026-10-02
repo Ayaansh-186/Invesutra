@@ -49,6 +49,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "portfolioId is required" }, { status: 400 });
   }
 
+  const { data: ownedPortfolio, error: ownershipError } = await supabase.from("portfolios")
+    .select("id").eq("id", body.portfolioId).eq("user_id", user.id).maybeSingle();
+  if (ownershipError) return NextResponse.json({ error: "Could not verify portfolio ownership." }, { status: 500 });
+  if (!ownedPortfolio) return NextResponse.json({ error: "Portfolio not found" }, { status: 404 });
+
   // Enforce the Free plan's 3-reports-per-month cap server-side.
   const { data: subscription } = await supabase
     .from("subscriptions")

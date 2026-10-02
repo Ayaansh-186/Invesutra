@@ -181,7 +181,7 @@ export default function AIPortfolioAssistant({
     if (lower.includes("risk")) {
       return firstRisk
         ? `The cloud assistant is unavailable, so here is the local read: **${firstRisk.label}** is the biggest risk at **${firstRisk.currentPercent.toFixed(1)}%** versus the **${firstRisk.recommendedMax}%** guide. Your overall risk score is **${portfolio.riskScore}/100**.`
-        : `The cloud assistant is unavailable, so here is the local read: risk score is **${portfolio.riskScore}/100**, beta is **${analysis.riskMetrics.beta.toFixed(2)}**, and max drawdown estimate is **${analysis.riskMetrics.maxDrawdown.toFixed(1)}%**.`;
+        : `The cloud assistant is unavailable. The local category-risk model score is **${portfolio.riskScore}/100**. Historical beta and drawdown are unavailable; they are not inferred from fund categories.`;
     }
 
     if (lower.includes("divers") || lower.includes("allocation")) {

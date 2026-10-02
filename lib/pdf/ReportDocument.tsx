@@ -1,5 +1,6 @@
 import { Document, Page, Text, View, StyleSheet, Font } from "@react-pdf/renderer";
 import type { PortfolioAnalysis, Fund } from "@/lib/types";
+import { formatRiskMetric } from "@/lib/utils/format";
 
 // react-pdf ships without Helvetica's bold/oblique metrics registered by
 // default in some environments — register the standard family explicitly so
@@ -349,25 +350,26 @@ export function ReportDocument({ report }: { report: ReportPdfData }) {
 
         {/* Risk metrics */}
         <Text style={styles.h2}>Risk Metrics</Text>
+        <Text style={styles.paragraph}>Historical statistics require a validated portfolio return series and suitable benchmark. Unavailable statistics are not estimated. Health and category-risk scores are model assessments.</Text>
         <View style={styles.riskMetricsGrid}>
           <View style={styles.riskMetricCell}>
-            <Text style={styles.riskMetricValue}>{report.riskMetrics.beta.toFixed(2)}</Text>
+            <Text style={styles.riskMetricValue}>{formatRiskMetric(report.riskMetrics.beta)}</Text>
             <Text style={styles.riskMetricLabel}>Beta</Text>
           </View>
           <View style={styles.riskMetricCell}>
-            <Text style={styles.riskMetricValue}>{report.riskMetrics.sharpeRatio.toFixed(2)}</Text>
+            <Text style={styles.riskMetricValue}>{formatRiskMetric(report.riskMetrics.sharpeRatio)}</Text>
             <Text style={styles.riskMetricLabel}>Sharpe Ratio</Text>
           </View>
           <View style={styles.riskMetricCell}>
-            <Text style={styles.riskMetricValue}>{report.riskMetrics.standardDeviation.toFixed(1)}%</Text>
+            <Text style={styles.riskMetricValue}>{formatRiskMetric(report.riskMetrics.standardDeviation, 1, "%")}</Text>
             <Text style={styles.riskMetricLabel}>Standard Deviation</Text>
           </View>
           <View style={styles.riskMetricCell}>
-            <Text style={styles.riskMetricValue}>{report.riskMetrics.maxDrawdown.toFixed(1)}%</Text>
+            <Text style={styles.riskMetricValue}>{formatRiskMetric(report.riskMetrics.maxDrawdown, 1, "%")}</Text>
             <Text style={styles.riskMetricLabel}>Max Drawdown</Text>
           </View>
           <View style={styles.riskMetricCell}>
-            <Text style={styles.riskMetricValue}>{report.riskMetrics.valueAtRisk.toFixed(1)}%</Text>
+            <Text style={styles.riskMetricValue}>{formatRiskMetric(report.riskMetrics.valueAtRisk, 1, "%")}</Text>
             <Text style={styles.riskMetricLabel}>Value at Risk (95%)</Text>
           </View>
         </View>

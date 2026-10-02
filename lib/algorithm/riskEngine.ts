@@ -1,22 +1,26 @@
 import type { Fund, Portfolio, PortfolioAnalysis, ConcentrationRisk, RiskMetrics, AllocationBreakdown } from "../types";
 import { createRebalanceEngine } from "./rebalanceEngine";
-import { hasVerifiedMetric, isPortfolioDataReady } from "@/lib/marketData/quality";
+import { hasVerifiedMetric, hasVerifiedValue, isPortfolioDataReady } from "@/lib/marketData/quality";
 
 export class RiskEngine {
   analyzePortfolio(portfolio: Portfolio): PortfolioAnalysis {
-    const { funds, totalInvested, currentValue } = portfolio;
-    const totalValue = currentValue || totalInvested;
+    const valuesReady = portfolio.valuationComplete !== false && portfolio.funds.every(fund =>
+      hasVerifiedValue(fund) && Number.isFinite(fund.currentValue) && fund.currentValue > 0);
+    const funds = valuesReady ? portfolio.funds : [];
+    const totalValue = funds.reduce((sum, fund) => sum + fund.currentValue, 0);
 
     const allocationBreakdown = this.calculateAllocationBreakdown(funds, totalValue);
     const concentrationRisks = this.detectConcentrationRisks(allocationBreakdown);
-    const riskMetrics = this.calculateRiskMetrics(funds, totalValue);
-    const diversificationScore = this.calculateDiversificationScore(allocationBreakdown, funds);
+    const riskMetrics: RiskMetrics = { beta: null, sharpeRatio: null, standardDeviation: null, maxDrawdown: null, valueAtRisk: null };
+    const riskScore = this.calculateCategoryRisk(funds, totalValue);
+    const diversificationScore = funds.length ? this.calculateDiversificationScore(allocationBreakdown, funds) : 0;
     const underperformers = this.detectUnderperformers(funds);
-    const healthScore = this.calculateHealthScore(diversificationScore, concentrationRisks, riskMetrics, underperformers.length);
-    const aiInsights = this.generateInsights(concentrationRisks, underperformers, riskMetrics, allocationBreakdown);
+    const healthScore = funds.length ? this.calculateHealthScore(diversificationScore, concentrationRisks, riskScore, underperformers.length) : 0;
+    const aiInsights = valuesReady && funds.length ? this.generateInsights(concentrationRisks, underperformers, allocationBreakdown) : ["Verify current NAV valuations before assessing allocation or risk."];
     const rebalancingSuggestions = isPortfolioDataReady(portfolio) ? createRebalanceEngine().generateRebalancingSuggestions(funds, totalValue) : [];
 
     return {
+      healthScore, riskScore,
       overallHealth: this.scoreToHealth(healthScore),
       diversificationScore,
       concentrationRisk: concentrationRisks,
@@ -100,48 +104,11 @@ export class RiskEngine {
     return risks;
   }
 
-  private calculateRiskMetrics(funds: Fund[], totalValue: number): RiskMetrics {
-    if (funds.length === 0) {
-      return { beta: 1, sharpeRatio: 0, standardDeviation: 0, maxDrawdown: 0, valueAtRisk: 0 };
-    }
-
-    const riskWeights: Record<string, number> = {
-      low: 0.4,
-      moderate: 0.7,
-      moderately_high: 0.9,
-      high: 1.2,
-      very_high: 1.5,
-    };
-
-    let weightedBeta = 0;
-    let weightedReturn = 0;
-
-    for (const fund of funds) {
-      const weight = totalValue > 0 ? fund.currentValue / totalValue : 1 / funds.length;
-      weightedBeta += (riskWeights[fund.riskLevel] || 1) * weight;
-      if (hasVerifiedMetric(fund, "returns1Y")) weightedReturn += fund.returns1Y * weight;
-    }
-
-    const stdDev = weightedBeta * 12 + this.stableNoise(funds);
-    const riskFreeRate = 6.5;
-    const sharpeRatio = stdDev > 0 ? (weightedReturn - riskFreeRate) / stdDev : 0;
-    const maxDrawdown = -(weightedBeta * 15 + 5);
-    const valueAtRisk = -(stdDev * 1.645);
-
-    return {
-      beta: Number(weightedBeta.toFixed(2)),
-      sharpeRatio: Number(sharpeRatio.toFixed(2)),
-      standardDeviation: Number(stdDev.toFixed(2)),
-      maxDrawdown: Number(maxDrawdown.toFixed(2)),
-      valueAtRisk: Number(valueAtRisk.toFixed(2)),
-    };
-  }
-
-  private stableNoise(funds: Fund[]): number {
-    const seed = funds.reduce((sum, fund) => {
-      return sum + [...fund.id + fund.name].reduce((inner, char) => inner + char.charCodeAt(0), 0);
-    }, 0);
-    return (seed % 30) / 10;
+  // A transparent category-based model score, not measured market volatility.
+  private calculateCategoryRisk(funds: Fund[], totalValue: number): number {
+    if (totalValue <= 0) return 0;
+    const weights: Record<string, number> = { low: 20, moderate: 40, moderately_high: 60, high: 80, very_high: 100 };
+    return Math.round(funds.reduce((score, fund) => score + (weights[fund.riskLevel] ?? 60) * fund.currentValue / totalValue, 0));
   }
 
   private calculateDiversificationScore(breakdown: AllocationBreakdown, funds: Fund[]): number {
@@ -174,25 +141,18 @@ export class RiskEngine {
   private calculateHealthScore(
     diversificationScore: number,
     risks: ConcentrationRisk[],
-    metrics: RiskMetrics,
+    riskScore: number,
     underperformerCount: number
   ): number {
-    let score = diversificationScore * 0.4;
+    let score = diversificationScore * 0.8 + (100 - riskScore) * 0.2;
 
     const criticalRisks = risks.filter((risk) => risk.severity === "critical").length;
     const warningRisks = risks.filter((risk) => risk.severity === "warning").length;
     score -= criticalRisks * 15;
     score -= warningRisks * 7;
 
-    if (metrics.sharpeRatio > 1) score += 15;
-    else if (metrics.sharpeRatio > 0.5) score += 8;
-
-    score -= underperformerCount * 10;
-
-    if (metrics.beta < 1.2) score += 10;
-    if (Math.abs(metrics.maxDrawdown) < 20) score += 10;
-
-    return Math.max(0, Math.min(100, Math.round(score + 40)));
+    score -= underperformerCount * 5;
+    return Math.max(0, Math.min(100, Math.round(score)));
   }
 
   private scoreToHealth(score: number): "excellent" | "good" | "fair" | "poor" {
@@ -205,7 +165,6 @@ export class RiskEngine {
   private generateInsights(
     risks: ConcentrationRisk[],
     underperformerIds: string[],
-    metrics: RiskMetrics,
     breakdown: AllocationBreakdown
   ): string[] {
     const insights: string[] = [];
@@ -218,14 +177,6 @@ export class RiskEngine {
       insights.push(`${underperformerIds.length} fund(s) have low or negative trailing NAV returns under the local screening rules. Compare the appropriate benchmarks before making a decision.`);
     }
 
-    if (metrics.sharpeRatio < 0.5) {
-      insights.push(`Portfolio Sharpe Ratio of ${metrics.sharpeRatio} is low. You may not be getting adequate return for the risk taken.`);
-    }
-
-    if (metrics.beta > 1.3) {
-      insights.push(`High portfolio beta (${metrics.beta}) means your portfolio is more volatile than the market. Consider adding defensive assets.`);
-    }
-
     const debtPct = (breakdown.byCategory as any).debt || 0;
     if (debtPct < 10) {
       insights.push("Debt allocation is below 10%. Adding debt funds can reduce overall portfolio volatility and improve risk-adjusted returns.");
@@ -235,6 +186,7 @@ export class RiskEngine {
       insights.push("Portfolio structure looks healthy. Continue monitoring allocation on a quarterly basis.");
     }
 
+    insights.push("Health and category-risk scores are model assessments. Historical beta, Sharpe, volatility, drawdown and VaR are unavailable without a validated portfolio return series and suitable benchmark.");
     return insights;
   }
 }

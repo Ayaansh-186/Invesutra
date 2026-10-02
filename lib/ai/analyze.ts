@@ -61,7 +61,7 @@ function buildDeterministicNarrative(
       title: "Risk And Concentration",
       body: topRisk
         ? `${topRisk.label} exceeds the ${topRisk.recommendedMax}% guide, so the next rebalance should reduce concentration before adding more aggressive exposure.`
-        : `Risk is mainly driven by beta ${analysis.riskMetrics.beta.toFixed(2)} and estimated max drawdown ${analysis.riskMetrics.maxDrawdown.toFixed(1)}%, with no major concentration breach detected.`,
+        : "No major category-concentration breach is detected. The category-risk score is a model assessment; historical volatility, drawdown and benchmark statistics are unavailable.",
       tone: topRisk ? "warning" : "positive",
     },
     {
@@ -147,7 +147,7 @@ export async function analyzePortfolioWithAI(portfolio: Portfolio, options: { al
             'pre-computed deterministic analysis data — turn it into a clear, direct narrative, not a generic ' +
             'advisory-report tone. You have real opinions grounded in the actual numbers (never invented ones): ' +
             'be plainspoken, occasionally blunt about a bad allocation, but never sacrifice accuracy for personality. ' +
-            'Never invent numbers, percentages, financial figures, holdings overlap, or future returns. Always note ' +
+            'Never invent numbers, percentages, financial figures, holdings overlap, or future returns. Null risk metrics are unavailable, never zero. Health and category-risk scores are model assessments, not observed market statistics. Always note ' +
             'that this is informational, not investment advice. Respond with strict JSON: { "summary": string, ' +
             '"insights": [{ "title": string, "body": string, "tone": "positive" | "neutral" | "warning" }] }. ' +
             'Produce 3 to 5 insights, each 1-2 sentences, written for a retail investor.',

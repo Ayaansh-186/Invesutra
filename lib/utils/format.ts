@@ -25,6 +25,10 @@ export function formatPercent(value: number, showSign = true): string {
   return `${sign}${value.toFixed(2)}%`;
 }
 
+export function formatRiskMetric(value: number | null, fractionDigits = 2, suffix = ""): string {
+  return value !== null && Number.isFinite(value) ? `${value.toFixed(fractionDigits)}${suffix}` : "Unavailable";
+}
+
 export function formatNumber(value: number): string {
   return new Intl.NumberFormat("en-IN").format(value);
 }

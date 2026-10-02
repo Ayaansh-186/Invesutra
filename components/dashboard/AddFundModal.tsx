@@ -9,6 +9,7 @@ import { isRecentNav } from "@/lib/marketData/navFreshness";
 import { isExchangeTradedFund } from "@/lib/marketData/amfi";
 import { calculatePurchaseValues, isValidPurchaseDate, todayInIndia } from "@/lib/utils/purchase";
 import { useToast } from "@/components/shared/ToastProvider";
+import type { Fund } from "@/lib/types";
 
 interface Props {
   // null  = not signed in (show sign-up CTA)
@@ -17,6 +18,7 @@ interface Props {
   portfolioId: string | null;
   onClose: () => void;
   onAdded: () => void;
+  holdingToRepair?: Fund;
 }
 
 function hasRecentPrice(fund: FundSearchResult): boolean {
@@ -24,7 +26,7 @@ function hasRecentPrice(fund: FundSearchResult): boolean {
     Number.isFinite(fund.nav) && (fund.nav || 0) > 0 && /^\d+$/.test(fund.symbol || "");
 }
 
-export default function AddFundModal({ portfolioId, onClose, onAdded }: Props) {
+export default function AddFundModal({ portfolioId, onClose, onAdded, holdingToRepair }: Props) {
   const titleId = useId();
   const searchResultsId = useId();
   const purchaseNavId = useId();
@@ -49,7 +51,7 @@ export default function AddFundModal({ portfolioId, onClose, onAdded }: Props) {
   }, []);
 
   const [mode, setMode] = useState<"search" | "selected">("search");
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(holdingToRepair?.schemeCode || holdingToRepair?.name || "");
   const [plan, setPlan] = useState("all");
   const [option, setOption] = useState("all");
   const [results, setResults] = useState<FundSearchResult[]>([]);
@@ -103,7 +105,7 @@ export default function AddFundModal({ portfolioId, onClose, onAdded }: Props) {
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || "Fund search is unavailable.");
         if (seq !== searchSeq.current) return; // a newer search superseded this one
-        setResults(data.funds || []);
+        setResults((data.funds || []).filter((fund: FundSearchResult) => !holdingToRepair?.schemeCode || fund.symbol === holdingToRepair.schemeCode));
         setSearchMessage(data.message || null);
         setHighlightedIndex(-1);
       } catch (searchError) {
@@ -117,7 +119,7 @@ export default function AddFundModal({ portfolioId, onClose, onAdded }: Props) {
       clearTimeout(timer);
       controller.abort();
     };
-  }, [query, mode, plan, option]);
+  }, [query, mode, plan, option, holdingToRepair?.schemeCode]);
 
   useEffect(() => {
     if (mode !== "selected" || !selectedFund?.symbol || !isValidPurchaseDate(purchaseDate)) return;
@@ -154,8 +156,8 @@ export default function AddFundModal({ portfolioId, onClose, onAdded }: Props) {
     if (!hasRecentPrice(fund)) return;
     setSelectedFund(fund);
     setPurchaseNav("");
-    setUnits("");
-    setPurchaseDate("");
+    setUnits(holdingToRepair && holdingToRepair.units > 0 ? String(holdingToRepair.units) : "");
+    setPurchaseDate(holdingToRepair?.purchaseDate && isValidPurchaseDate(holdingToRepair.purchaseDate) ? holdingToRepair.purchaseDate : "");
     setVerifiedPurchaseNav(null);
     setQuoteError(null);
     setCheckingNav(false);
@@ -195,8 +197,8 @@ export default function AddFundModal({ portfolioId, onClose, onAdded }: Props) {
 
       if (!pid) { setError("No portfolio found."); setSubmitting(false); return; }
 
-      const res = await fetch(`/api/portfolios/${pid}/funds`, {
-        method: "POST",
+      const res = await fetch(holdingToRepair ? `/api/funds/${holdingToRepair.id}/purchase` : `/api/portfolios/${pid}/funds`, {
+        method: holdingToRepair ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           schemeCode: selectedFund.symbol,
@@ -206,9 +208,9 @@ export default function AddFundModal({ portfolioId, onClose, onAdded }: Props) {
         }),
       });
       const data = await res.json();
-      if (!res.ok) { setError(data.error || "Could not add fund."); setSubmitting(false); return; }
+      if (!res.ok) { setError(data.error || "Could not save purchase details."); setSubmitting(false); return; }
       onAdded();
-      showToast(`Added ${selectedFund.name} to your portfolio`, "success");
+      showToast(holdingToRepair ? "Purchase details corrected" : `Added ${selectedFund.name} to your portfolio`, "success");
     } catch {
       setError("Network error. Please try again.");
       setSubmitting(false);
@@ -262,7 +264,7 @@ export default function AddFundModal({ portfolioId, onClose, onAdded }: Props) {
       >
         <div className="flex items-center justify-between gap-3 p-5 border-b border-[var(--shell-border)] sticky top-0 bg-[var(--shell-surface)] rounded-t-lg z-10">
           <div>
-            <h2 id={titleId} className="text-lg font-semibold text-[var(--shell-text)]">Add mutual fund</h2>
+            <h2 id={titleId} className="text-lg font-semibold text-[var(--shell-text)]">{holdingToRepair ? "Correct holding" : "Add mutual fund"}</h2>
             <p className="text-xs text-[var(--shell-text-faint)] mt-0.5">
               {mode === "search" && "Find your fund"}
               {mode === "selected" && "Enter your purchase"}
@@ -440,7 +442,7 @@ export default function AddFundModal({ portfolioId, onClose, onAdded }: Props) {
               <button type="submit" disabled={submitting || checkingNav || !purchaseMatches || !values || !purchaseDateValid || !latestNav}
                 className="app-primary-button flex-1">
                 {submitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-                {submitting ? "Adding..." : "Add Fund"}
+                {submitting ? "Saving..." : holdingToRepair ? "Save correction" : "Add Fund"}
               </button>
               <button type="button" onClick={onClose}
                 className="app-secondary-button">

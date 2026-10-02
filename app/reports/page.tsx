@@ -6,7 +6,7 @@ import { useActivePortfolio } from "@/lib/hooks/useActivePortfolio";
 import { riskEngine } from "@/lib/algorithm/riskEngine";
 import { createRebalanceEngine } from "@/lib/algorithm/rebalanceEngine";
 import { allocationEngine } from "@/lib/algorithm/allocationEngine";
-import { formatCurrency, formatPercent, categoryLabel } from "@/lib/utils/format";
+import { formatCurrency, formatPercent, categoryLabel, formatRiskMetric } from "@/lib/utils/format";
 import type { Portfolio } from "@/lib/types";
 import { isPortfolioDataReady } from "@/lib/marketData/quality";
 import ValuationStatus from "@/components/dashboard/ValuationStatus";
@@ -103,8 +103,8 @@ function generateReport(portfolio: Portfolio) {
         ? [
             {
               severity: "warning" as const,
-              title: "Underperforming Funds Detected",
-              description: `${analysis.underperformers.length} fund(s) are below benchmark performance. Review and consider switching to better-performing alternatives.`,
+              title: "Trailing-return screening flags",
+              description: `${analysis.underperformers.length} fund(s) have low or negative trailing NAV returns under the local screening rules. No benchmark underperformance is established by this check.`,
             },
           ]
         : []),
@@ -190,11 +190,12 @@ export default function ReportsPage() {
       ...report.issues.map((i) => `- [${i.severity.toUpperCase()}] ${i.title}: ${i.description}`),
       ``,
       `RISK METRICS`,
-      `Beta: ${report.riskMetrics.beta}`,
-      `Sharpe Ratio: ${report.riskMetrics.sharpeRatio}`,
-      `Std Deviation: ${report.riskMetrics.standardDeviation}%`,
-      `Max Drawdown: ${report.riskMetrics.maxDrawdown}%`,
-      `VaR (95%): ${report.riskMetrics.valueAtRisk}%`,
+      `Beta: ${formatRiskMetric(report.riskMetrics.beta)}`,
+      `Sharpe Ratio: ${formatRiskMetric(report.riskMetrics.sharpeRatio)}`,
+      `Std Deviation: ${formatRiskMetric(report.riskMetrics.standardDeviation, 1, "%")}`,
+      `Max Drawdown: ${formatRiskMetric(report.riskMetrics.maxDrawdown, 1, "%")}`,
+      `VaR (95%): ${formatRiskMetric(report.riskMetrics.valueAtRisk, 1, "%")}`,
+      `Historical statistics require a validated portfolio return series and suitable benchmark. Health and category-risk scores are model assessments.`,
       ``,
       `RECOMMENDATIONS`,
       ...report.recommendations.map((r) => `- ${r}`),
@@ -579,19 +580,20 @@ export default function ReportsPage() {
             </h3>
             <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
               {[
-                { label: "Beta", value: report.riskMetrics.beta.toFixed(2), desc: "Market sensitivity" },
-                { label: "Sharpe Ratio", value: report.riskMetrics.sharpeRatio.toFixed(2), desc: "Risk-adjusted return" },
-                { label: "Std. Deviation", value: `${report.riskMetrics.standardDeviation.toFixed(1)}%`, desc: "Volatility measure" },
-                { label: "Max Drawdown", value: `${report.riskMetrics.maxDrawdown.toFixed(1)}%`, desc: "Worst peak-to-trough" },
-                { label: "VaR (95%)", value: `${report.riskMetrics.valueAtRisk.toFixed(1)}%`, desc: "Value at Risk" },
+                { label: "Beta", value: formatRiskMetric(report.riskMetrics.beta), desc: "Market sensitivity" },
+                { label: "Sharpe Ratio", value: formatRiskMetric(report.riskMetrics.sharpeRatio), desc: "Risk-adjusted return" },
+                { label: "Std. Deviation", value: formatRiskMetric(report.riskMetrics.standardDeviation, 1, "%"), desc: "Volatility measure" },
+                { label: "Max Drawdown", value: formatRiskMetric(report.riskMetrics.maxDrawdown, 1, "%"), desc: "Worst peak-to-trough" },
+                { label: "VaR (95%)", value: formatRiskMetric(report.riskMetrics.valueAtRisk, 1, "%"), desc: "Value at Risk" },
               ].map((m) => (
                 <div key={m.label} className="p-3 bg-[var(--shell-surface-2)] rounded-xl text-center">
-                  <p className="text-lg font-bold text-[var(--shell-text)]">{m.value}</p>
+                  <p className="text-sm font-semibold text-[var(--shell-text)]">{m.value}</p>
                   <p className="text-xs font-medium text-[var(--shell-text-muted)] mt-0.5">{m.label}</p>
                   <p className="text-xs text-[var(--shell-text-faint)] mt-0.5">{m.desc}</p>
                 </div>
               ))}
             </div>
+            <p className="mt-4 text-xs leading-relaxed text-[var(--shell-text-muted)]">Historical statistics require a validated portfolio return series and suitable benchmark. Health and category-risk scores are model assessments, not measured market statistics.</p>
           </div>
 
           <div className="bg-[var(--shell-surface)] border border-[var(--shell-border)] rounded-2xl p-6">

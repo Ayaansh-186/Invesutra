@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { formatCurrency, formatPercent, getHealthColor, categoryLabel } from "@/lib/utils/format";
+import { formatCurrency, formatPercent, getHealthColor, categoryLabel, formatRiskMetric } from "@/lib/utils/format";
 import type { Portfolio, PortfolioAnalysis } from "@/lib/types";
 import {
   TrendingUp, TrendingDown, Shield, Zap,
@@ -68,7 +68,7 @@ export default function PortfolioContextPanel({ portfolio, analysis }: Props) {
             <MetricCard
               label="Risk"
               value={`${portfolio.riskScore}`}
-              sub={`Beta ${analysis.riskMetrics.beta}`}
+              sub="Category-based model"
               icon={Zap}
               color="text-amber-400"
             />
@@ -110,9 +110,9 @@ export default function PortfolioContextPanel({ portfolio, analysis }: Props) {
 
           <div className="mt-4 space-y-1.5 border-t border-[var(--shell-border)] pt-3">
             {[
-              { label: "Sharpe", value: analysis.riskMetrics.sharpeRatio.toFixed(2) },
-              { label: "Max DD", value: `${analysis.riskMetrics.maxDrawdown.toFixed(1)}%` },
-              { label: "Std Dev", value: `${analysis.riskMetrics.standardDeviation.toFixed(1)}%` },
+              { label: "Sharpe", value: formatRiskMetric(analysis.riskMetrics.sharpeRatio) },
+              { label: "Max DD", value: formatRiskMetric(analysis.riskMetrics.maxDrawdown, 1, "%") },
+              { label: "Std Dev", value: formatRiskMetric(analysis.riskMetrics.standardDeviation, 1, "%") },
             ].map((m) => (
               <div key={m.label} className="flex justify-between text-[10px]">
                 <span className="text-[var(--shell-text-faint)]">{m.label}</span>
