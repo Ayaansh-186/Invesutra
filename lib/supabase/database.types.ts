@@ -39,6 +39,7 @@ export interface DbFund {
   aum: number;
   benchmark: string | null;
   manager: string | null;
+  monthly_sip_amount?: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -57,6 +58,7 @@ export interface DbTransaction {
 }
 
 export interface DbAIReport {
+  report_snapshot?: unknown;
   id: string;
   portfolio_id: string;
   user_id: string;

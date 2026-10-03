@@ -1,13 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useActivePortfolio } from "@/lib/hooks/useActivePortfolio";
-import { riskEngine } from "@/lib/algorithm/riskEngine";
-import { createRebalanceEngine } from "@/lib/algorithm/rebalanceEngine";
-import { allocationEngine } from "@/lib/algorithm/allocationEngine";
-import { formatCurrency, formatPercent, categoryLabel, formatRiskMetric } from "@/lib/utils/format";
-import type { Portfolio } from "@/lib/types";
+import { generateReport } from "@/lib/algorithm/reportEngine";
+import { readSavedReport } from "@/lib/utils/savedReport";
+import type { DbAIReport } from "@/lib/supabase/database.types";
+import { formatCurrency, categoryLabel, formatRiskMetric } from "@/lib/utils/format";
 import { isPortfolioDataReady } from "@/lib/marketData/quality";
 import ValuationStatus from "@/components/dashboard/ValuationStatus";
 import {
@@ -29,94 +28,6 @@ import {
   Search,
 } from "lucide-react";
 
-function generateReport(portfolio: Portfolio) {
-  const analysis = riskEngine.analyzePortfolio(portfolio);
-  const engine = createRebalanceEngine();
-  const rebalanceSuggestions = engine.generateRebalancingSuggestions(
-    portfolio.funds,
-    portfolio.currentValue
-  );
-
-  // Run the actual QuantRebalance Protocol against the current portfolio.
-  // This correctly isolates each fund's Principal Layer before computing
-  // Alpha — the pool is the full surplus above the restored principal
-  // (Page 3 of the spec), not a percentage of the gain. The previous
-  // version of this report computed `gain * alphaTriggerPercent%`, which
-  // treated the trigger threshold as a capture rate and understated the
-  // real Alpha Pool by ~88% against the spec's own worked example
-  // (a ₹1,500 gain was reported as ₹180 of alpha).
-  //
-  // Prefer the recorded purchase date; legacy holdings use their date added.
-  // The Time-Gated Multi-Trigger rule (Page 6) applies: lots under
-  // 365 days use a 15% milestone (survives exit load + STCG tax on early
-  // exit), lots past 365 days drop to 10% (zero exit load, LTCG-eligible).
-  const fundsWithAge = portfolio.funds.map((f) => ({
-    ...f,
-    lotAgeDays: f.purchaseDate || f.createdAt
-      ? Math.floor((Date.now() - new Date(f.purchaseDate || f.createdAt!).getTime()) / 86_400_000)
-      : undefined,
-  }));
-  const protocolResult = engine.processPortfolioState(fundsWithAge);
-  const alphaDeployment = protocolResult.netAlphaPool > 0 ? protocolResult.deploymentPlan : null;
-
-  // Dry Powder preview — the QRP spec's other capital pool (Page 3). Unlike
-  // the Alpha Pool above (which deploys against *any* fund in drawback),
-  // Dry Powder is meant to sit in a liquid/debt instrument until a fund
-  // crosses a deeper "structural correction point" (the spec's example:
-  // an individual fund down 5%+ from cost basis), then sweep out to buy
-  // that specific dip. This shows what a hypothetical reserve equal to
-  // the current net alpha would do against today's portfolio — an
-  // illustrative preview, since a real persisted reserve balance would
-  // need to be tracked across actual rebalance events over time.
-  const dryPowderPreview =
-    protocolResult.netAlphaPool > 0
-      ? allocationEngine.deployDryPowder(protocolResult.netAlphaPool, portfolio.funds, 5)
-      : null;
-
-  const returns = formatPercent(portfolio.returnsPercent);
-  const value = formatCurrency(portfolio.currentValue, true);
-
-  return {
-    id: `RPT-${Date.now()}`,
-    generatedAt: new Date().toLocaleString("en-IN"),
-    portfolio: portfolio.name,
-    healthScore: portfolio.healthScore,
-    overallHealth: analysis.overallHealth,
-    summary: `${portfolio.name} holds ${portfolio.funds.length} funds with a total invested capital of ${formatCurrency(portfolio.totalInvested, true)}. Current portfolio value is ${value}, representing ${returns} overall returns. The portfolio scores ${portfolio.healthScore}/100 on health and ${portfolio.riskScore}/100 on risk.`,
-    analysis,
-    rebalanceSuggestions,
-    alphaDeployment,
-    dryPowderPreview,
-    grossAlphaPool: protocolResult.alphaPool,
-    netAlphaPool: protocolResult.netAlphaPool,
-    frictionCost: protocolResult.totalFrictionCost,
-    funds: portfolio.funds,
-    riskMetrics: analysis.riskMetrics,
-    allocationBreakdown: analysis.allocationBreakdown,
-    issues: [
-      ...analysis.concentrationRisk.map((r) => ({
-        severity: r.severity,
-        title: r.label,
-        description: `Current exposure: ${r.currentPercent.toFixed(1)}%. Recommended maximum: ${r.recommendedMax}%.`,
-      })),
-      ...(analysis.underperformers.length > 0
-        ? [
-            {
-              severity: "warning" as const,
-              title: "Trailing-return screening flags",
-              description: `${analysis.underperformers.length} fund(s) have low or negative trailing NAV returns under the local screening rules. No benchmark underperformance is established by this check.`,
-            },
-          ]
-        : []),
-    ],
-    recommendations: [
-      ...analysis.aiInsights,
-      "Review your portfolio allocation quarterly to ensure it aligns with your financial goals.",
-      "Consider consulting a SEBI-registered investment advisor before making significant changes.",
-    ],
-    algorithmExplanation: `The QuantRebalance Protocol (QRP) analyzes your portfolio using a multi-layer approach: (1) Principal Layer Protection ensures original capital is never eroded by rebalancing actions; (2) Alpha Pool extraction captures gains at predefined milestones (10%, 20%, 30%); (3) Weighted Drawback Allocation deploys captured alpha into the deepest value discounts across underperforming holdings; (4) Dry Powder Reserve maintains a liquid buffer for market correction opportunities. This systematic, emotion-free methodology is designed to compound wealth across market cycles without guaranteeing specific returns.`,
-  };
-}
 
 export default function ReportsPage() {
   const { portfolio, loading: portfolioLoading, isDemo, isEmpty, error: portfolioError, refresh } = useActivePortfolio();
@@ -124,7 +35,33 @@ export default function ReportsPage() {
   const [generating, setGenerating] = useState(false);
   const [plan, setPlan] = useState<"free" | "pro" | "premium">("free");
   const [exportingPdf, setExportingPdf] = useState(false);
-  useEffect(() => { setReport(null); }, [portfolio]);
+  const [savedReports, setSavedReports] = useState<DbAIReport[]>([]);
+  const [reportError, setReportError] = useState<string | null>(null);
+  const [historyError, setHistoryError] = useState<string | null>(null);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+  const [historyRetry, setHistoryRetry] = useState(0);
+  const reportScope = `${portfolio.userId}:${portfolio.id}:${isDemo}`;
+  const scopeRef = useRef(reportScope);
+  scopeRef.current = reportScope;
+  useEffect(() => { setReport(null); setSavedReports([]); setReportError(null); setGenerating(false); }, [reportScope]);
+  useEffect(() => {
+    if (isDemo || !portfolio.id) return;
+    const controller = new AbortController();
+    setLoadingHistory(true);
+    setHistoryError(null);
+    fetch(`/api/reports?portfolioId=${encodeURIComponent(portfolio.id)}`, { cache: "no-store", signal: controller.signal })
+      .then(async response => {
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || "Could not load saved reports.");
+        if (controller.signal.aborted) return;
+        const rows: DbAIReport[] = data.reports || [];
+        setSavedReports(previous => [...new Map([...previous, ...rows].map(row => [row.id, row])).values()].sort((a, b) => b.generated_at.localeCompare(a.generated_at)));
+        setReport(current => current || rows.map(readSavedReport).find(Boolean) || null);
+      })
+      .catch(error => { if (!controller.signal.aborted) setHistoryError(error instanceof Error ? error.message : "Could not load saved reports."); })
+      .finally(() => { if (!controller.signal.aborted) setLoadingHistory(false); });
+    return () => controller.abort();
+  }, [reportScope, portfolio.id, isDemo, historyRetry]);
 
   useEffect(() => {
     if (isDemo) return;
@@ -140,36 +77,29 @@ export default function ReportsPage() {
 
   const isPremium = plan === "premium";
 
-  function handleGenerate() {
-    if (portfolioError || portfolio.funds.length === 0 || !isPortfolioDataReady(portfolio)) return;
+  async function handleGenerate() {
+    if (generating || portfolioError || portfolio.funds.length === 0 || !isPortfolioDataReady(portfolio)) return;
     setGenerating(true);
-    setTimeout(() => {
-      const result = generateReport(portfolio);
-      setReport(result);
-      setGenerating(false);
-
-      // Best-effort: persist the report for signed-in users so it shows up
-      // in their history. Silently no-ops for demo/unauthenticated users.
-      if (!isDemo) {
-        fetch("/api/reports", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            portfolioId: portfolio.id,
-            healthScore: result.healthScore,
-            overallHealth: result.overallHealth,
-            summary: result.summary,
-            issues: result.issues,
-            recommendations: result.recommendations,
-            riskMetrics: result.riskMetrics,
-            allocationBreakdown: result.allocationBreakdown,
-            algorithmExplanation: result.algorithmExplanation,
-          }),
-        }).catch(() => {
-          // Non-fatal — report is still shown in the UI even if saving fails.
-        });
-      }
-    }, 0);
+    setReportError(null);
+    const scope = reportScope;
+    try {
+      if (isDemo) { setReport(generateReport(portfolio)); return; }
+      const response = await fetch("/api/reports", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ portfolioId: portfolio.id }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Could not save the report.");
+      const restored = data.report ? readSavedReport(data.report) : null;
+      if (!restored) throw new Error("The report response is incomplete. Reload saved reports before generating again.");
+      if (scope !== scopeRef.current) return;
+      setReport(restored);
+      setSavedReports(rows => [data.report, ...rows.filter(row => row.id !== data.report.id)]);
+    } catch (error) {
+      if (scope === scopeRef.current) setReportError(error instanceof Error ? error.message : "Report generation failed.");
+    } finally {
+      if (scope === scopeRef.current) setGenerating(false);
+    }
   }
 
   function handleDownload() {
@@ -257,7 +187,7 @@ export default function ReportsPage() {
     );
   }
 
-  if (!isDemo && (isEmpty || portfolio.funds.length === 0)) {
+  if (!isDemo && (isEmpty || portfolio.funds.length === 0) && !savedReports.length && !loadingHistory && !historyError) {
     return (
       <div className="mx-auto flex min-h-[50vh] max-w-lg flex-col items-center justify-center text-center">
         <FileText className="h-8 w-8 text-[var(--shell-text-faint)]" />
@@ -278,7 +208,39 @@ export default function ReportsPage() {
 
   return (
     <div className="max-w-4xl mx-auto">
+      <div className="mb-6 flex flex-wrap items-start justify-between gap-4 sm:mb-8">
+        <div className="min-w-0">
+          <h1 className="text-2xl font-semibold text-[var(--shell-text)]">Investment reports</h1>
+          <p className="mt-1 text-sm text-[var(--shell-text-muted)]">
+            Portfolio analysis based on verified holdings
+          </p>
+        </div>
+        <button
+          onClick={handleGenerate}
+          disabled={generating || Boolean(portfolioError) || !portfolio.funds.length || !isPortfolioDataReady(portfolio)}
+          className="app-primary-button"
+        >
+          {generating ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+          {generating ? "Generating and saving..." : "Generate report"}
+        </button>
+      </div>
       <ValuationStatus portfolio={portfolio} />
+      {reportError && <p role="alert" className="mb-4 rounded-md border border-rose-500/20 p-3 text-sm text-rose-600">{reportError}</p>}
+      {!isDemo && <section className="mb-6 border-b border-[var(--shell-border)] pb-5" aria-label="Saved reports">
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <h2 className="text-sm font-semibold text-[var(--shell-text)]">Saved reports</h2>
+          <button type="button" title="Reload saved reports" aria-label="Reload saved reports" disabled={loadingHistory} onClick={() => setHistoryRetry(value => value + 1)} className="app-icon-button"><RefreshCw className={`h-4 w-4 ${loadingHistory ? "animate-spin" : ""}`} /></button>
+        </div>
+        {historyError && <p role="alert" className="mb-2 text-sm text-amber-600">{historyError}</p>}
+        {loadingHistory && <p role="status" className="text-xs text-[var(--shell-text-muted)]">Loading saved reports...</p>}
+        {!loadingHistory && !historyError && !savedReports.length && <p className="text-xs text-[var(--shell-text-muted)]">No saved reports yet.</p>}
+        <div className="max-h-64 overflow-y-auto">
+          {savedReports.map(row => { const restored = readSavedReport(row); return <div key={row.id} className="flex flex-wrap items-start justify-between gap-2 border-t border-[var(--shell-border)] py-3">
+            <div className="min-w-0 flex-1"><p className="text-xs font-medium text-[var(--shell-text)]">{new Date(row.generated_at).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })} IST</p><p className="mt-1 text-xs leading-relaxed text-[var(--shell-text-muted)]">{row.summary}</p>{!restored && <p className="mt-1 text-xs text-[var(--shell-text-faint)]">Older report: saved summary only.</p>}</div>
+            {restored && <button type="button" onClick={() => setReport(restored)} aria-pressed={report?.id === row.id} className="app-secondary-button"><FileText className="h-3.5 w-3.5" />{report?.id === row.id ? "Viewing" : "Open"}</button>}
+          </div>; })}
+        </div>
+      </section>}
       {isDemo && (
         <div className="mb-6 flex items-start gap-3 p-4 bg-cyan-400/10 border border-cyan-500/20 rounded-xl">
           <Info className="w-4 h-4 text-cyan-500 shrink-0 mt-0.5" />
@@ -292,25 +254,9 @@ export default function ReportsPage() {
         </div>
       )}
 
-      <div className="mb-6 flex flex-wrap items-start justify-between gap-4 sm:mb-8">
-        <div className="min-w-0">
-          <h1 className="text-2xl font-semibold text-[var(--shell-text)]">Investment reports</h1>
-          <p className="mt-1 text-sm text-[var(--shell-text-muted)]">
-            Portfolio analysis based on verified holdings
-          </p>
-        </div>
-        <button
-          onClick={handleGenerate}
-          disabled={generating || !isPortfolioDataReady(portfolio)}
-          className="inline-flex shrink-0 items-center gap-2 rounded-md bg-cyan-400 px-4 py-2.5 text-sm font-semibold text-slate-950 transition-colors hover:bg-cyan-300 disabled:opacity-60"
-        >
-          {generating ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-          {generating ? "Generating..." : "Generate Report"}
-        </button>
-      </div>
 
       {!report && !generating && (
-        <div className="bg-[var(--shell-surface)] border border-[var(--shell-border)] rounded-2xl p-16 text-center">
+        <div className="border-y border-[var(--shell-border)] px-4 py-10 text-center sm:py-16">
           <div className="w-16 h-16 bg-[var(--shell-surface-2)] rounded-2xl flex items-center justify-center mx-auto mb-4">
             <FileText className="w-8 h-8 text-[var(--shell-text-faint)]" />
           </div>
@@ -321,7 +267,8 @@ export default function ReportsPage() {
           </p>
           <button
             onClick={handleGenerate}
-            className="inline-flex items-center gap-2 px-6 py-3 bg-cyan-400 text-slate-950 text-sm font-semibold rounded-xl hover:bg-cyan-300 transition-colors"
+            disabled={!isPortfolioDataReady(portfolio) || !portfolio.funds.length || Boolean(portfolioError) || generating}
+            className="app-primary-button"
           >
             <Sparkles className="w-4 h-4" />
             Generate your first report
@@ -353,7 +300,7 @@ export default function ReportsPage() {
       {report && (
         <div className="space-y-5">
           <div className="bg-[var(--shell-surface)] border border-[var(--shell-border)] rounded-2xl p-6">
-            <div className="flex items-start justify-between mb-5">
+            <div className="mb-5 flex flex-wrap items-start justify-between gap-4">
               <div>
                 <div className="flex items-center gap-2 mb-1">
                   <FileText className="w-4 h-4 text-cyan-500" />
@@ -363,8 +310,9 @@ export default function ReportsPage() {
                 </div>
                 <h2 className="text-xl font-bold text-[var(--shell-text)]">{report.portfolio}</h2>
                 <p className="text-xs text-[var(--shell-text-faint)] mt-1">
-                  Report ID: {report.id} · Generated: {report.generatedAt}
+                  Report ID: {report.id} · Generated: {report.generatedAt} IST
                 </p>
+                {!isDemo && <p className="mt-1 text-xs text-emerald-600">Saved snapshot. Values reflect the report date, not current prices.</p>}
               </div>
               <div className="flex gap-2">
                 <button

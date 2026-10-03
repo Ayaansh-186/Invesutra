@@ -18,6 +18,8 @@ export interface Fund {
   manager: string;
   purchaseDate?: string;
   purchaseNav?: number;
+  /** Planned contribution only; not included in purchase amounts or valuation. */
+  monthlySipAmount?: number;
   schemeCode?: string;
   navAsOf?: string;
   navSourceUrl?: string;

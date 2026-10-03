@@ -74,6 +74,7 @@ create table if not exists public.funds (
   aum numeric(14,2) not null default 0,
   benchmark text,
   manager text,
+  monthly_sip_amount numeric(14,2) check (monthly_sip_amount > 0 and monthly_sip_amount < 1000000000),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -103,6 +104,7 @@ create index if not exists idx_transactions_user_id on public.transactions(user_
 -- AI REPORTS
 -- ----------------------------------------------------------------------------
 create table if not exists public.ai_reports (
+  report_snapshot jsonb,
   id uuid primary key default gen_random_uuid(),
   portfolio_id uuid not null references public.portfolios(id) on delete cascade,
   user_id uuid not null references public.users(id) on delete cascade,

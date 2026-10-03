@@ -164,6 +164,7 @@ export default function HoldingsTable({
                     </p>
                   )}
                   <p className="mt-1 text-xs text-[var(--shell-text-faint)]">{fund.units.toLocaleString("en-IN", { maximumFractionDigits: 4 })} units{fund.schemeCode && ` · Scheme ${fund.schemeCode}`}</p>
+                  {fund.monthlySipAmount !== undefined && <p className="mt-1 text-xs text-[var(--shell-text-muted)]">Planned SIP {formatCurrencyExact(fund.monthlySipAmount)}/month</p>}
                   {fund.navAsOf && <p className="mt-1 text-xs text-[var(--shell-text-faint)]">NAV {formatCurrencyExact(fund.nav, 5)} · {fund.navAsOf}{fund.navSourceUrl && <> · <a href={fund.navSourceUrl} target="_blank" rel="noopener noreferrer" className="underline">Source</a></>}</p>}
                   {isEtf && <p className="mt-1 text-xs font-medium text-amber-600">ETF market price is not verified. Saved value is not a live exchange quote.</p>}
                   {needsReview && <p className="mt-1 text-xs font-medium text-amber-600">Purchase details do not match the published allotment-date NAV. Check your statement before relying on returns.</p>}

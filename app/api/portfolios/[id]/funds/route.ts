@@ -9,6 +9,7 @@ import { calculatePurchaseValues, isValidPurchaseDate } from "@/lib/utils/purcha
 import { getPurchaseQuote } from "@/lib/marketData/purchaseQuote";
 import { isExchangeTradedFund } from "@/lib/marketData/amfi";
 import { hydrateFundValuations } from "@/lib/marketData/valuation";
+import { parseMonthlySipAmount } from "@/lib/utils/monthlySip";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -76,6 +77,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   const purchaseNav = Number(body.purchaseNav);
   const units = Number(body.units);
   const purchaseDate = String(body.purchaseDate || "").trim();
+  const monthlySipAmount = parseMonthlySipAmount(body.monthlySipAmount);
+  if (monthlySipAmount === null) return NextResponse.json({ error: "Monthly SIP amount must be positive, below Rs 100 crore, and have at most two decimal places." }, { status: 400 });
 
   if (!/^\d+$/.test(schemeCode)) {
     return NextResponse.json({ error: "Choose a fund from search to get its current NAV." }, { status: 400 });
@@ -144,6 +147,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     currentValue: values.currentValue,
     nav: detail.nav,
     units,
+    monthlySipAmount,
     returns1Y: detail.returns1Y,
     returns3Y: detail.returns3Y,
     returns5Y: detail.returns5Y,
@@ -152,6 +156,9 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   const { data, error } = await supabase.from("funds").insert(insertPayload).select().single();
 
   if (error) {
+    if (monthlySipAmount !== undefined && (error.code === "PGRST204" || error.code === "42703")) {
+      return NextResponse.json({ error: "Monthly SIP plans require database migration 004. Nothing was saved; please contact the app administrator." }, { status: 503 });
+    }
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 

@@ -1,6 +1,7 @@
 import type { DbFund, DbPortfolio, DbTransaction } from "@/lib/supabase/database.types";
 import type { Fund, FundCategory, Portfolio, RiskLevel } from "@/lib/types";
 import { riskEngine } from "@/lib/algorithm/riskEngine";
+import { parseMonthlySipAmount } from "@/lib/utils/monthlySip";
 
 export type DbPurchase = Pick<DbTransaction, "fund_id" | "created_at" | "nav"> & Partial<Pick<DbTransaction, "notes">>;
 
@@ -23,6 +24,7 @@ export function dbFundToFund(row: DbFund, purchase?: DbPurchase): Fund {
     manager: row.manager || "",
     purchaseDate: purchase?.created_at.slice(0, 10),
     purchaseNav: purchase?.nav == null ? undefined : Number(purchase.nav),
+    monthlySipAmount: row.monthly_sip_amount == null ? undefined : parseMonthlySipAmount(Number(row.monthly_sip_amount)) ?? undefined,
     schemeCode: /^AMFI scheme (\d+)$/.exec(purchase?.notes || "")?.[1],
     createdAt: row.created_at,
   };
@@ -45,6 +47,7 @@ export function fundToDbInsert(fund: Partial<Fund>, portfolioId: string) {
     aum: fund.aum ?? 0,
     benchmark: fund.benchmark ?? null,
     manager: fund.manager ?? null,
+    ...(fund.monthlySipAmount !== undefined ? { monthly_sip_amount: fund.monthlySipAmount } : {}),
   };
 }
 

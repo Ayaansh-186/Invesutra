@@ -10,6 +10,7 @@ import { isExchangeTradedFund } from "@/lib/marketData/amfi";
 import { calculatePurchaseValues, isValidPurchaseDate, todayInIndia } from "@/lib/utils/purchase";
 import { useToast } from "@/components/shared/ToastProvider";
 import type { Fund } from "@/lib/types";
+import { parseMonthlySipAmount } from "@/lib/utils/monthlySip";
 
 interface Props {
   // null  = not signed in (show sign-up CTA)
@@ -32,6 +33,10 @@ export default function AddFundModal({ portfolioId, onClose, onAdded, holdingToR
   const purchaseNavId = useId();
   const unitsId = useId();
   const purchaseDateId = useId();
+  const monthlySipId = useId();
+  const [hasMonthlySip, setHasMonthlySip] = useState(false);
+  const [monthlySip, setMonthlySip] = useState("");
+  const monthlySipAmount = hasMonthlySip ? parseMonthlySipAmount(monthlySip === "" ? Number.NaN : Number(monthlySip)) : undefined;
   // Escape closes the modal, like every other modal a user expects this
   // from — previously the only way out was the X or Cancel button.
   useEffect(() => {
@@ -173,6 +178,10 @@ export default function AddFundModal({ portfolioId, onClose, onAdded, holdingToR
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!holdingToRepair && monthlySipAmount === null) {
+      setError("Enter a positive monthly SIP amount with at most two decimal places.");
+      return;
+    }
     if (!selectedFund?.symbol || !latestNav || !values || !purchaseDateValid) {
       setError("Enter a valid purchase NAV, units, and purchase date for a fund with a recent NAV.");
       return;
@@ -206,6 +215,7 @@ export default function AddFundModal({ portfolioId, onClose, onAdded, holdingToR
           purchaseNav: Number(purchaseNav),
           units: Number(units),
           purchaseDate,
+          ...(!holdingToRepair && monthlySipAmount !== undefined ? { monthlySipAmount } : {}),
         }),
       });
       const data = await res.json();
@@ -427,6 +437,18 @@ export default function AddFundModal({ portfolioId, onClose, onAdded, holdingToR
               </div>
             </div>
 
+            {!holdingToRepair && <div className="border-t border-[var(--shell-border)] pt-4">
+              <label className="flex items-center gap-2 text-sm text-[var(--shell-text)]">
+                <input type="checkbox" checked={hasMonthlySip} onChange={event => setHasMonthlySip(event.target.checked)} className="h-4 w-4 accent-emerald-600" />
+                Planned monthly SIP
+              </label>
+              {hasMonthlySip && <div className="mt-3">
+                <label htmlFor={monthlySipId} className="mb-1.5 block text-xs font-medium text-[var(--shell-text-muted)]">Monthly amount (Rs)</label>
+                <input id={monthlySipId} type="number" required min="0.01" max="999999999.99" step="0.01" inputMode="decimal" value={monthlySip} onChange={event => setMonthlySip(event.target.value)} aria-describedby={`${monthlySipId}-note`} className="w-full rounded-md border border-[var(--shell-border)] bg-[var(--shell-surface)] px-3 py-2.5 text-sm text-[var(--shell-text)] focus:border-emerald-400/60 focus:outline-none" />
+                <p id={`${monthlySipId}-note`} className="mt-2 text-xs leading-relaxed text-[var(--shell-text-faint)]">Planned contribution only. No payment is scheduled, and future contributions are not counted as invested money or units.</p>
+              </div>}
+            </div>}
+
             {checkingNav && <p role="status" className="text-xs text-[var(--shell-text-muted)]">Checking the published NAV for your allotment date...</p>}
             {quoteError && <div role="alert" className="flex flex-wrap items-center gap-2 text-xs text-amber-600"><p>{quoteError}</p><button type="button" onClick={() => setQuoteRetry((value) => value + 1)} className="inline-flex items-center gap-1 underline"><RefreshCw className="h-3 w-3" />Retry NAV lookup</button></div>}
             {verifiedPurchaseNav !== null && !checkingNav && <p className={`text-xs ${purchaseMatches ? "text-[var(--shell-text-faint)]" : "text-amber-600"}`}>Published buying NAV: {formatCurrencyExact(verifiedPurchaseNav, 5)} on {purchaseDate}{!purchaseMatches && ". The entered price must match this NAV."}</p>}
@@ -443,7 +465,7 @@ export default function AddFundModal({ portfolioId, onClose, onAdded, holdingToR
             </div>
 
             <div className="flex gap-3 pt-2">
-              <button type="submit" disabled={submitting || checkingNav || !purchaseMatches || !values || !purchaseDateValid || !latestNav}
+              <button type="submit" disabled={submitting || checkingNav || !purchaseMatches || !values || !purchaseDateValid || !latestNav || (!holdingToRepair && monthlySipAmount === null)}
                 className="app-primary-button flex-1">
                 {submitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                 {submitting ? "Saving..." : holdingToRepair ? "Save correction" : "Add Fund"}

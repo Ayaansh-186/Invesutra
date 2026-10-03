@@ -157,6 +157,21 @@ body {
   margin: 0;
 }
 
+h1, h2, h3 { overflow-wrap: anywhere; text-wrap: balance; }
+button, input, select, textarea, a { -webkit-tap-highlight-color: transparent; }
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
+  outline: 2px solid #10b981;
+  outline-offset: 3px;
+}
+input, select, textarea { min-width: 0; max-width: 100%; }
+@media (max-width: 639px) {
+  .app-primary-button, .app-secondary-button, .app-icon-button { min-height: 44px; }
+  .app-icon-button { width: 44px; height: 44px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
+}
+
 @layer components {
   .app-primary-button, .app-secondary-button, .app-icon-button {
     display: inline-flex;
