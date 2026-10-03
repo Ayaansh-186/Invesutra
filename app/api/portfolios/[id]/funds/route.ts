@@ -46,14 +46,9 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
   }
 
   const { data: purchases, error: purchasesError } = await supabase.from("transactions")
-    .select("fund_id, created_at, nav, notes").eq("portfolio_id", id).eq("type", "buy");
+    .select("id, fund_id, created_at, nav, notes, units, amount").eq("portfolio_id", id).eq("type", "buy");
   if (purchasesError) return NextResponse.json({ error: "Could not load purchase details." }, { status: 500 });
-  const firstPurchaseByFund = new Map<string, DbPurchase>();
-  for (const purchase of (purchases || []) as DbPurchase[]) {
-    const earlier = firstPurchaseByFund.get(purchase.fund_id);
-    if (!earlier || purchase.created_at < earlier.created_at) firstPurchaseByFund.set(purchase.fund_id, purchase);
-  }
-  const funds = ((data || []) as DbFund[]).map((fund) => dbFundToFund(fund, firstPurchaseByFund.get(fund.id)));
+  const funds = ((data || []) as DbFund[]).map((fund) => dbFundToFund(fund, ((purchases || []) as DbPurchase[]).filter(purchase => purchase.fund_id === fund.id)));
   return NextResponse.json({ funds: await hydrateFundValuations(funds) });
 }
 

@@ -3,9 +3,12 @@ import type { Fund, FundCategory, Portfolio, RiskLevel } from "@/lib/types";
 import { riskEngine } from "@/lib/algorithm/riskEngine";
 import { parseMonthlySipAmount } from "@/lib/utils/monthlySip";
 
-export type DbPurchase = Pick<DbTransaction, "fund_id" | "created_at" | "nav"> & Partial<Pick<DbTransaction, "notes">>;
+export type DbPurchase = Pick<DbTransaction, "fund_id" | "created_at" | "nav"> & Partial<Pick<DbTransaction, "notes" | "id" | "amount" | "units">>;
 
-export function dbFundToFund(row: DbFund, purchase?: DbPurchase): Fund {
+export function dbFundToFund(row: DbFund, input?: DbPurchase | DbPurchase[]): Fund {
+  const records = (Array.isArray(input) ? input : input ? [input] : []).slice().sort((a, b) => a.created_at.localeCompare(b.created_at));
+  const purchase = records[0];
+  const codes = new Set(records.map(item => /^AMFI scheme (\d+)$/.exec(item.notes || "")?.[1]));
   return {
     id: row.id,
     name: row.name,
@@ -23,9 +26,12 @@ export function dbFundToFund(row: DbFund, purchase?: DbPurchase): Fund {
     benchmark: row.benchmark || "",
     manager: row.manager || "",
     purchaseDate: purchase?.created_at.slice(0, 10),
-    purchaseNav: purchase?.nav == null ? undefined : Number(purchase.nav),
+    purchaseNav: records.length === 1 && purchase?.nav != null ? Number(purchase.nav) : undefined,
+    ...(records.length && records.every(item => item.id !== undefined && item.units !== undefined && item.amount !== undefined) ? { purchases: records.map(item => ({
+      id: item.id!, date: item.created_at.slice(0, 10), nav: Number(item.nav), units: Number(item.units), amount: Number(item.amount),
+    })) } : {}),
     monthlySipAmount: row.monthly_sip_amount == null ? undefined : parseMonthlySipAmount(Number(row.monthly_sip_amount)) ?? undefined,
-    schemeCode: /^AMFI scheme (\d+)$/.exec(purchase?.notes || "")?.[1],
+    schemeCode: codes.size === 1 ? codes.values().next().value : undefined,
     createdAt: row.created_at,
   };
 }
@@ -58,12 +64,11 @@ export function fundToDbInsert(fund: Partial<Fund>, portfolioId: string) {
  * regardless of where the portfolio data originated.
  */
 export function buildPortfolio(portfolioRow: DbPortfolio, fundRows: DbFund[], purchases: DbPurchase[] = []): Portfolio {
-  const firstPurchaseByFund = new Map<string, DbPurchase>();
+  const purchasesByFund = new Map<string, DbPurchase[]>();
   for (const purchase of purchases) {
-    const earlier = firstPurchaseByFund.get(purchase.fund_id);
-    if (!earlier || purchase.created_at < earlier.created_at) firstPurchaseByFund.set(purchase.fund_id, purchase);
+    purchasesByFund.set(purchase.fund_id, [...(purchasesByFund.get(purchase.fund_id) || []), purchase]);
   }
-  const funds = fundRows.map((row) => dbFundToFund(row, firstPurchaseByFund.get(row.id)));
+  const funds = fundRows.map((row) => dbFundToFund(row, purchasesByFund.get(row.id)));
   const totalInvested = funds.reduce((sum, f) => sum + f.investedAmount, 0);
   const currentValue = funds.reduce((sum, f) => sum + f.currentValue, 0);
   const returns = currentValue - totalInvested;

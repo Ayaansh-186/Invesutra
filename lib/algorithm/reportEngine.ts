@@ -28,7 +28,7 @@ export function generateReport(portfolio: Portfolio) {
   const fundsWithAge = portfolio.funds.map((f) => ({
     ...f,
     lotAgeDays: f.purchaseDate || f.createdAt
-      ? Math.floor((Date.now() - new Date(f.purchaseDate || f.createdAt!).getTime()) / 86_400_000)
+      ? Math.floor((Date.now() - new Date(f.purchases?.at(-1)?.date || f.purchaseDate || f.createdAt!).getTime()) / 86_400_000)
       : undefined,
   }));
   const protocolResult = engine.processPortfolioState(fundsWithAge);

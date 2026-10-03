@@ -9,6 +9,7 @@ import type { DbAIReport } from "@/lib/supabase/database.types";
 import { formatCurrency, categoryLabel, formatRiskMetric } from "@/lib/utils/format";
 import { isPortfolioDataReady } from "@/lib/marketData/quality";
 import ValuationStatus from "@/components/dashboard/ValuationStatus";
+import ReportComparison from "@/components/dashboard/ReportComparison";
 import {
   FileText,
   Download,
@@ -241,6 +242,7 @@ export default function ReportsPage() {
           </div>; })}
         </div>
       </section>}
+      {!isDemo && <ReportComparison key={reportScope} reports={savedReports} />}
       {isDemo && (
         <div className="mb-6 flex items-start gap-3 p-4 bg-cyan-400/10 border border-cyan-500/20 rounded-xl">
           <Info className="w-4 h-4 text-cyan-500 shrink-0 mt-0.5" />

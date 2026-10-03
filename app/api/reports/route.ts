@@ -92,7 +92,7 @@ export async function POST(request: NextRequest) {
 
   const { data: funds, error: fundError } = await supabase.from("funds").select("*").eq("portfolio_id", body.portfolioId);
   const { data: purchases, error: purchaseError } = await supabase.from("transactions")
-    .select("fund_id, created_at, nav, notes").eq("portfolio_id", body.portfolioId).eq("type", "buy");
+    .select("id, fund_id, created_at, nav, notes, units, amount").eq("portfolio_id", body.portfolioId).eq("type", "buy");
   if (fundError || purchaseError) return NextResponse.json({ error: "Could not load verified holdings for the report." }, { status: 503 });
   const portfolio = await hydratePortfolioValuations(buildPortfolio(ownedPortfolio as DbPortfolio, (funds || []) as DbFund[], (purchases || []) as DbPurchase[]));
   if (!portfolio.funds.length || !isPortfolioDataReady(portfolio)) return NextResponse.json({ error: "Verify your holdings' NAVs and purchase details before generating a report." }, { status: 422 });

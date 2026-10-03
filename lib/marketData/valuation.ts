@@ -39,6 +39,18 @@ async function verifyHolding(fund: Fund): Promise<Fund> {
     if (!code) return applyVerifiedNav(fund);
     const detail = await getFundDetails(code);
     const valued = applyVerifiedNav(fund, detail);
+    if (fund.purchases?.length) {
+      try {
+        const matches = await mapConcurrent(fund.purchases, 6, async lot => {
+          if (![lot.units, lot.nav, lot.amount].every(value => Number.isFinite(value) && value > 0)) return false;
+          const quote = await getPurchaseQuote(detail, lot.date);
+          return Boolean(quote && Math.abs(quote.nav - lot.nav) <= Math.max(0.001, quote.nav * 0.0001) && Math.abs(roundMoney(quote.nav * lot.units) - lot.amount) <= 0.02);
+        });
+        const units = fund.purchases.reduce((sum, lot) => sum + lot.units, 0);
+        const cost = fund.purchases.reduce((sum, lot) => sum + lot.amount, 0);
+        return { ...valued, purchaseStatus: matches.every(Boolean) && Math.abs(units - fund.units) < 0.00005 && Math.abs(cost - fund.investedAmount) <= 0.02 ? "verified" : "unverified" };
+      } catch { return { ...valued, purchaseStatus: "unavailable" }; }
+    }
     if (!fund.purchaseDate || !fund.purchaseNav) return { ...valued, purchaseStatus: "unavailable" };
     try {
       const quote = await getPurchaseQuote(detail, fund.purchaseDate);

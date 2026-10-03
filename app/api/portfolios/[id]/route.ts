@@ -44,7 +44,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
   }
 
   const { data: purchases, error: purchasesError } = await supabase.from("transactions")
-    .select("fund_id, created_at, nav, notes").eq("portfolio_id", id).eq("type", "buy");
+    .select("id, fund_id, created_at, nav, notes, units, amount").eq("portfolio_id", id).eq("type", "buy");
   if (purchasesError) return NextResponse.json({ error: "Could not load purchase details." }, { status: 500 });
 
   const result = await hydratePortfolioValuations(buildPortfolio(portfolio as DbPortfolio, (funds || []) as DbFund[], (purchases || []) as DbPurchase[]));

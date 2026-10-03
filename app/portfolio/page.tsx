@@ -8,6 +8,7 @@ import { useActivePortfolio } from "@/lib/hooks/useActivePortfolio";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { formatCurrency, formatPercent, getHealthColor } from "@/lib/utils/format";
 import HoldingsTable from "@/components/dashboard/HoldingsTable";
+import NavMonitorStatus from "@/components/dashboard/NavMonitorStatus";
 import MilestoneTracker from "@/components/dashboard/MilestoneTracker";
 import SinceLastVisit from "@/components/dashboard/SinceLastVisit";
 import ValuationStatus from "@/components/dashboard/ValuationStatus";
@@ -208,6 +209,7 @@ export default function PortfolioPage() {
                   <span className="text-xs text-[var(--shell-text-faint)]">{portfolio.funds.length} total</span>
                 </div>
                 <HoldingsTable funds={portfolio.funds} totalValue={portfolio.currentValue} onChanged={!isDemo && user ? refresh : undefined} onRepair={!isDemo && user ? setHoldingToRepair : undefined} canAskAI={!isDemo && Boolean(user)} />
+                {!isDemo && user && <NavMonitorStatus />}
               </section>
 
               {dataReady && <details className="group border-t border-[var(--shell-border)]">

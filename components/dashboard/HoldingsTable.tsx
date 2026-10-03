@@ -4,11 +4,12 @@ import { useState } from "react";
 import Link from "next/link";
 import { formatCurrency, formatCurrencyExact, formatPercent, categoryLabel } from "@/lib/utils/format";
 import type { Fund } from "@/lib/types";
-import { TrendingUp, TrendingDown, Pencil, Trash2, Check, X, Loader2, MessageSquare, Search } from "lucide-react";
+import { TrendingUp, TrendingDown, Pencil, Trash2, Check, X, Loader2, MessageSquare, Search, Plus } from "lucide-react";
 import { useToast } from "@/components/shared/ToastProvider";
 import { hasVerifiedValue } from "@/lib/marketData/quality";
 import { isExchangeTradedFund } from "@/lib/marketData/amfi";
 import MonthlySipEditor from "./MonthlySipEditor";
+import PurchaseLedgerDialog from "./PurchaseLedgerDialog";
 
 export default function HoldingsTable({
   funds,
@@ -32,6 +33,7 @@ export default function HoldingsTable({
   const { showToast } = useToast();
   const [query, setQuery] = useState("");
   const [reviewOnly, setReviewOnly] = useState(false);
+  const [recordingFund, setRecordingFund] = useState<Fund | null>(null);
 
   if (funds.length === 0) {
     return (
@@ -102,6 +104,7 @@ export default function HoldingsTable({
 
   return (
     <div>
+      {recordingFund && <PurchaseLedgerDialog fund={recordingFund} onClose={()=>setRecordingFund(null)} onSaved={()=>{setRecordingFund(null);onChanged?.();showToast("Purchase records saved", "success");}} />}
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
         <div className="relative w-full sm:max-w-xs">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--shell-text-faint)]" />
@@ -160,11 +163,12 @@ export default function HoldingsTable({
                   </p>
                   {fund.purchaseDate && (
                     <p className="mt-1 text-xs text-[var(--shell-text-faint)]">
-                      Bought {new Date(`${fund.purchaseDate}T12:00:00Z`).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric", timeZone: "Asia/Kolkata" })}
+                      {fund.purchases && fund.purchases.length > 1 ? "First purchase" : "Bought"} {new Date(`${fund.purchaseDate}T12:00:00Z`).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric", timeZone: "Asia/Kolkata" })}
                       {fund.purchaseNav !== undefined && ` · ${formatCurrencyExact(fund.purchaseNav, 4)} per unit`}
                     </p>
                   )}
                   <p className="mt-1 text-xs text-[var(--shell-text-faint)]">{fund.units.toLocaleString("en-IN", { maximumFractionDigits: 4 })} units{fund.schemeCode && ` · Scheme ${fund.schemeCode}`}</p>
+                  {fund.purchases && fund.purchases.length > 1 && <details className="mt-2 text-xs text-[var(--shell-text-muted)]"><summary className="cursor-pointer">{fund.purchases.length} completed purchases</summary><ul className="mt-2 max-h-40 overflow-auto space-y-2">{fund.purchases.map(lot=><li key={lot.id}>{lot.date}: {lot.units} units at {formatCurrencyExact(lot.nav,4)} · {formatCurrencyExact(lot.amount)}</li>)}</ul></details>}
                   {fund.monthlySipAmount !== undefined && <p className="mt-1 text-xs text-[var(--shell-text-muted)]">Planned SIP {formatCurrencyExact(fund.monthlySipAmount)}/month</p>}
                   {fund.navAsOf && <p className="mt-1 text-xs text-[var(--shell-text-faint)]">NAV {formatCurrencyExact(fund.nav, 5)} · {fund.navAsOf}{fund.navSourceUrl && <> · <a href={fund.navSourceUrl} target="_blank" rel="noopener noreferrer" className="underline">Source</a></>}</p>}
                   {isEtf && <p className="mt-1 text-xs font-medium text-amber-600">ETF market price is not verified. Saved value is not a live exchange quote.</p>}
@@ -227,7 +231,6 @@ export default function HoldingsTable({
                   <td className="block self-end px-2 pb-3 text-right sm:table-cell sm:px-4 sm:py-3">
                     {isEditing ? (
                       <div className="flex flex-wrap justify-end gap-1">
-                        {!isEtf && onChanged && <MonthlySipEditor fund={fund} onSaved={onChanged} />}
                         <button
                           onClick={() => saveEdit(fund.id)}
                           disabled={isBusy}
@@ -269,8 +272,10 @@ export default function HoldingsTable({
                         </button>
                       </div>
                     ) : (
-                      <div className="flex justify-end gap-1">
-                        {!isEtf && (onRepair || !fund.purchaseDate) && <button
+                      <div className="flex flex-wrap justify-end gap-1">
+                        {!isEtf && onChanged && <MonthlySipEditor fund={fund} onSaved={onChanged} />}
+                        {!isEtf && fund.schemeCode && fund.purchaseStatus === "verified" && <button onClick={()=>setRecordingFund(fund)} title="Record purchase or import CSV" aria-label={`Record purchase for ${fund.name}`} className="app-icon-button"><Plus className="h-3.5 w-3.5" /></button>}
+                        {!isEtf && (fund.purchases?.length || 0) <= 1 && (onRepair || !fund.purchaseDate) && <button
                           onClick={() => onRepair ? onRepair(fund) : startEdit(fund)}
                           className="app-icon-button"
                           title={onRepair ? "Correct purchase details" : "Edit invested amount"}

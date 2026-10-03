@@ -11,7 +11,7 @@ import ValuationStatus from "./ValuationStatus";
 import { hasVerifiedValue, isPortfolioDataReady } from "@/lib/marketData/quality";
 import AIConsentDialog from "@/components/shared/AIConsentDialog";
 import { answerHoldingQuestion, detectPortfolioIntent } from "@/lib/ai/holdingAnswer";
-import { DETAILED_AI_CONSENT_VERSION } from "@/lib/ai/privacy";
+import { DETAILED_AI_CONSENT_VERSION, readAIPrivacyPreference, saveAIPrivacyPreference } from "@/lib/ai/privacy";
 interface ChatMessage {
   role: "user" | "assistant";
   content: string;
@@ -96,7 +96,22 @@ export default function AIPortfolioAssistant({
   const [loading, setLoading] = useState(false);
   const [onlineConsent, setOnlineConsent] = useState<boolean | null>(null);
   const [pendingQuestion, setPendingQuestion] = useState<string | null>(null);
-  useEffect(() => { setOnlineConsent(null); setPendingQuestion(null); }, [portfolio.id]);
+  const privacyScope = `${portfolio.userId}:${portfolio.id}`;
+  const consentScope = useRef<{ scope: string; online: boolean | null }>({ scope: privacyScope, online: null });
+  const [preferenceError, setPreferenceError] = useState<string | null>(null);
+  useEffect(() => {
+    let choice: boolean | null = null;
+    try { choice = historyEnabled ? readAIPrivacyPreference(localStorage, portfolio.userId, portfolio.id) : null; } catch { /* No persisted consent without storage. */ }
+    consentScope.current = { scope: privacyScope, online: choice };
+    setOnlineConsent(choice);
+    setPendingQuestion(null); setPreferenceError(null);
+  }, [privacyScope, historyEnabled, portfolio.userId, portfolio.id]);
+  function resetPrivacy() {
+    consentScope.current = { scope: privacyScope, online: null };
+    setOnlineConsent(null);
+    try { if (!saveAIPrivacyPreference(localStorage, portfolio.userId, portfolio.id, null)) setPreferenceError("Could not clear the saved preference on this device."); }
+    catch { setPreferenceError("Could not clear the saved preference on this device."); }
+  }
   const [source, setSource] = useState<"groq" | "gemini" | "openai" | "deterministic" | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -241,7 +256,10 @@ export default function AIPortfolioAssistant({
       return;
     }
 
-    const consent = consentOverride ?? onlineConsent;
+    let consent = consentOverride ?? (consentScope.current.scope === privacyScope ? consentScope.current.online : null);
+    if (consent === null && historyEnabled) {
+      try { consent = readAIPrivacyPreference(localStorage, portfolio.userId, portfolio.id); } catch { /* Storage can be unavailable. */ }
+    }
     if (consent === null) { setPendingQuestion(trimmed); return; }
     const nextMessages: ChatMessage[] = [...messages, { role: "user", content: trimmed }];
     setMessages(nextMessages);
@@ -280,12 +298,17 @@ export default function AIPortfolioAssistant({
     }
   }
 
-  const consentDialog = <AIConsentDialog open={pendingQuestion !== null} onClose={() => setPendingQuestion(null)} onChoose={(online) => {
+  const consentDialog = <><AIConsentDialog canRemember={historyEnabled} open={pendingQuestion !== null} onClose={() => setPendingQuestion(null)} onChoose={(online, remember) => {
     const question = pendingQuestion;
     setOnlineConsent(online);
+    consentScope.current = { scope: privacyScope, online };
+    try {
+      const saved = saveAIPrivacyPreference(localStorage, portfolio.userId, portfolio.id, remember && historyEnabled ? online : null);
+      setPreferenceError(saved ? null : "Your choice applies to this visit, but could not be remembered on this device.");
+    } catch { setPreferenceError("Your choice applies to this visit, but could not be remembered on this device."); }
     setPendingQuestion(null);
     if (question) void askAssistant(question, online);
-  }} />;
+  }} />{preferenceError && <p role="alert" className="text-xs text-amber-600">{preferenceError}</p>}</>;
 
   // ── Inline renderer: **bold** and *italic* ──────────────────────────────
   function renderInline(text: string, keyPrefix: string): React.ReactNode[] {
@@ -418,7 +441,7 @@ export default function AIPortfolioAssistant({
       <div className="flex h-full w-full flex-col overflow-hidden">
         {consentDialog}
         <div className="shrink-0 flex items-center justify-end gap-2 px-5 py-4">
-          <button title="Change AI privacy choice" onClick={() => setOnlineConsent(null)} className="rounded-lg p-2 text-[var(--shell-text-faint)]"><ShieldCheck className="h-4 w-4" /></button>
+          <button title="Change AI privacy choice" aria-label="Change AI privacy choice" onClick={resetPrivacy} className="app-icon-button"><ShieldCheck className="h-4 w-4" /></button>
           <button
             onClick={onRefresh}
             disabled={refreshing}
@@ -486,7 +509,7 @@ export default function AIPortfolioAssistant({
             </div>
           </div>
           <div className="flex items-center gap-1">
-            <button title="Change AI privacy choice before your next question" onClick={() => setOnlineConsent(null)} className="rounded-lg p-2 text-[var(--shell-text-faint)]"><ShieldCheck className="h-4 w-4" /></button>
+            <button title="Change AI privacy choice before your next question" aria-label="Change AI privacy choice" onClick={resetPrivacy} className="app-icon-button"><ShieldCheck className="h-4 w-4" /></button>
             <button
               onClick={onRefresh}
               disabled={refreshing}

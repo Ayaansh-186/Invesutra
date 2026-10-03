@@ -77,7 +77,7 @@ export async function POST(request: NextRequest) {
         .eq("portfolio_id", clientPortfolio.id);
       if (fundsError) throw fundsError;
       const { data: purchases, error: purchaseError } = await supabase.from("transactions")
-        .select("fund_id, created_at, nav, notes").eq("portfolio_id", clientPortfolio.id).eq("type", "buy");
+        .select("id, fund_id, created_at, nav, notes, units, amount").eq("portfolio_id", clientPortfolio.id).eq("type", "buy");
       if (purchaseError) throw purchaseError;
       portfolio = await hydratePortfolioValuations(buildPortfolio(owned as DbPortfolio, (funds || []) as DbFund[], (purchases || []) as DbPurchase[]));
       hasOwnedPortfolio = true;

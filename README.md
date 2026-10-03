@@ -109,9 +109,39 @@ session — not just kept in memory. Demo/guest sessions and empty
 4. `supabase/migrations/004_monthly_sip_plans.sql` - optional planned monthly contributions.
 5. `supabase/migrations/005_saved_report_snapshots.sql` - saved historical report snapshots.
 6. `supabase/migrations/20261003044445_harden_trigger_permissions.sql` - fixed trigger search paths and restricted public RPC access, preserving signup/update triggers.
+7. `supabase/migrations/20261003052935_sip_purchase_ledger.sql` - atomic, owner-scoped completed allotments with retry and duplicate protection.
+8. `supabase/migrations/20261003054602_scheduled_nav_updates.sql` - service-only NAV updates and source-check history.
 
 The first two are also folded into `supabase/schema.sql`. Apply the remaining
 migrations after that schema when setting up a fresh project.
+
+### Completed purchases and CSV import
+
+Use the plus control on a verified mutual-fund holding to record a completed
+allotment or review a CSV import. The downloaded template uses
+`scheme_code,allotment_date,units,buying_nav`; dates must be `YYYY-MM-DD` and every
+row must match the selected scheme. Only new purchases should be imported.
+PDF/CAS statements and redemptions are not parsed by this CSV workflow. Every
+historical buying NAV is verified before the entire batch is committed.
+Monthly SIP plans remain separate from actual purchases. Multiple lots retain
+their individual dates, units and costs; there is no guessed average buying NAV.
+
+AI privacy choices can optionally be remembered on the device, scoped to account
+and portfolio and invalidated by consent-version changes. The privacy control
+clears the remembered choice. Financial data is never sent online by default.
+
+### Daily NAV monitoring
+
+`vercel.json` schedules `/api/cron/nav` once daily. Set `CRON_SECRET` as a secret
+in the production Vercel environment and keep `SUPABASE_SERVICE_ROLE_KEY`
+server-only. The worker authenticates before any database or feed request and
+uses the official AMFI catalogue, never an AI provider. It updates NAV value
+using the current stored units without changing cost or SIP plans. Missing,
+stale or older publications do not replace saved valuations. Portfolio shows
+the latest scheduled source-check timestamp after a run.
+
+Report comparison requires two complete saved snapshots of the same portfolio.
+Value changes include cash flows and are not labelled as investment returns.
 
 ### Verifying the integration
 

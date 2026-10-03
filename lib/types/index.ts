@@ -1,5 +1,13 @@
 // Core domain types for Invesutra
 
+export interface FundPurchase {
+  id: string;
+  date: string;
+  nav: number;
+  units: number;
+  amount: number;
+}
+
 export interface Fund {
   id: string;
   name: string;
@@ -18,6 +26,7 @@ export interface Fund {
   manager: string;
   purchaseDate?: string;
   purchaseNav?: number;
+  purchases?: FundPurchase[];
   /** Planned contribution only; not included in purchase amounts or valuation. */
   monthlySipAmount?: number;
   schemeCode?: string;

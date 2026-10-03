@@ -63,7 +63,7 @@ export async function GET(request: NextRequest) {
 
   const fundIds = ((funds || []) as DbFund[]).map((fund) => fund.id);
   const { data: purchases, error: purchasesError } = fundIds.length > 0
-    ? await supabase.from("transactions").select("fund_id, created_at, nav, notes").in("portfolio_id", portfolioIds).eq("type", "buy")
+    ? await supabase.from("transactions").select("id, fund_id, created_at, nav, notes, units, amount").in("portfolio_id", portfolioIds).eq("type", "buy")
     : { data: [], error: null };
   if (purchasesError) {
     console.error("purchase history fetch error:", purchasesError.message);

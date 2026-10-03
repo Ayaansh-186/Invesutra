@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getFundNav, searchFunds } from "@/lib/marketData/providers";
 import { findExactLiveFund } from "@/lib/marketData/matchFund";
-import { isRecentNav } from "@/lib/marketData/navFreshness";
+import { isRecentNav, navDateToIso } from "@/lib/marketData/navFreshness";
 import { isExchangeTradedFund } from "@/lib/marketData/amfi";
 import { getAmfiCatalogue } from "@/lib/marketData/amfi";
 import { mapConcurrent } from "@/lib/utils/mapConcurrent";
@@ -79,9 +79,12 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
         const nextValue = Number((units * match.nav).toFixed(2));
         if (!Number.isFinite(nextValue) || nextValue <= 0 || nextValue >= 1e12) { unavailable.push(fund.name); return; }
+        const publication = match as { navAsOf?: string; asOf?: string };
         const { data: changed, error: updateError } = await supabase.from("funds").update({
           nav: match.nav,
           current_value: nextValue,
+          nav_as_of: navDateToIso(publication.navAsOf ?? publication.asOf),
+          nav_checked_at: new Date().toISOString(),
           ...(match.returns1Y !== undefined ? { returns_1y: match.returns1Y } : {}),
           ...(match.returns3Y !== undefined ? { returns_3y: match.returns3Y } : {}),
           ...(match.returns5Y !== undefined ? { returns_5y: match.returns5Y } : {}),

@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
       if (error) throw error;
       if (!owned) return NextResponse.json({ error: "Saved portfolio not found." }, { status: 404 });
       const { data: funds, error: fundError } = await supabase.from("funds").select("*").eq("portfolio_id", portfolio.id);
-      const { data: purchases, error: purchaseError } = await supabase.from("transactions").select("fund_id, created_at, nav, notes").eq("portfolio_id", portfolio.id).eq("type", "buy");
+      const { data: purchases, error: purchaseError } = await supabase.from("transactions").select("id, fund_id, created_at, nav, notes, units, amount").eq("portfolio_id", portfolio.id).eq("type", "buy");
       if (fundError || purchaseError) throw fundError || purchaseError;
       portfolio = await hydratePortfolioValuations(buildPortfolio(owned as DbPortfolio, (funds || []) as DbFund[], (purchases || []) as DbPurchase[]));
     }
