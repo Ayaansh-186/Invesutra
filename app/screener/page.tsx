@@ -45,13 +45,13 @@ export default function ScreenerPage() {
   }
 
   return (
-    <div className="mx-auto max-w-5xl">
+    <div className="app-page">
       <AIConsentDialog open={askConsent} onClose={() => setAskConsent(false)} onChoose={(online) => {
         setOnlineConsent(online); setAskConsent(false); void analyze(online);
       }} />
-      <header className="mb-6 flex flex-wrap items-start justify-between gap-4">
+      <header className="app-page-header">
         <div><h1 className="text-2xl font-semibold text-[var(--shell-text)]">Fund screener</h1><p className="mt-1 text-sm text-[var(--shell-text-muted)]">{isDemo ? "Demo holdings" : "Your saved holdings"}</p></div>
-        <Link href="/portfolio" className="inline-flex items-center gap-2 text-sm font-medium text-[var(--shell-text)]">Manage holdings <ArrowRight className="h-4 w-4" /></Link>
+        <Link href="/portfolio" className="app-secondary-button">Manage holdings <ArrowRight className="h-4 w-4" /></Link>
       </header>
       <div className="mb-6 flex gap-4 border-b border-[var(--shell-border)]" role="tablist" aria-label="Fund screener views">
         {([["portfolio", "My funds"], ["top", "Top performers"]] as const).map(([key, label]) => (

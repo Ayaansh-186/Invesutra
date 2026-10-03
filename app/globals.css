@@ -128,13 +128,13 @@
 }
 
 .dark {
-  --bg: #020617;
+  --bg: #101417;
   --fg: #f8fafc;
 
-  /* App shell tokens — dark (matches the existing Invesutra navy design) */
-  --shell-bg: #07111f;
-  --shell-sidebar-bg: #0a1525;
-  --shell-surface: #0c1829;
+  /* Neutral surfaces keep data and status colors distinct in dark mode. */
+  --shell-bg: #101417;
+  --shell-sidebar-bg: #151a1e;
+  --shell-surface: #1c2226;
   --shell-surface-2: rgba(255, 255, 255, 0.04);
   --shell-border: rgba(255, 255, 255, 0.1);
   --shell-text: #ffffff;
@@ -155,6 +155,39 @@ body {
   color: var(--fg);
   -webkit-font-smoothing: antialiased;
   margin: 0;
+  letter-spacing: 0;
+}
+
+::selection { background: #a7f3d0; color: #052e16; }
+button:not(:disabled), summary { cursor: pointer; }
+
+.app-shell { color: var(--shell-text); }
+.app-shell main { scrollbar-gutter: stable; }
+.app-shell :is(input:not([type="checkbox"]):not([type="range"]), select, textarea) {
+  font-size: 1rem;
+}
+.app-shell :is(table, dl) { font-variant-numeric: tabular-nums; }
+.app-shell tbody tr { transition: background-color 150ms; }
+.app-shell tbody tr:hover { background: var(--shell-surface-2); }
+.app-page { width: 100%; max-width: 72rem; margin-inline: auto; }
+.app-page-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.75rem;
+  padding-bottom: 1.25rem;
+  border-bottom: 1px solid var(--shell-border);
+}
+.app-page-header > div:first-child { min-width: 0; flex: 1 1 16rem; }
+.app-page-header h1 { font-size: 1.5rem; line-height: 1.35; font-weight: 600; }
+.app-page-header p { max-width: 42rem; line-height: 1.6; }
+.app-report-section { border-top: 1px solid var(--shell-border); padding-block: 1.5rem; }
+.app-report-section:first-child { border-top: 0; padding-top: 0; }
+@media (max-width: 639px) {
+  .app-page-header { gap: 0.875rem; margin-bottom: 1.5rem; }
+  .app-page-header > div:first-child { flex-basis: 100%; }
 }
 
 h1, h2, h3 { overflow-wrap: anywhere; text-wrap: balance; }
@@ -183,6 +216,9 @@ input, select, textarea { min-width: 0; max-width: 100%; }
     border-radius: 0.5rem;
     font-size: 0.875rem;
     font-weight: 600;
+    line-height: 1.4;
+    white-space: normal;
+    text-align: center;
     transition: background-color 150ms, color 150ms, border-color 150ms;
   }
   .app-primary-button {
@@ -209,6 +245,7 @@ input, select, textarea { min-width: 0; max-width: 100%; }
     cursor: not-allowed;
     opacity: 0.5;
   }
+  .app-icon-button svg { flex-shrink: 0; }
   .app-primary-button:focus-visible, .app-secondary-button:focus-visible, .app-icon-button:focus-visible {
     outline: 2px solid #0891b2;
     outline-offset: 3px;

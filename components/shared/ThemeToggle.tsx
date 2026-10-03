@@ -13,7 +13,7 @@ export default function ThemeToggle({ className = "" }: { className?: string }) 
       onClick={toggleTheme}
       aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
       title={isDark ? "Switch to light mode" : "Switch to dark mode"}
-      className={`relative inline-flex h-9 w-9 items-center justify-center rounded-lg border border-[var(--shell-border)] bg-[var(--shell-surface-2)] text-[var(--shell-text-muted)] transition-colors hover:text-[var(--shell-text)] ${className}`}
+      className={`app-icon-button relative border border-[var(--shell-border)] hover:text-[var(--shell-text)] ${className}`}
     >
       <Sun
         className={`h-4 w-4 transition-all ${isDark ? "absolute scale-0 opacity-0" : "scale-100 opacity-100"}`}

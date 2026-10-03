@@ -52,6 +52,7 @@ export default function DashboardSidebar({
       )}
 
       <aside
+        id="app-navigation"
         className={`fixed left-0 top-0 z-40 flex h-full w-64 flex-col border-r border-[var(--shell-border)] bg-[var(--shell-sidebar-bg)] transition-transform duration-200 md:translate-x-0 ${
           mobileOpen ? "translate-x-0" : "-translate-x-full"
         }`}
@@ -64,7 +65,7 @@ export default function DashboardSidebar({
           </Link>
           <button
             onClick={onClose}
-            className="rounded-lg p-1.5 text-[var(--shell-text-faint)] hover:bg-[var(--shell-surface-2)] md:hidden"
+            className="app-icon-button md:hidden"
             aria-label="Close menu"
           >
             <X className="h-4 w-4" />
@@ -72,17 +73,18 @@ export default function DashboardSidebar({
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 space-y-0.5 overflow-y-auto p-3">
+        <nav aria-label="Main navigation" className="flex-1 space-y-1 overflow-y-auto p-3">
           {navItems.map((item) => {
             const active = pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href));
             return (
               <Link
                 key={item.href}
                 href={item.href}
+                aria-current={active ? "page" : undefined}
                 onClick={onClose}
                 className={`group flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition-colors ${
                   active
-                    ? "bg-[var(--shell-surface-2)] text-[var(--shell-text)]"
+                    ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
                     : "text-[var(--shell-text-muted)] hover:bg-[var(--shell-surface-2)] hover:text-[var(--shell-text)]"
                 }`}
               >
@@ -97,12 +99,12 @@ export default function DashboardSidebar({
         {/* User section */}
         <div className="border-t border-[var(--shell-border)] p-3">
           <div className="mb-2 flex items-center justify-between px-2">
-            <span className="text-[10px] font-semibold uppercase tracking-wide text-[var(--shell-text-faint)]">
+            <span className="text-xs font-medium text-[var(--shell-text-faint)]">
               Appearance
             </span>
             <ThemeToggle />
           </div>
-          <div className="flex items-center gap-2.5 rounded-xl px-2 py-2 transition-colors hover:bg-[var(--shell-surface-2)]">
+          <div className="flex items-center gap-2.5 rounded-lg px-2 py-2">
             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-cyan-400 to-emerald-400 text-xs font-bold text-slate-950">
               {loading ? <User className="h-3.5 w-3.5" /> : initial}
             </div>
@@ -112,11 +114,11 @@ export default function DashboardSidebar({
             </div>
             <div className="flex shrink-0 gap-0.5">
               {user ? (
-                <button onClick={handleSignOut} className="rounded-lg p-1.5 text-[var(--shell-text-faint)] transition-colors hover:bg-[var(--shell-surface-2)] hover:text-[var(--shell-text-muted)]" title="Sign out">
+                <button onClick={handleSignOut} className="app-icon-button" title="Sign out" aria-label="Sign out">
                   <LogOut className="h-3.5 w-3.5" />
                 </button>
               ) : (
-                <Link href="/auth/login" className="rounded-lg p-1.5 text-[var(--shell-text-faint)] transition-colors hover:bg-[var(--shell-surface-2)] hover:text-[var(--shell-text-muted)]" title="Sign in">
+                <Link href="/auth/login" className="app-icon-button" title="Sign in" aria-label="Sign in">
                   <LogOut className="h-3.5 w-3.5 rotate-180" />
                 </Link>
               )}

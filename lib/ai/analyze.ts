@@ -1,4 +1,5 @@
 import { getAIChatCompletion, type AIProvider } from "./aiClient";
+import { groqCredentials } from "./groqPool";
 import { riskEngine } from "@/lib/algorithm/riskEngine";
 import { createRebalanceEngine } from "@/lib/algorithm/rebalanceEngine";
 import type { Portfolio } from "@/lib/types";
@@ -106,7 +107,7 @@ export async function analyzePortfolioWithAI(portfolio: Portfolio, options: { al
   };
 
   const hasAnyProvider =
-    process.env.GROQ_API_KEY || process.env.GEMINI_API_KEY || process.env.OPENAI_API_KEY;
+    groqCredentials().length > 0 || process.env.GEMINI_API_KEY || process.env.OPENAI_API_KEY;
 
   if (options.allowPrivateAI !== true || !hasAnyProvider) {
     return deterministicResult;
@@ -154,7 +155,7 @@ export async function analyzePortfolioWithAI(portfolio: Portfolio, options: { al
         },
         {
           role: "user",
-          content: `Here is the deterministic portfolio analysis data:\n\n${JSON.stringify(groundingData, null, 2)}\n\nWrite the summary and insights JSON now.`,
+          content: `Here is the deterministic portfolio analysis data:\n\n${JSON.stringify(groundingData)}\n\nWrite the summary and insights JSON now.`,
         },
       ],
       { jsonMode: true }

@@ -111,7 +111,7 @@ export default function HoldingsTable({
           <input aria-label="Find a holding" type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder="Find a holding" className="h-10 w-full rounded-md border border-[var(--shell-border)] bg-[var(--shell-surface)] pl-9 pr-3 text-sm text-[var(--shell-text)] focus:border-emerald-400/60 focus:outline-none focus:ring-2 focus:ring-emerald-400/15" />
         </div>
         <div role="group" aria-label="Holdings filter" className="inline-flex rounded-md border border-[var(--shell-border)] p-0.5">
-          {[{label:`All ${funds.length}`,review:false},{label:`Needs review ${reviewCount}`,review:true}].map(item => <button key={item.label} type="button" aria-pressed={reviewOnly === item.review} onClick={() => setReviewOnly(item.review)} className={`h-9 rounded px-3 text-xs font-medium ${reviewOnly === item.review ? "bg-[var(--shell-surface-2)] text-[var(--shell-text)]" : "text-[var(--shell-text-muted)]"}`}>{item.label}</button>)}
+          {[{label:`All ${funds.length}`,review:false},{label:`Needs review ${reviewCount}`,review:true}].map(item => <button key={item.label} type="button" aria-pressed={reviewOnly === item.review} onClick={() => setReviewOnly(item.review)} className={`h-11 rounded px-3 text-xs font-medium ${reviewOnly === item.review ? "bg-[var(--shell-surface-2)] text-[var(--shell-text)]" : "text-[var(--shell-text-muted)]"}`}>{item.label}</button>)}
         </div>
       </div>
       <div className="overflow-hidden rounded-lg border border-[var(--shell-border)] bg-[var(--shell-surface)]">

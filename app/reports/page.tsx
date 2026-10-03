@@ -208,8 +208,8 @@ export default function ReportsPage() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto">
-      <div className="mb-6 flex flex-wrap items-start justify-between gap-4 sm:mb-8">
+    <div className="app-page">
+      <div className="app-page-header">
         <div className="min-w-0">
           <h1 className="text-2xl font-semibold text-[var(--shell-text)]">Investment reports</h1>
           <p className="mt-1 text-sm text-[var(--shell-text-muted)]">
@@ -244,7 +244,7 @@ export default function ReportsPage() {
       </section>}
       {!isDemo && <ReportComparison key={reportScope} reports={savedReports} />}
       {isDemo && (
-        <div className="mb-6 flex items-start gap-3 p-4 bg-cyan-400/10 border border-cyan-500/20 rounded-xl">
+        <div className="mb-6 flex items-start gap-3 p-4 bg-cyan-400/10 border border-cyan-500/20 rounded-lg">
           <Info className="w-4 h-4 text-cyan-500 shrink-0 mt-0.5" />
           <p className="text-xs text-cyan-500 leading-relaxed">
             Reports generated here are based on a sample portfolio and won&apos;t be saved.{" "}
@@ -279,7 +279,7 @@ export default function ReportsPage() {
       )}
 
       {generating && (
-        <div className="bg-[var(--shell-surface)] border border-[var(--shell-border)] rounded-2xl p-16 text-center">
+        <div role="status" className="border-y border-[var(--shell-border)] px-4 py-12 text-center">
           <div className="w-16 h-16 bg-cyan-400/10 rounded-2xl flex items-center justify-center mx-auto mb-4">
             <Brain className="w-8 h-8 text-cyan-500 animate-pulse" />
           </div>
@@ -301,25 +301,25 @@ export default function ReportsPage() {
 
       {report && (
         <div className="space-y-5">
-          <div className="bg-[var(--shell-surface)] border border-[var(--shell-border)] rounded-2xl p-6">
+          <div className="app-report-section">
             <div className="mb-5 flex flex-wrap items-start justify-between gap-4">
               <div>
                 <div className="flex items-center gap-2 mb-1">
                   <FileText className="w-4 h-4 text-cyan-500" />
-                  <span className="text-xs font-semibold text-cyan-500 uppercase tracking-wide">
+                  <span className="text-xs font-semibold text-cyan-500 ">
                     AI Portfolio Report
                   </span>
                 </div>
                 <h2 className="text-xl font-bold text-[var(--shell-text)]">{report.portfolio}</h2>
-                <p className="text-xs text-[var(--shell-text-faint)] mt-1">
+                <p className="mt-1 break-all text-xs leading-relaxed text-[var(--shell-text-faint)]">
                   Report ID: {report.id} · Generated: {report.generatedAt} IST
                 </p>
                 {!isDemo && <p className="mt-1 text-xs text-emerald-600">Saved snapshot. Values reflect the report date, not current prices.</p>}
               </div>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <button
                   onClick={handleDownload}
-                  className="flex items-center gap-1.5 px-3 py-1.5 border border-[var(--shell-border)] text-[var(--shell-text-muted)] text-xs font-medium rounded-lg hover:bg-[var(--shell-surface-2)] transition-colors"
+                  className="app-secondary-button"
                 >
                   <Download className="w-3.5 h-3.5" />
                   Export .txt
@@ -341,7 +341,7 @@ export default function ReportsPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 gap-4 p-4 bg-[var(--shell-surface-2)] rounded-xl sm:grid-cols-3">
+            <div className="grid grid-cols-1 gap-4 p-4 bg-[var(--shell-surface-2)] rounded-lg sm:grid-cols-3">
               <div className="text-center">
                 <p className="text-2xl font-bold text-[var(--shell-text)]">{report.healthScore}/100</p>
                 <p className="text-xs text-[var(--shell-text-faint)] mt-1">Health Score</p>
@@ -368,7 +368,7 @@ export default function ReportsPage() {
               </div>
             </div>
 
-            <div className="mt-4 p-4 bg-cyan-400/10 border border-cyan-500/20 rounded-xl">
+            <div className="mt-4 p-4 bg-cyan-400/10 border border-cyan-500/20 rounded-lg">
               <div className="flex items-center gap-2 mb-2">
                 <Brain className="w-4 h-4 text-cyan-500" />
                 <span className="text-xs font-semibold text-cyan-500">Executive Summary</span>
@@ -378,7 +378,7 @@ export default function ReportsPage() {
           </div>
 
           {report.issues.length > 0 && (
-            <div className="bg-[var(--shell-surface)] border border-[var(--shell-border)] rounded-2xl p-6">
+            <div className="app-report-section">
               <h3 className="text-sm font-semibold text-[var(--shell-text)] mb-4 flex items-center gap-2">
                 <AlertTriangle className="w-4 h-4 text-amber-500" />
                 Detected Issues ({report.issues.length})
@@ -387,7 +387,7 @@ export default function ReportsPage() {
                 {report.issues.map((issue, i) => {
                   const config = severityConfig[issue.severity as keyof typeof severityConfig] || severityConfig.info;
                   return (
-                    <div key={i} className={`flex items-start gap-3 p-4 rounded-xl border ${config.bg}`}>
+                    <div key={i} className={`flex items-start gap-3 p-4 rounded-lg border ${config.bg}`}>
                       <config.icon className={`w-4 h-4 ${config.icon_color} shrink-0 mt-0.5`} />
                       <div>
                         <p className={`text-sm font-semibold ${config.text}`}>{issue.title}</p>
@@ -401,7 +401,7 @@ export default function ReportsPage() {
           )}
 
           {report.rebalanceSuggestions.length > 0 && (
-            <div className="bg-[var(--shell-surface)] border border-[var(--shell-border)] rounded-2xl p-6">
+            <div className="app-report-section">
               <h3 className="text-sm font-semibold text-[var(--shell-text)] mb-4 flex items-center gap-2">
                 <TrendingUp className="w-4 h-4 text-violet-600" />
                 QuantRebalance Suggestions
@@ -410,7 +410,7 @@ export default function ReportsPage() {
                 {report.rebalanceSuggestions.map((s, i) => (
                   <div
                     key={i}
-                    className={`p-4 rounded-xl border text-xs ${
+                    className={`p-4 rounded-lg border text-xs ${
                       s.action === "exit"
                         ? "bg-rose-500/10 border-rose-500/20"
                         : s.action === "decrease" || s.action === "reduce"
@@ -429,7 +429,7 @@ export default function ReportsPage() {
           )}
 
           {report.alphaDeployment && (
-            <div className="bg-[var(--shell-surface)] border border-[var(--shell-border)] rounded-2xl p-6">
+            <div className="app-report-section">
               <h3 className="text-sm font-semibold text-[var(--shell-text)] mb-1 flex items-center gap-2">
                 <Droplets className="w-4 h-4 text-cyan-500" />
                 Alpha Pool Deployment Plan
@@ -466,7 +466,7 @@ export default function ReportsPage() {
                   ))}
                 </div>
               ) : (
-                <div className="flex items-start gap-3 p-4 bg-amber-500/10 border border-amber-500/20 rounded-xl text-xs">
+                <div className="flex items-start gap-3 p-4 bg-amber-500/10 border border-amber-500/20 rounded-lg text-xs">
                   <Droplets className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
                   <p className="text-amber-500 leading-relaxed">
                     No fund is currently trading below its cost basis, so this alpha would be swept into the Dry
@@ -479,7 +479,7 @@ export default function ReportsPage() {
           )}
 
           {report.dryPowderPreview && (
-            <div className="bg-[var(--shell-surface)] border border-[var(--shell-border)] rounded-2xl p-6">
+            <div className="app-report-section">
               <h3 className="text-sm font-semibold text-[var(--shell-text)] mb-1 flex items-center gap-2">
                 <Droplets className="w-4 h-4 text-cyan-500" />
                 Dry Powder Reserve
@@ -511,7 +511,7 @@ export default function ReportsPage() {
                   ))}
                 </div>
               ) : (
-                <div className="flex items-start gap-3 p-4 bg-cyan-500/10 border border-cyan-500/20 rounded-xl text-xs">
+                <div className="flex items-start gap-3 p-4 bg-cyan-500/10 border border-cyan-500/20 rounded-lg text-xs">
                   <Droplets className="w-4 h-4 text-cyan-500 shrink-0 mt-0.5" />
                   <p className="text-cyan-500 leading-relaxed">
                     No fund has crossed the 5% correction threshold yet, so this reserve stays parked in a
@@ -523,7 +523,7 @@ export default function ReportsPage() {
             </div>
           )}
 
-          <div className="bg-[var(--shell-surface)] border border-[var(--shell-border)] rounded-2xl p-6">
+          <div className="app-report-section">
             <h3 className="text-sm font-semibold text-[var(--shell-text)] mb-4 flex items-center gap-2">
               <Shield className="w-4 h-4 text-[var(--shell-text-muted)]" />
               Risk Metrics
@@ -536,7 +536,7 @@ export default function ReportsPage() {
                 { label: "Max Drawdown", value: formatRiskMetric(report.riskMetrics.maxDrawdown, 1, "%"), desc: "Worst peak-to-trough" },
                 { label: "VaR (95%)", value: formatRiskMetric(report.riskMetrics.valueAtRisk, 1, "%"), desc: "Value at Risk" },
               ].map((m) => (
-                <div key={m.label} className="p-3 bg-[var(--shell-surface-2)] rounded-xl text-center">
+                <div key={m.label} className="p-3 bg-[var(--shell-surface-2)] rounded-lg text-center">
                   <p className="text-sm font-semibold text-[var(--shell-text)]">{m.value}</p>
                   <p className="text-xs font-medium text-[var(--shell-text-muted)] mt-0.5">{m.label}</p>
                   <p className="text-xs text-[var(--shell-text-faint)] mt-0.5">{m.desc}</p>
@@ -546,7 +546,7 @@ export default function ReportsPage() {
             <p className="mt-4 text-xs leading-relaxed text-[var(--shell-text-muted)]">Historical statistics require a validated portfolio return series and suitable benchmark. Health and category-risk scores are model assessments, not measured market statistics.</p>
           </div>
 
-          <div className="bg-[var(--shell-surface)] border border-[var(--shell-border)] rounded-2xl p-6">
+          <div className="app-report-section">
             <h3 className="text-sm font-semibold text-[var(--shell-text)] mb-4 flex items-center gap-2">
               <BarChart2 className="w-4 h-4 text-[var(--shell-text-muted)]" />
               Allocation Breakdown
@@ -569,7 +569,7 @@ export default function ReportsPage() {
             </div>
           </div>
 
-          <div className="bg-[var(--shell-surface)] border border-[var(--shell-border)] rounded-2xl p-6">
+          <div className="app-report-section">
             <h3 className="text-sm font-semibold text-[var(--shell-text)] mb-4 flex items-center gap-2">
               <TrendingUp className="w-4 h-4 text-emerald-600" />
               AI Recommendations
@@ -584,7 +584,7 @@ export default function ReportsPage() {
             </div>
           </div>
 
-          <div className="bg-[var(--shell-surface)] border border-[var(--shell-border)] rounded-2xl p-6">
+          <div className="app-report-section">
             <h3 className="text-sm font-semibold text-[var(--shell-text)] mb-3 flex items-center gap-2">
               <Brain className="w-4 h-4 text-violet-600" />
               QuantRebalance Protocol Explanation
@@ -593,25 +593,25 @@ export default function ReportsPage() {
           </div>
 
           <div className="bg-[var(--shell-surface)] border border-[var(--shell-border)] rounded-2xl p-4">
-            <p className="text-xs font-semibold uppercase tracking-wide text-[var(--shell-text-faint)] mb-1 px-2">Act on this</p>
+            <p className="text-xs font-semibold  text-[var(--shell-text-faint)] mb-1 px-2">Act on this</p>
             <div className="grid sm:grid-cols-3 gap-2">
               <Link
                 href={`/dashboard?q=${encodeURIComponent(`Explain my latest report for ${report.portfolio}. Its health score is ${report.healthScore}/100. What should I review first?`)}`}
-                className="flex items-center gap-2 rounded-xl px-3 py-3 text-sm text-[var(--shell-text)] hover:bg-[var(--shell-surface-2)] transition-colors"
+                className="flex items-center gap-2 rounded-lg px-3 py-3 text-sm text-[var(--shell-text)] hover:bg-[var(--shell-surface-2)] transition-colors"
               >
                 <MessageSquare className="h-4 w-4 text-cyan-500 shrink-0" />
                 Ask AI about this report
               </Link>
               <Link
                 href="/screener"
-                className="flex items-center gap-2 rounded-xl px-3 py-3 text-sm text-[var(--shell-text)] hover:bg-[var(--shell-surface-2)] transition-colors"
+                className="flex items-center gap-2 rounded-lg px-3 py-3 text-sm text-[var(--shell-text)] hover:bg-[var(--shell-surface-2)] transition-colors"
               >
                 <Search className="h-4 w-4 text-cyan-500 shrink-0" />
                 Try the suggested changes in Screener
               </Link>
               <Link
                 href="/simulator"
-                className="flex items-center gap-2 rounded-xl px-3 py-3 text-sm text-[var(--shell-text)] hover:bg-[var(--shell-surface-2)] transition-colors"
+                className="flex items-center gap-2 rounded-lg px-3 py-3 text-sm text-[var(--shell-text)] hover:bg-[var(--shell-surface-2)] transition-colors"
               >
                 <BarChart2 className="h-4 w-4 text-cyan-500 shrink-0" />
                 Simulate the projected impact
@@ -619,7 +619,7 @@ export default function ReportsPage() {
             </div>
           </div>
 
-          <div className="p-4 bg-[var(--shell-surface-2)] border border-[var(--shell-border)] rounded-xl text-xs text-[var(--shell-text-faint)] leading-relaxed">
+          <div className="p-4 bg-[var(--shell-surface-2)] border border-[var(--shell-border)] rounded-lg text-xs text-[var(--shell-text-faint)] leading-relaxed">
             <strong className="text-[var(--shell-text-muted)]">Disclaimer:</strong> This report is generated by AI for
             informational purposes only. Invesutra is not a SEBI-registered investment advisor.
             All insights are based on algorithmic analysis of provided portfolio data. Past performance

@@ -14,6 +14,7 @@ import type { Portfolio } from "@/lib/types";
 import { executeTool, getAvailableTools, type ToolExecutionContext } from "./tools";
 import { hasVerifiedMetric, isPortfolioDataReady } from "@/lib/marketData/quality";
 import { answerHoldingQuestion, detectPortfolioIntent } from "./holdingAnswer";
+import { groqCredentials } from "./groqPool";
 
 export interface PortfolioChatMessage {
   role: "user" | "assistant";
@@ -225,7 +226,7 @@ async function runToolLoop(
   const tools = getAvailableTools(toolContext);
   const conversation: ChatTurn[] = [
     { role: "system", content: portfolioSystemPrompt(toolContext.canMutate, true, toolContext.isSignedIn) },
-    { role: "user", content: `Portfolio data:\n${JSON.stringify(groundingData, null, 2)}` },
+    { role: "user", content: `Portfolio data:\n${JSON.stringify(groundingData)}` },
     ...messages.slice(-8).map((m) => ({ role: m.role, content: m.content } as ChatTurn)),
   ];
 
@@ -304,7 +305,7 @@ export async function answerPortfolioQuestion(
   const suggestedQuestions = buildSuggestedQuestions(portfolio, analysis);
 
   const hasAnyProvider =
-    process.env.GROQ_API_KEY || process.env.GEMINI_API_KEY || process.env.OPENAI_API_KEY;
+    groqCredentials().length > 0 || process.env.GEMINI_API_KEY || process.env.OPENAI_API_KEY;
 
   const intent = detectPortfolioIntent(latestQuestion);
   if (intent === "manage_holdings") return {
@@ -368,7 +369,7 @@ export async function answerPortfolioQuestion(
   };
 
   const PROVIDER_ENV_KEYS: Record<AIProvider, string | undefined> = {
-    groq: process.env.GROQ_API_KEY,
+    groq: groqCredentials().length ? "configured" : undefined,
     gemini: process.env.GEMINI_API_KEY,
     openai: process.env.OPENAI_API_KEY,
   };
@@ -387,7 +388,7 @@ export async function answerPortfolioQuestion(
 
     const { text: answer, provider } = await getAIChatCompletion([
       { role: "system", content: portfolioSystemPrompt(false, false, toolContext?.isSignedIn) },
-      { role: "user", content: `Portfolio data:\n${JSON.stringify(groundingData, null, 2)}` },
+      { role: "user", content: `Portfolio data:\n${JSON.stringify(groundingData)}` },
       ...messages.slice(-8).map((message) => ({ role: message.role, content: message.content })),
     ]);
 

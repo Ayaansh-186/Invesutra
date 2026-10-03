@@ -15,6 +15,7 @@ export default function Navbar({ alwaysLight = false }: { alwaysLight?: boolean 
 
   useEffect(() => {
     const handler = () => setScrolled(window.scrollY > 20);
+    handler();
     window.addEventListener("scroll", handler);
     return () => window.removeEventListener("scroll", handler);
   }, []);
@@ -32,7 +33,7 @@ export default function Navbar({ alwaysLight = false }: { alwaysLight?: boolean 
       <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
         <Link href="/" className="flex items-center gap-2.5 group">
           <Image src="/invesutra-mark.png" alt="" width={36} height={36} className="h-9 w-9 object-contain" />
-          <span className={`font-semibold tracking-tight ${isDark ? "text-white" : "text-slate-900"}`}>
+          <span className={`font-semibold ${isDark ? "text-white" : "text-slate-900"}`}>
             Invesutra
           </span>
         </Link>
@@ -71,7 +72,7 @@ export default function Navbar({ alwaysLight = false }: { alwaysLight?: boolean 
 
         <button
           onClick={() => setOpen(!open)}
-          className={`md:hidden p-2 rounded-md ${isDark ? "text-white" : "text-slate-600"}`}
+          className={`flex h-11 w-11 items-center justify-center rounded-md md:hidden ${isDark ? "text-white" : "text-slate-600"}`}
           aria-label={open ? "Close menu" : "Open menu"}
           aria-expanded={open}
         >

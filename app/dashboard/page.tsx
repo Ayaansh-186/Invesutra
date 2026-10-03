@@ -85,7 +85,7 @@ function DashboardPageInner() {
           <Sparkles className="h-4 w-4 shrink-0 text-cyan-400" />
           <p className="flex-1 text-xs text-[var(--shell-text-muted)]">
             Exploring with sample data.{" "}
-            <Link href="/auth/signup" className="font-semibold text-cyan-300 hover:underline">
+            <Link href="/auth/signup" className="font-semibold text-cyan-700 hover:underline dark:text-cyan-300">
               Sign up free
             </Link>{" "}
             to add your real holdings.

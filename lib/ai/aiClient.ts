@@ -1,6 +1,7 @@
 // Copyright © 2026 Ayaansh Singhal. All Rights Reserved.
 
 import OpenAI from "openai";
+import { groqCredentials, GroqPool, retryDelay } from "./groqPool";
 import type { ChatCompletionMessageParam, ChatCompletionTool, ChatCompletionToolMessageParam } from "openai/resources/chat/completions";
 
 export interface ChatTurn {
@@ -41,7 +42,6 @@ export type AIProvider = "groq" | "gemini" | "openai";
  */
 export const TOOL_CALLING_PROVIDERS: AIProvider[] = ["groq", "gemini", "openai"];
 
-const RATE_LIMIT_COOLDOWN_MS = 60_000;
 const providerRetryAfter: Partial<Record<AIProvider, number>> = {};
 
 function errorText(error: unknown): string {
@@ -69,7 +69,8 @@ function isRateLimitError(error: unknown): boolean {
 
 function markRateLimited(provider: AIProvider, error: unknown) {
   if (!isRateLimitError(error)) return;
-  providerRetryAfter[provider] = Date.now() + RATE_LIMIT_COOLDOWN_MS;
+  if (provider === "groq") return; // The pool tracks each organization's cooldown.
+  providerRetryAfter[provider] = Date.now() + retryDelay((error as { headers?: Headers }).headers);
 }
 
 function isTemporarilyRateLimited(provider: AIProvider): boolean {
@@ -82,18 +83,18 @@ function isTemporarilyRateLimited(provider: AIProvider): boolean {
  * the already-installed `openai` package and just point it at Groq's base
  * URL instead of adding a new dependency.
  */
-let groqClient: OpenAI | null = null;
-function getGroqClient(): OpenAI {
-  if (!process.env.GROQ_API_KEY) {
-    throw new Error("GROQ_API_KEY is not set.");
-  }
-  if (!groqClient) {
-    groqClient = new OpenAI({
-      apiKey: process.env.GROQ_API_KEY,
+const groqPool = new GroqPool();
+const groqClients = new Map<string, OpenAI>();
+function getGroqClient(apiKey: string): OpenAI {
+  if (!groqClients.has(apiKey)) {
+    groqClients.set(apiKey, new OpenAI({
+      apiKey,
       baseURL: "https://api.groq.com/openai/v1",
-    });
+      maxRetries: 0,
+      timeout: 12_000,
+    }));
   }
-  return groqClient;
+  return groqClients.get(apiKey)!;
 }
 
 // Deprecated on Groq as of June 2026 — openai/gpt-oss-120b is the
@@ -144,13 +145,17 @@ async function callGroq(
   tools?: ToolDefinition[],
   toolChoice?: "auto" | "none"
 ): Promise<ProviderCallResult> {
-  const groq = getGroqClient();
-  const completion = await groq.chat.completions.create({
+  const completion = await groqPool.run(groqCredentials(), async ({ apiKey }, remainingMs) => {
+    const { data, response } = await getGroqClient(apiKey).chat.completions.create({
     model: GROQ_MODEL,
     temperature: 0.35,
+    max_completion_tokens: jsonMode ? 4096 : 2048,
+    ...(GROQ_MODEL.startsWith("openai/gpt-oss-") ? { reasoning_effort: "low" as const } : {}),
     ...(jsonMode ? { response_format: { type: "json_object" as const } } : {}),
     ...(tools ? { tools: toOpenAITools(tools), tool_choice: toolChoice ?? "auto" } : {}),
     messages: toOpenAIMessages(messages),
+    }, { timeout: Math.min(8000, remainingMs) }).withResponse();
+    return { data, headers: response.headers };
   });
   const message = completion.choices[0]?.message;
   const toolCalls = message?.tool_calls
@@ -383,7 +388,7 @@ export async function getAIChatCompletion(
 ): Promise<{ text: string; provider: AIProvider }> {
   const jsonMode = options?.jsonMode;
   const attempts: Array<{ provider: AIProvider; enabled: boolean; call: () => Promise<ProviderCallResult> }> = [
-    { provider: "groq", enabled: Boolean(process.env.GROQ_API_KEY), call: () => callGroq(messages, jsonMode) },
+    { provider: "groq", enabled: groqCredentials().length > 0, call: () => callGroq(messages, jsonMode) },
     {
       provider: "gemini",
       enabled: Boolean(process.env.GEMINI_API_KEY),
@@ -403,7 +408,7 @@ export async function getAIChatCompletion(
       return { text, provider: attempt.provider };
     } catch (error) {
       markRateLimited(attempt.provider, error);
-      console.error(`AI provider "${attempt.provider}" failed, trying next:`, error);
+      console.warn(`AI provider "${attempt.provider}" unavailable; trying fallback.`, { status: (error as { status?: number }).status });
       lastError = error;
     }
   }
@@ -427,7 +432,7 @@ export async function getAIChatCompletionWithTools(
   const attempts: Array<{ provider: AIProvider; enabled: boolean; call: () => Promise<ProviderCallResult> }> = [
     {
       provider: "groq",
-      enabled: Boolean(process.env.GROQ_API_KEY),
+      enabled: groqCredentials().length > 0,
       call: () => callGroq(messages, jsonMode, tools, toolChoice),
     },
     {
@@ -453,7 +458,7 @@ export async function getAIChatCompletionWithTools(
       return { text, provider: attempt.provider, toolCalls };
     } catch (error) {
       markRateLimited(attempt.provider, error);
-      console.error(`AI provider "${attempt.provider}" (tools) failed, trying next:`, error);
+      console.warn(`AI provider "${attempt.provider}" tools unavailable; trying fallback.`, { status: (error as { status?: number }).status });
       lastError = error;
     }
   }

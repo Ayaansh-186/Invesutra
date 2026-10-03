@@ -102,9 +102,9 @@ export default function PortfolioPage() {
       )}
 
       <div className="flex-1 overflow-y-auto">
-        <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6 sm:py-8">
+        <div className="app-page px-4 py-6 sm:px-6 sm:py-8 lg:px-10">
           {/* Header */}
-          <div className="mb-6 flex flex-wrap items-start justify-between gap-4 sm:mb-8">
+          <div className="app-page-header">
             <div className="min-w-0">
               <h1 className="text-2xl font-semibold text-[var(--shell-text)]">{error && user && !portfolio.funds.length ? "Portfolio" : portfolio.name}</h1>
               <p className="mt-1 text-sm text-[var(--shell-text-muted)]">
@@ -130,7 +130,7 @@ export default function PortfolioPage() {
                   className="app-primary-button"
                 >
                   <Plus className="h-3.5 w-3.5" />
-                  Add Fund
+                  Add fund
                 </button>
               )}
             </div>
@@ -155,8 +155,8 @@ export default function PortfolioPage() {
               </button>
             </div>
           ) : isEmpty && user ? (
-            <div className="flex flex-col items-center justify-center gap-4 rounded-2xl border border-dashed border-[var(--shell-border)] bg-[var(--shell-surface)] px-6 py-16 text-center">
-              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-400 to-emerald-400">
+            <div className="flex flex-col items-center justify-center gap-4 px-6 py-16 text-center">
+              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-emerald-500/10">
                 <Plus className="h-6 w-6 text-slate-950" strokeWidth={2.5} />
               </div>
               <div>
@@ -167,10 +167,10 @@ export default function PortfolioPage() {
               </div>
               <button
                 onClick={() => setShowAddFund(true)}
-                className="flex items-center gap-1.5 rounded-lg bg-cyan-400 px-4 py-2.5 text-sm font-semibold text-slate-950 transition hover:bg-cyan-300"
+                className="app-primary-button"
               >
                 <Plus className="h-4 w-4" />
-                Add Fund
+                Add fund
               </button>
             </div>
           ) : (

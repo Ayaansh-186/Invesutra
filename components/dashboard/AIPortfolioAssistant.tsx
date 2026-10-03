@@ -52,7 +52,7 @@ function ChatInputBar({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder="Ask about risk, funds, allocation, or say 'add a fund'..."
-        className="w-full rounded-2xl border border-[var(--shell-border)] bg-[var(--shell-surface)] py-4 pl-5 pr-14 text-[15px] text-[var(--shell-text)] shadow-sm outline-none placeholder:text-[var(--shell-text-faint)] transition focus:border-cyan-500/50 focus:ring-4 focus:ring-cyan-400/10"
+        className="w-full rounded-lg border border-[var(--shell-border)] bg-[var(--shell-surface)] py-4 pl-5 pr-14 text-[15px] text-[var(--shell-text)] shadow-sm outline-none placeholder:text-[var(--shell-text-faint)] transition focus:border-cyan-500/50 focus:ring-4 focus:ring-cyan-400/10"
       />
       <button
         type="submit"
@@ -500,10 +500,10 @@ export default function AIPortfolioAssistant({
       {consentDialog}
       {/* Header */}
       <div className="shrink-0 border-b border-[var(--shell-border)] px-5 py-3.5">
-        <div className="flex items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex min-w-0 flex-1 basis-40 items-start gap-2">
             <Sparkle className="h-4 w-4 text-cyan-600" strokeWidth={1.5} />
-            <div>
+            <div className="min-w-0">
               <h1 className="text-sm font-medium text-[var(--shell-text)]">Invesutra AI</h1>
               <p className="text-xs text-[var(--shell-text-faint)]">{assistantBrief}</p>
             </div>
@@ -513,14 +513,15 @@ export default function AIPortfolioAssistant({
             <button
               onClick={onRefresh}
               disabled={refreshing}
-              className="rounded-lg p-2 text-[var(--shell-text-faint)] transition hover:bg-[var(--shell-surface-2)] hover:text-[var(--shell-text)] disabled:opacity-50"
+              className="app-icon-button"
               title="Refresh portfolio"
+              aria-label="Refresh portfolio"
             >
               <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
             </button>
             <button
               onClick={onAddFund}
-              className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-[var(--shell-text-muted)] transition hover:bg-[var(--shell-surface-2)] hover:text-[var(--shell-text)]"
+              className="app-secondary-button"
             >
               <Plus className="h-3.5 w-3.5" />
               Add fund
@@ -537,7 +538,7 @@ export default function AIPortfolioAssistant({
             <div key={`${message.role}-${index}`} className="animate-sprout">
               {message.role === "user" ? (
                 <div className="flex justify-end">
-                  <div className="max-w-[80%] rounded-2xl bg-[var(--shell-surface-2)] px-4 py-2.5 text-[15px] leading-relaxed text-[var(--shell-text)]">
+                  <div className="max-w-[90%] break-words rounded-lg sm:max-w-[80%] bg-[var(--shell-surface-2)] px-4 py-2.5 text-[15px] leading-relaxed text-[var(--shell-text)]">
                     {renderMessageContent(message.content)}
                   </div>
                 </div>
@@ -558,7 +559,7 @@ export default function AIPortfolioAssistant({
                                   disabled={loading}
                                   style={{ animationDelay: `${0.06 * oi + 0.08}s` }}
                                   onClick={() => askAssistant(String(oi + 1))}
-                                  className="flex animate-sprout items-center gap-3 rounded-xl border border-[var(--shell-border)] bg-[var(--shell-surface)] px-4 py-2.5 text-left text-[14px] transition-all hover:-translate-y-0.5 hover:border-cyan-500/40 hover:bg-[var(--shell-surface-2)] hover:shadow-sm disabled:opacity-50"
+                                  className="flex animate-sprout items-center gap-3 rounded-lg border border-[var(--shell-border)] bg-[var(--shell-surface)] px-4 py-2.5 text-left text-[14px] transition-all hover:-translate-y-0.5 hover:border-cyan-500/40 hover:bg-[var(--shell-surface-2)] hover:shadow-sm disabled:opacity-50"
                                 >
                                   <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-[var(--shell-border)] text-[11px] font-semibold text-[var(--shell-text-muted)]">
                                     {oi + 1}
@@ -586,7 +587,7 @@ export default function AIPortfolioAssistant({
                       <div
                         key={fund.id}
                         style={{ animationDelay: `${0.05 * fi + 0.06}s` }}
-                        className="flex animate-sprout items-center justify-between rounded-xl border border-[var(--shell-border)] px-4 py-3"
+                        className="flex animate-sprout items-center justify-between rounded-lg border border-[var(--shell-border)] px-4 py-3"
                       >
                         <div className="min-w-0 flex-1">
                           <p className="truncate text-sm font-medium text-[var(--shell-text)]">{fund.name}</p>

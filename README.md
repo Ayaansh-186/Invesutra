@@ -163,6 +163,25 @@ GET /api/funds/details?schemeCode=<a code from the search result>
 
 ## Development
 
+### Groq quota efficiency and backup keys
+
+Keep API keys in server-only environment variables, never in source or chat.
+The existing `GROQ_API_KEY` remains the first choice. Up to four backups are
+supported as `GROQ_API_KEY_2` through `GROQ_API_KEY_5`.
+
+For genuinely separate authorized Groq organizations, set corresponding
+`GROQ_QUOTA_GROUP`, `GROQ_QUOTA_GROUP_2`, etc. to distinct non-secret labels
+(for example `primary-org` and `backup-org`). Keys from the same organization
+must use the same label. Unlabelled keys default to one shared group: changing
+keys cannot increase an organization's quota.
+
+The app honors `Retry-After` and exhausted-quota response headers, disables
+hidden SDK retries, limits completion tokens, and sends compact JSON grounding
+without dropping financial fields. Groq attempts have a shared 20-second budget.
+Unavailable groups fall through to Gemini, OpenAI, then local analysis. Cooldowns
+are warm-instance optimizations, not a distributed quota guarantee on Vercel.
+Consent is still required before any portfolio details reach online providers.
+
 ```bash
 npm install
 npm run dev

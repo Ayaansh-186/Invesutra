@@ -52,15 +52,15 @@ function LoginForm() {
   }
 
   return (
-    <main className="min-h-screen flex items-center justify-center p-6 bg-slate-50">
+    <main className="min-h-svh flex items-center justify-center px-4 py-8 sm:px-6 bg-slate-50 text-slate-900">
       <div className="max-w-md w-full">
         <Link href="/" className="flex items-center justify-center gap-2.5 mb-8">
           <Image src="/invesutra-mark.png" alt="" width={36} height={36} className="h-9 w-9 object-contain" />
           <span className="font-semibold text-slate-900">Invesutra</span>
         </Link>
 
-        <div className="bg-white border border-slate-200 rounded-2xl p-8 shadow-sm">
-          <h1 className="text-2xl font-bold text-slate-900 mb-1">Welcome back</h1>
+        <div className="bg-white border border-slate-200 rounded-lg p-5 sm:p-8 shadow-sm">
+          <h1 className="text-2xl font-semibold text-slate-900 mb-1">Welcome back</h1>
           <p className="text-sm text-slate-500 mb-6">Sign in to access your portfolio dashboard</p>
 
           {error && (
@@ -73,7 +73,7 @@ function LoginForm() {
           <button
             onClick={handleGoogleSignIn}
             disabled={googleLoading}
-            className="w-full flex items-center justify-center gap-2 py-2.5 border border-slate-200 rounded-xl text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors disabled:opacity-60 mb-4"
+            className="w-full flex items-center justify-center gap-2 py-2.5 border border-slate-200 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors disabled:opacity-60 mb-4"
           >
             {googleLoading ? (
               <Loader2 className="w-4 h-4 animate-spin" />
@@ -105,7 +105,7 @@ function LoginForm() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="you@example.com"
-                  className="w-full pl-10 pr-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400"
+                  className="w-full pl-10 pr-3 py-2.5 border border-slate-200 rounded-lg text-base focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400"
                 />
               </div>
             </div>
@@ -120,7 +120,7 @@ function LoginForm() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="w-full pl-10 pr-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400"
+                  className="w-full pl-10 pr-3 py-2.5 border border-slate-200 rounded-lg text-base focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400"
                 />
               </div>
             </div>
@@ -128,7 +128,7 @@ function LoginForm() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full flex items-center justify-center gap-2 py-2.5 bg-slate-900 text-white text-sm font-semibold rounded-xl hover:bg-slate-800 disabled:opacity-60 transition-colors"
+              className="w-full flex items-center justify-center gap-2 py-2.5 bg-slate-900 text-white text-sm font-semibold rounded-lg hover:bg-slate-800 disabled:opacity-60 transition-colors"
             >
               {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowRight className="w-4 h-4" />}
               {loading ? "Signing in..." : "Sign in"}

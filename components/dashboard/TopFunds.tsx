@@ -58,7 +58,7 @@ export default function TopFunds() {
         </div>
         <div className="flex items-center gap-2">
           <div className="inline-flex rounded-md border border-[var(--shell-border)] p-0.5" aria-label="Return period">
-            {(["1Y", "3Y", "5Y"] as const).map((value) => <button key={value} type="button" onClick={() => setPeriod(value)} aria-pressed={period === value} className={`h-9 min-w-10 rounded px-2 text-xs ${period === value ? "bg-cyan-400 text-slate-950" : "text-[var(--shell-text-muted)]"}`}>{value}</button>)}
+            {(["1Y", "3Y", "5Y"] as const).map((value) => <button key={value} type="button" onClick={() => setPeriod(value)} aria-pressed={period === value} className={`h-11 min-w-11 rounded px-2 text-xs ${period === value ? "bg-cyan-400 text-slate-950" : "text-[var(--shell-text-muted)]"}`}>{value}</button>)}
           </div>
           <button type="button" disabled={loading} onClick={() => setRevision((value) => value + 1)} aria-label="Refresh ranking" title="Refresh ranking" className="app-icon-button"><RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} /></button>
         </div>

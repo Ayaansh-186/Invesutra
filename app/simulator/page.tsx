@@ -100,8 +100,8 @@ export default function SimulatorPage() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto">
-      <div className="mb-6 flex flex-wrap items-start justify-between gap-4 sm:mb-8">
+    <div className="app-page">
+      <div className="app-page-header">
         <div className="min-w-0">
           <h1 className="text-2xl font-semibold text-[var(--shell-text)]">Portfolio simulator</h1>
           <p className="mt-1 text-sm text-[var(--shell-text-muted)]">
@@ -130,7 +130,7 @@ export default function SimulatorPage() {
       </div>
       {!isDemo && <ValuationStatus portfolio={activePortfolio} />}
       {loadedFromPortfolio && (
-        <div className="-mt-4 mb-6 rounded-lg border border-cyan-500/20 bg-cyan-400/10 px-4 py-2.5 text-xs text-[var(--shell-text-muted)]">
+        <div className="mb-6 rounded-lg border border-cyan-500/20 bg-cyan-400/10 px-4 py-2.5 text-xs leading-relaxed text-[var(--shell-text-muted)]">
           Loaded verified NAV values and allocation. Future returns use your chosen scenario assumption, not the funds' past returns. This is a hypothetical simulation, not a forecast.
         </div>
       )}
@@ -138,8 +138,8 @@ export default function SimulatorPage() {
       <div className="grid lg:grid-cols-3 gap-6">
         {/* Input panel */}
         <div className="lg:col-span-1 space-y-4">
-          <div className="bg-[var(--shell-surface)] border border-[var(--shell-border)] rounded-xl p-5">
-            <h2 className="text-sm font-semibold text-[var(--shell-text)] mb-4">Simulation Parameters</h2>
+          <div className="bg-[var(--shell-surface)] border border-[var(--shell-border)] rounded-lg p-5">
+            <h2 className="text-sm font-semibold text-[var(--shell-text)] mb-4">Simulation parameters</h2>
 
             <div className="space-y-4">
               <div>
@@ -302,7 +302,7 @@ export default function SimulatorPage() {
             <button
               onClick={handleRun}
               disabled={running}
-              className="mt-3 w-full flex items-center justify-center gap-2 py-3 bg-cyan-400 text-slate-950 text-sm font-semibold rounded-xl hover:bg-cyan-300 disabled:opacity-50 transition-colors"
+              className="mt-3 w-full flex items-center justify-center gap-2 py-3 bg-cyan-400 text-slate-950 text-sm font-semibold rounded-lg hover:bg-cyan-300 disabled:opacity-50 transition-colors"
             >
               {running ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
               {running ? "Simulating..." : "Run Simulation"}
@@ -326,7 +326,7 @@ export default function SimulatorPage() {
                   { label: "Alpha Generated", value: formatCurrency(result.alphaGenerated, true), icon: Zap, color: "text-violet-500", bg: "bg-violet-500/15" },
                   { label: "Sharpe Ratio", value: result.sharpeRatio.toFixed(2), icon: Shield, color: "text-amber-500", bg: "bg-amber-500/15" },
                 ].map(m => (
-                  <div key={m.label} className="bg-[var(--shell-surface)] border border-[var(--shell-border)] rounded-xl p-4">
+                  <div key={m.label} className="bg-[var(--shell-surface)] border border-[var(--shell-border)] rounded-lg p-4">
                     <div className={`w-8 h-8 ${m.bg} rounded-lg flex items-center justify-center mb-2`}>
                       <m.icon className={`w-4 h-4 ${m.color}`} strokeWidth={1.5} />
                     </div>
@@ -343,21 +343,21 @@ export default function SimulatorPage() {
               </Link>
 
               {/* Chart */}
-              <div className="bg-[var(--shell-surface)] border border-[var(--shell-border)] rounded-xl p-6">
-                <h2 className="text-sm font-semibold text-[var(--shell-text)] mb-4">Portfolio Growth Simulation</h2>
+              <div className="bg-[var(--shell-surface)] border border-[var(--shell-border)] rounded-lg p-6">
+                <h2 className="text-sm font-semibold text-[var(--shell-text)] mb-4">Portfolio growth simulation</h2>
                 <SimulatorChart months={result.months} />
               </div>
 
               {/* Comparison */}
-              <div className="bg-[var(--shell-surface)] border border-[var(--shell-border)] rounded-xl p-6">
-                <h2 className="text-sm font-semibold text-[var(--shell-text)] mb-4">With vs Without Rebalancing</h2>
+              <div className="bg-[var(--shell-surface)] border border-[var(--shell-border)] rounded-lg p-6">
+                <h2 className="text-sm font-semibold text-[var(--shell-text)] mb-4">With vs without rebalancing</h2>
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-xl">
+                  <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
                     <p className="text-xs font-medium text-emerald-500 mb-1">With QRP Rebalancing</p>
                     <p className="text-2xl font-bold text-emerald-500">{formatCurrency(result.comparison.withRebalancing, true)}</p>
                     <p className="text-xs text-emerald-500/80 mt-1">{result.rebalanceCount} rebalance events</p>
                   </div>
-                  <div className="p-4 bg-[var(--shell-surface-2)] border border-[var(--shell-border)] rounded-xl">
+                  <div className="p-4 bg-[var(--shell-surface-2)] border border-[var(--shell-border)] rounded-lg">
                     <p className="text-xs font-medium text-[var(--shell-text-muted)] mb-1">Without Rebalancing</p>
                     <p className="text-2xl font-bold text-[var(--shell-text-muted)]">{formatCurrency(result.comparison.withoutRebalancing, true)}</p>
                     <p className="text-xs text-[var(--shell-text-faint)] mt-1">Buy and hold</p>
@@ -374,7 +374,7 @@ export default function SimulatorPage() {
 
               {/* Fund breakdown */}
               {result.fundBreakdown.length > 0 && (
-                <div className="bg-[var(--shell-surface)] border border-[var(--shell-border)] rounded-xl p-6">
+                <div className="bg-[var(--shell-surface)] border border-[var(--shell-border)] rounded-lg p-6">
                   <h2 className="text-sm font-semibold text-[var(--shell-text)] mb-4 flex items-center gap-2">
                     <PieChart className="w-4 h-4 text-[var(--shell-text-muted)]" />
                     Fund Mix Breakdown
@@ -411,8 +411,8 @@ export default function SimulatorPage() {
               )}
 
               {/* Stats */}
-              <div className="bg-[var(--shell-surface)] border border-[var(--shell-border)] rounded-xl p-6">
-                <h2 className="text-sm font-semibold text-[var(--shell-text)] mb-4">Simulation Statistics</h2>
+              <div className="bg-[var(--shell-surface)] border border-[var(--shell-border)] rounded-lg p-6">
+                <h2 className="text-sm font-semibold text-[var(--shell-text)] mb-4">Simulation statistics</h2>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                   {[
                     { label: "Total Invested", value: formatCurrency(result.totalInvested, true) },
@@ -431,7 +431,7 @@ export default function SimulatorPage() {
               </div>
             </>
           ) : (
-            <div className="flex flex-col items-center justify-center h-64 bg-[var(--shell-surface)] border border-[var(--shell-border)] rounded-xl">
+            <div className="flex flex-col items-center justify-center h-64 bg-[var(--shell-surface)] border border-[var(--shell-border)] rounded-lg">
               <BarChart2 className="w-10 h-10 text-[var(--shell-text-faint)] mb-3" />
               <p className="text-sm text-[var(--shell-text-faint)] font-medium">Configure and run your simulation</p>
               <p className="text-xs text-[var(--shell-text-faint)] mt-1">Adjust parameters on the left, then click Run</p>
@@ -441,7 +441,7 @@ export default function SimulatorPage() {
       </div>
 
       {/* QRP Scenario Stress Test — Page 4 of the algorithm spec */}
-      <div className="mt-6 bg-[var(--shell-surface)] border border-[var(--shell-border)] rounded-xl p-6">
+      <div className="mt-6 bg-[var(--shell-surface)] border border-[var(--shell-border)] rounded-lg p-6">
         <div className="flex flex-wrap items-center justify-between gap-3 mb-1">
           <h2 className="text-sm font-semibold text-[var(--shell-text)] flex items-center gap-2">
             <Flame className="w-4 h-4 text-amber-500" />
@@ -466,7 +466,7 @@ export default function SimulatorPage() {
           <div className="overflow-x-auto -mx-2">
             <table className="w-full min-w-[720px] text-left text-xs">
               <thead>
-                <tr className="border-b border-[var(--shell-border)] text-[10px] font-semibold uppercase tracking-wider text-[var(--shell-text-faint)]">
+                <tr className="border-b border-[var(--shell-border)] text-[10px] font-semibold  text-[var(--shell-text-faint)]">
                   <th className="px-2 py-2">Scenario</th>
                   <th className="px-2 py-2 text-right">Naive (No Rebalancing)</th>
                   <th className="px-2 py-2 text-right">QRP 15% Trigger</th>
@@ -509,7 +509,7 @@ export default function SimulatorPage() {
             </p>
           </div>
         ) : (
-          <div className="flex flex-col items-center justify-center h-32 border border-dashed border-[var(--shell-border)] rounded-xl">
+          <div className="flex flex-col items-center justify-center h-32 border border-dashed border-[var(--shell-border)] rounded-lg">
             <p className="text-xs text-[var(--shell-text-faint)]">Run the stress test to compare all 5 scenarios</p>
           </div>
         )}
