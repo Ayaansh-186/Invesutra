@@ -59,9 +59,16 @@ MUTUAL_FUND_MCP_SERVER_URL=  # point at a standalone MCP server instead of the b
 
 ## Mutual fund data / MCP integration
 
-Invesutra AI can search real Indian mutual funds and fetch NAV/returns/category
-mid-conversation, and — for signed-in users with a saved portfolio — add,
-update, or remove fund holdings by chatting with it.
+Invesutra AI can search Indian mutual funds and fetch published NAV/returns/category
+mid-conversation. Holding changes are reviewed and confirmed in Portfolio, not
+automatically executed by chat. Online financial analysis requires in-app consent;
+individual purchase details require the current detailed-consent version.
+
+The local assistant answers holding-specific loss, risk, NAV, units and SIP-plan
+questions without sending those records to a provider. Missing data remains
+unavailable, and category-risk scores are model flags rather than official ratings.
+Planned SIP amounts can be edited or cleared from a holding's SIP control; they do
+not create transactions or increase invested amounts, units or valuation.
 
 **No API key is required for the fund data itself.** It's implemented as a
 real MCP server (`lib/mcp/mutualFundMcpServer.ts`, using
@@ -85,9 +92,8 @@ Fields **not** available from this free data source (expense ratio, AUM)
 are returned as `undefined` and surfaced to the AI/UI as "not available" —
 never fabricated.
 
-Portfolio mutations from chat (add/update/remove a fund) only ever write to
-Invesutra's own Supabase-backed portfolio tracker. They never place a real
-brokerage order.
+Portfolio forms update Invesutra's own tracker only. They never place a brokerage
+order or schedule a SIP payment.
 
 ### Persisted chat history
 
@@ -99,8 +105,13 @@ session — not just kept in memory. Demo/guest sessions and empty
 **One-time database setup:** in the Supabase SQL Editor, run, in order:
 1. `supabase/migrations/001_grants_fix.sql` — required. RLS policies alone don't grant Postgres-level table access; without this, every query fails with "permission denied for table X".
 2. `supabase/migrations/002_chat_messages.sql` — enables persisted chat history (below). Safe to skip initially; the app falls back to in-memory-only chat if this hasn't been run yet.
+3. `supabase/migrations/003_verified_holding_repairs.sql` - verified purchase corrections and ownership checks.
+4. `supabase/migrations/004_monthly_sip_plans.sql` - optional planned monthly contributions.
+5. `supabase/migrations/005_saved_report_snapshots.sql` - saved historical report snapshots.
+6. `supabase/migrations/20261003044445_harden_trigger_permissions.sql` - fixed trigger search paths and restricted public RPC access, preserving signup/update triggers.
 
-Both are also folded into `supabase/schema.sql` for fresh projects set up from scratch.
+The first two are also folded into `supabase/schema.sql`. Apply the remaining
+migrations after that schema when setting up a fresh project.
 
 ### Verifying the integration
 

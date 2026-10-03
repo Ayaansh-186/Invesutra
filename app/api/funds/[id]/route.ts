@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { dbFundToFund } from "@/lib/supabase/mappers";
 import type { DbFund } from "@/lib/supabase/database.types";
+import { parseMonthlySipAmount } from "@/lib/utils/monthlySip";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -26,7 +27,11 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     return NextResponse.json({ error: "Not signed in" }, { status: 401 });
   }
 
-  const body = await request.json();
+  let body;
+  try { body = await request.json(); } catch {
+    return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
+  }
+  if (!body || typeof body !== "object" || Array.isArray(body)) return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
   const sourceFields = ["currentValue", "nav", "units", "returns1Y", "returns3Y", "returns5Y", "expenseRatio", "aum"];
   if (sourceFields.some((field) => body[field] !== undefined)) {
     return NextResponse.json({ error: "Market values and scheme metrics cannot be edited manually. Refresh NAV data instead." }, { status: 422 });
@@ -36,10 +41,15 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       .select("id").eq("fund_id", id).eq("type", "buy").limit(1);
     if (purchaseError) return NextResponse.json({ error: "Could not verify purchase records." }, { status: 500 });
     if (purchases?.length) {
-      return NextResponse.json({ error: "This holding has recorded purchase details. Remove and re-add it using the correct statement details to correct its cost." }, { status: 422 });
+      return NextResponse.json({ error: "This holding has recorded purchase details. Use Correct purchase details in Portfolio to verify its cost against your statement." }, { status: 422 });
     }
   }
   const updates: Record<string, unknown> = {};
+  if (Object.prototype.hasOwnProperty.call(body, "monthlySipAmount")) {
+    const amount = parseMonthlySipAmount(body.monthlySipAmount);
+    if (amount === null) return NextResponse.json({ error: "Monthly SIP must be a positive amount with at most two decimal places." }, { status: 400 });
+    updates.monthly_sip_amount = amount ?? null;
+  }
 
   // Fields that must be a finite, non-negative number if provided. money/
   // ratio fields only — returns are handled separately since they can

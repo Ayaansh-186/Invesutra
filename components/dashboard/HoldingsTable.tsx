@@ -8,6 +8,7 @@ import { TrendingUp, TrendingDown, Pencil, Trash2, Check, X, Loader2, MessageSqu
 import { useToast } from "@/components/shared/ToastProvider";
 import { hasVerifiedValue } from "@/lib/marketData/quality";
 import { isExchangeTradedFund } from "@/lib/marketData/amfi";
+import MonthlySipEditor from "./MonthlySipEditor";
 
 export default function HoldingsTable({
   funds,
@@ -225,7 +226,8 @@ export default function HoldingsTable({
                 {onChanged && (
                   <td className="block self-end px-2 pb-3 text-right sm:table-cell sm:px-4 sm:py-3">
                     {isEditing ? (
-                      <div className="flex justify-end gap-1">
+                      <div className="flex flex-wrap justify-end gap-1">
+                        {!isEtf && onChanged && <MonthlySipEditor fund={fund} onSaved={onChanged} />}
                         <button
                           onClick={() => saveEdit(fund.id)}
                           disabled={isBusy}

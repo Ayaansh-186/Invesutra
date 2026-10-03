@@ -192,7 +192,7 @@ export default function AIPortfolioAssistant({
       return `The cloud assistant is unavailable, so here is the local read: you have **${portfolio.funds.length}** fund${portfolio.funds.length === 1 ? "" : "s"}. Current value is **${formatCurrency(portfolio.currentValue, true)}**, with total return of **${formatPercent(portfolio.returnsPercent)}**.`;
     }
 
-    return `The cloud assistant is unavailable, so I used the local engine. Health is **${portfolio.healthScore}/100** (${analysis.overallHealth}), risk is **${portfolio.riskScore}/100**, and returns are **${formatPercent(portfolio.returnsPercent)}**.`;
+    return "The online assistant is unavailable, and I could not reliably match that message to a local check. Do you mean a holding's loss, its risk, your monthly SIP plan, or your overall portfolio? Name the holding for a focused answer.";
   }
   async function askAssistant(question: string, consentOverride?: boolean) {
     const trimmed = question.trim();
@@ -235,7 +235,7 @@ export default function AIPortfolioAssistant({
       setMessages((prev) => [
         ...prev,
         { role: "user", content: trimmed },
-        { role: "assistant", content: "I can help you understand the change, but I won't edit your saved holdings through chat. Open Portfolio to review the numbers and confirm the edit there.", action: "manage_holdings" },
+        { role: "assistant", content: "Open Portfolio to review and confirm changes to your holding or monthly SIP plan. A plan changes intended contributions only, not purchased units or invested amounts. Nothing has been changed through chat.", action: "manage_holdings" },
       ]);
       setInput("");
       return;

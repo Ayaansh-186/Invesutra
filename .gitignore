@@ -46,3 +46,6 @@ temp/
 # Local databases
 *.sqlite
 *.db
+
+# Supabase CLI local metadata
+supabase/.temp/
